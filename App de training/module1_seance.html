@@ -2,6 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
+function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
+function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Séances</title>
@@ -367,8 +376,8 @@
 <!-- ═══════════════ SCREEN: VUE SEMAINE ═══════════════ -->
 <div class="screen active" id="screen-week">
   <div class="week-header">
-    <div class="week-greeting">Bonjour Sofia 👋</div>
-    <div class="week-sub">Semaine du 19 au 25 mai 2026</div>
+    <div class="week-greeting" id="week-greeting">Bonjour 👋</div>
+    <div class="week-sub" id="week-sub">Semaine du 19 au 25 mai 2026</div>
   </div>
 
   <!-- Day selector -->
@@ -733,13 +742,35 @@
     <div class="nav-icon-wrap"><div class="nav-icon">📋</div></div>
     <div class="nav-label">Suivi</div>
   </div>
-  <div class="nav-item" style="opacity:0.4; pointer-events:none;">
+  <div class="nav-item" onclick="window.location.href='module5_profil.html'">
     <div class="nav-icon-wrap"><div class="nav-icon">👤</div></div>
     <div class="nav-label">Profil</div>
   </div>
 </div>
 
 <script>
+  // ── Auth ──────────────────────────────────────────────────
+  const SESSION = requireAuth();
+  if (SESSION) {
+    // Avatar — initiale du prénom
+    const av = document.querySelector('.avatar');
+    if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
+
+    // Salutation personnalisée
+    const greet = document.getElementById('week-greeting');
+    if (greet) greet.textContent = 'Bonjour ' + SESSION.prenom + ' 👋';
+
+    // Date dynamique — semaine courante
+    const now = new Date();
+    const day = now.getDay(); // 0=dim, 1=lun...
+    const diffLun = (day === 0 ? -6 : 1 - day);
+    const lundi = new Date(now); lundi.setDate(now.getDate() + diffLun);
+    const dimanche = new Date(lundi); dimanche.setDate(lundi.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const sub = document.getElementById('week-sub');
+    if (sub) sub.textContent = 'Semaine du ' + fmt(lundi) + ' au ' + fmt(dimanche);
+  }
+
   function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');

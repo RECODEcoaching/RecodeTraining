@@ -3,6 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin + 'recode_salt_v1');
+  const buf  = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('recode_session')); } catch { return null; }
+}
+function setSession(data) { localStorage.setItem('recode_session', JSON.stringify(data)); }
+function clearSession() { localStorage.removeItem('recode_session'); }
+
+async function loginClient(email, pin) {
+  const pinHash = await hashPin(pin);
+  const { data, error } = await db
+    .from('clients')
+    .select('id, email, prenom, is_first_login, pin_hash')
+    .eq('email', email.toLowerCase().trim())
+    .single();
+  if (error || !data) return { success: false, error: 'Email ou code PIN incorrect.' };
+  if (data.pin_hash !== pinHash) return { success: false, error: 'Email ou code PIN incorrect.' };
+  const session = { client_id: data.id, email: data.email, prenom: data.prenom, is_first_login: data.is_first_login };
+  setSession(session);
+  return { success: true, session };
+}
+
+async function setNewPin(clientId, newPin) {
+  const pinHash = await hashPin(newPin);
+  const { error } = await db.from('clients').update({ pin_hash: pinHash, is_first_login: false }).eq('id', clientId);
+  if (error) return { success: false };
+  const s = getSession(); if (s) { s.is_first_login = false; setSession(s); }
+  return { success: true };
+}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Connexion</title>
 <style>
@@ -338,14 +378,15 @@
 </div>
 
 <script>
-// PIN temporaire démo (tel que le coach l'aurait défini)
-const DEMO_TEMP_PIN = '1234';
-// PIN personnel choisi à la première connexion (stocké en mémoire pour la démo)
-let userPinSet = false;
-let userPin = null;
-
-const pins = document.querySelectorAll('.pin-digit');
+const pins    = document.querySelectorAll('.pin-digit');
 const newPins = document.querySelectorAll('.new-pin-digit');
+let currentSession = null;
+
+// ── Si déjà connecté, rediriger directement ──────────────
+(function() {
+  const s = getSession();
+  if (s && s.client_id) window.location.href = 'module1_seance.html';
+})();
 
 // ── PIN de connexion ──────────────────────────────────────
 function pinNext(input, idx) {
@@ -369,27 +410,36 @@ function onFormChange() {
   document.getElementById('error-msg').classList.remove('show');
 }
 
-function tryConnect() {
-  const pin = getPin();
+async function tryConnect() {
+  const email = document.getElementById('email-input').value.trim();
+  const pin   = getPin();
+  const btn   = document.getElementById('btn-connect');
 
-  // Prototype : PIN temporaire → première connexion
-  if (pin === DEMO_TEMP_PIN && !userPinSet) {
-    // Première connexion : afficher le panneau de choix de PIN
-    document.getElementById('btn-connect').style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Vérification…';
+
+  const result = await loginClient(email, pin);
+
+  if (!result.success) {
+    document.getElementById('error-msg').textContent = result.error;
+    document.getElementById('error-msg').classList.add('show');
+    pins.forEach(p => { p.value = ''; p.classList.remove('filled'); });
+    pins[0].focus();
+    btn.disabled = false;
+    btn.textContent = 'Accéder à mon espace →';
+    return;
+  }
+
+  currentSession = result.session;
+
+  if (result.session.is_first_login) {
+    // Première connexion → choisir un PIN personnel
+    btn.style.display = 'none';
     document.getElementById('first-login-panel').classList.add('show');
     newPins[0].focus();
-    return;
+  } else {
+    showSuccess(`Bonjour ${result.session.prenom} 👋`);
   }
-
-  // PIN personnel déjà défini ou correspondance
-  if ((userPinSet && pin === userPin) || (!userPinSet && pin === DEMO_TEMP_PIN)) {
-    showSuccess();
-    return;
-  }
-
-  document.getElementById('error-msg').classList.add('show');
-  pins.forEach(p => { p.value=''; p.classList.remove('filled'); });
-  pins[0].focus();
 }
 
 // ── Nouveau PIN (première connexion) ─────────────────────
@@ -407,18 +457,27 @@ function newPinBack(e, input, idx) {
   }
 }
 
-function confirmNewPin() {
+async function confirmNewPin() {
   const newPin = Array.from(newPins).map(p => p.value).join('');
-  if (newPin.length < 4) return;
-  userPin = newPin;
-  userPinSet = true;
-  showSuccess('Ton PIN est enregistré 🎉');
+  if (newPin.length < 4 || !currentSession) return;
+
+  const btn = document.getElementById('btn-set-pin');
+  btn.disabled = true;
+  btn.textContent = 'Enregistrement…';
+
+  const result = await setNewPin(currentSession.client_id, newPin);
+  if (result.success) {
+    showSuccess('Ton PIN est enregistré 🎉');
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Confirmer mon PIN →';
+  }
 }
 
 // ── Succès ────────────────────────────────────────────────
 function showSuccess(msg) {
   const overlay = document.getElementById('success-overlay');
-  if (msg) overlay.querySelector('.success-sub').textContent = msg + ' Redirection…';
+  overlay.querySelector('.success-sub').textContent = msg + ' Redirection…';
   overlay.classList.add('show');
   setTimeout(() => { window.location.href = 'module1_seance.html'; }, 1400);
 }

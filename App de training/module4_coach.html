@@ -2,6 +2,37 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── Supabase config ────────────────────────────────────────
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin + 'recode_salt_v1');
+  const buf  = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function createClientDB(prenom, email, pin) {
+  const pinHash = await hashPin(pin);
+  const { data, error } = await db
+    .from('clients')
+    .insert({ prenom, email: email.toLowerCase().trim(), pin_hash: pinHash, is_first_login: true })
+    .select('id, email, prenom').single();
+  if (error) return { success: false, error: error.message };
+  return { success: true, client: data };
+}
+
+async function getAllClients() {
+  const { data } = await db
+    .from('clients')
+    .select('id, email, prenom, created_at, is_first_login')
+    .order('prenom', { ascending: true });
+  return data || [];
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RECODE Training — Coach</title>
@@ -1200,31 +1231,50 @@ function generatePin() {
   document.getElementById('new-client-pin').value = pin;
 }
 
-function createClient() {
-  const prenom = document.getElementById('new-client-prenom').value.trim();
-  const nom    = document.getElementById('new-client-nom').value.trim();
-  const email  = document.getElementById('new-client-email').value.trim();
-  const pin    = document.getElementById('new-client-pin').value.trim();
+async function createClient() {
+  try {
+    const prenom = document.getElementById('new-client-prenom').value.trim();
+    const nom    = document.getElementById('new-client-nom')?.value.trim() || '';
+    const email  = document.getElementById('new-client-email').value.trim();
+    const pin    = document.getElementById('new-client-pin').value.trim();
 
-  if (!prenom || !email || pin.length !== 4) {
-    toast('Remplis le prénom, l\'e-mail et un PIN à 4 chiffres.');
-    return;
+    if (!prenom || !email || pin.length !== 4) {
+      alert('Remplis le prénom, l\'e-mail et un PIN à 4 chiffres.\nPrénom: "' + prenom + '" Email: "' + email + '" PIN: "' + pin + '" (' + pin.length + ' chiffres)');
+      return;
+    }
+
+    const btn = document.querySelector('#modal-client .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
+
+    const result = await createClientDB(prenom, email, pin);
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Créer le profil & envoyer l\'invitation →'; }
+
+    if (!result.success) {
+      alert('Erreur Supabase : ' + result.error);
+      return;
+    }
+
+    // Affiche le récap
+    const recap = document.getElementById('client-recap');
+    if (recap) {
+      recap.style.display = 'block';
+      recap.innerHTML = `
+        <strong style="color:var(--accent)">Profil créé ✓</strong><br>
+        <b>${prenom} ${nom}</b> · ${email}<br>
+        PIN temporaire : <b style="letter-spacing:3px">${pin}</b><br>
+        <span style="font-size:11px;">Communique ce PIN à ${prenom} — elle devra le changer à sa première connexion.</span>
+      `;
+    }
+
+    setTimeout(() => {
+      document.getElementById('modal-client').classList.remove('open');
+      toast(`✓ Profil de ${prenom} créé avec succès`);
+    }, 2400);
+
+  } catch(e) {
+    alert('Erreur JavaScript : ' + e.message);
   }
-
-  // Affiche le récap
-  const recap = document.getElementById('client-recap');
-  recap.style.display = 'block';
-  recap.innerHTML = `
-    <strong style="color:var(--accent)">Profil créé ✓</strong><br>
-    <b>${prenom} ${nom}</b> · ${email}<br>
-    PIN temporaire : <b style="letter-spacing:3px">${pin}</b><br>
-    <span style="font-size:11px;">Une invitation a été envoyée à ${email}. La cliente devra changer son PIN à la première connexion.</span>
-  `;
-
-  setTimeout(() => {
-    document.getElementById('modal-client').classList.remove('open');
-    toast(`✓ Profil de ${prenom} créé — invitation envoyée`);
-  }, 2200);
 }
 
 // Coach perfs mini charts
