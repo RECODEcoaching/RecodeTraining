@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RECODE Training — Connexion</title>
+<style>
+  :root {
+    --bg: #F7F7F9;
+    --surface: #FFFFFF;
+    --surface2: #F5F3FE;
+    --surface3: #E5E0FA;
+    --accent: #7C3AED;
+    --accent-light: #EDE9FE;
+    --text: #1D1D1F;
+    --text-muted: #6E6E73;
+    --text-dim: #AEAEB2;
+    --radius: 12px;
+    --border: #E5E5EA;
+    --transition: 0.18s ease;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Open Sans', -apple-system, sans-serif;
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* ── LAYOUT ── */
+  .page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 0 28px;
+  }
+
+  /* ── TOP SECTION ── */
+  .top-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 60px;
+    padding-bottom: 40px;
+  }
+
+  /* ── FORM CARD ── */
+  .form-card {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 24px 20px;
+    box-shadow: 0 4px 24px rgba(124,58,237,0.12);
+  }
+
+  .logo-wrap {
+    margin-bottom: 36px;
+    text-align: center;
+  }
+  .logo-wrap img { height: 48px; width: auto; display: block; margin: 0 auto 12px; }
+  .logo-tagline {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .welcome-block {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .welcome-title { font-weight: 700 !important; 
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.3px;
+  }
+  .welcome-sub {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ── FORM ── */
+  .form-block {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .field-wrap {
+    position: relative;
+  }
+  .field-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: block;
+    letter-spacing: 0.3px;
+  }
+  .field-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+    padding: 14px 16px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    -webkit-appearance: none;
+  }
+  .field-input::placeholder { color: var(--text-dim); font-weight: 400; }
+  .field-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  .pin-wrap {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 4px 0;
+  }
+  .pin-digit {
+    width: 52px; height: 60px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    font-size: 24px; font-weight: 800;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+    color: var(--text);
+    caret-color: var(--accent);
+    transition: border-color var(--transition), box-shadow var(--transition);
+    -webkit-appearance: none;
+  }
+  .pin-digit:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+  .pin-digit.filled { background: var(--accent-light); border-color: var(--accent); }
+
+  .or-divider {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--text-dim); font-size: 12px; font-weight: 600;
+  }
+  .or-divider::before, .or-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── BUTTONS ── */
+  .btn-primary {
+    width: 100%; padding: 16px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px; font-weight: 800;
+    border: none; cursor: pointer;
+    transition: opacity var(--transition), transform var(--transition);
+    font-family: inherit;
+    letter-spacing: 0.2px;
+  }
+  .btn-primary:active { opacity: 0.85; transform: scale(0.99); }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  /* ── BOTTOM ── */
+  .bottom-section {
+    padding: 24px 0 40px;
+    text-align: center;
+  }
+  .bottom-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .bottom-hint a {
+    color: var(--accent);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  /* ── ERROR ── */
+  .error-msg {
+    display: none;
+    background: #FFF0F0;
+    border: 1px solid #FFBDBD;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #C0392B;
+    font-weight: 600;
+    text-align: center;
+  }
+  .error-msg.show { display: block; }
+
+  /* ── FIRST LOGIN PANEL ── */
+  .first-login-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-top: 4px;
+  }
+  .first-login-panel.show { display: block; }
+  .first-login-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .first-login-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
+  .new-pin-wrap { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+  .new-pin-digit {
+    width: 48px; height: 56px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface2);
+    font-size: 22px; font-weight: 800;
+    text-align: center;
+    outline: none; font-family: inherit; color: var(--text);
+    transition: border-color var(--transition), box-shadow var(--transition);
+    -webkit-appearance: none;
+  }
+  .new-pin-digit:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+  .new-pin-digit.filled { background: var(--accent-light); border-color: var(--accent); }
+
+  /* ── SUCCESS OVERLAY ── */
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--surface);
+    z-index: 200;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+  }
+  .success-overlay.show { display: flex; }
+  .success-icon {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    margin-bottom: 24px;
+  }
+  .success-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .success-sub { font-size: 15px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- TOP -->
+  <div class="top-section">
+
+    <div class="logo-wrap">
+      <img src="Logo.png" alt="RECODE">
+      <div class="logo-tagline">Coaching &amp; Performance</div>
+    </div>
+
+    <div class="welcome-block">
+      <div class="welcome-title">Bienvenue 👋</div>
+      <div class="welcome-sub">Connecte-toi à<br>ton espace d'entraînement</div>
+    </div>
+
+    <div class="form-card">
+    <div class="form-block">
+
+      <div class="field-wrap">
+        <label class="field-label" for="email-input">Adresse e-mail</label>
+        <input
+          class="field-input" id="email-input" type="email"
+          placeholder="ton@email.com"
+          autocomplete="email" inputmode="email"
+          oninput="onFormChange()">
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Code PIN</label>
+        <div class="pin-wrap" id="pin-wrap">
+          <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,0)" onkeydown="pinBack(event,this,0)">
+          <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,1)" onkeydown="pinBack(event,this,1)">
+          <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,2)" onkeydown="pinBack(event,this,2)">
+          <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,3)" onkeydown="pinBack(event,this,3)">
+        </div>
+      </div>
+
+      <div class="error-msg" id="error-msg">E-mail ou code PIN incorrect.</div>
+
+      <button class="btn-primary" id="btn-connect" onclick="tryConnect()" disabled>
+        Accéder à mon espace →
+      </button>
+
+      <!-- Première connexion -->
+      <div class="first-login-panel" id="first-login-panel">
+        <div class="first-login-title">🔐 Choisis ton nouveau PIN</div>
+        <div class="first-login-sub">C'est ta première connexion. Définis un code personnel à 4 chiffres — tu en auras besoin à chaque fois.</div>
+        <div class="new-pin-wrap" id="new-pin-wrap">
+          <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,0)" onkeydown="newPinBack(event,this,0)">
+          <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,1)" onkeydown="newPinBack(event,this,1)">
+          <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,2)" onkeydown="newPinBack(event,this,2)">
+          <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,3)" onkeydown="newPinBack(event,this,3)">
+        </div>
+        <button class="btn-primary" id="btn-set-pin" onclick="confirmNewPin()" disabled>Confirmer mon PIN →</button>
+      </div>
+
+    </div>
+    </div><!-- /form-card -->
+  </div>
+
+  <!-- BOTTOM -->
+  <div class="bottom-section">
+    <div class="bottom-hint">
+      Code oublié ?<br>
+      <a href="mailto:Contact@coaching-indianaafit.fr">Contacte ton coach</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- Success overlay -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-icon">✓</div>
+  <div class="success-title">C'est parti !</div>
+  <div class="success-sub">Redirection vers ton espace…</div>
+</div>
+
+<script>
+// PIN temporaire démo (tel que le coach l'aurait défini)
+const DEMO_TEMP_PIN = '1234';
+// PIN personnel choisi à la première connexion (stocké en mémoire pour la démo)
+let userPinSet = false;
+let userPin = null;
+
+const pins = document.querySelectorAll('.pin-digit');
+const newPins = document.querySelectorAll('.new-pin-digit');
+
+// ── PIN de connexion ──────────────────────────────────────
+function pinNext(input, idx) {
+  input.value = input.value.replace(/\D/g, '').slice(-1);
+  input.classList.toggle('filled', input.value !== '');
+  if (input.value && idx < pins.length - 1) pins[idx + 1].focus();
+  onFormChange();
+}
+function pinBack(e, input, idx) {
+  if (e.key === 'Backspace' && !input.value && idx > 0) {
+    pins[idx - 1].focus(); pins[idx - 1].value = ''; pins[idx - 1].classList.remove('filled');
+    onFormChange();
+  }
+}
+function getPin() { return Array.from(pins).map(p => p.value).join(''); }
+
+function onFormChange() {
+  const email = document.getElementById('email-input').value.trim();
+  const pin   = getPin();
+  document.getElementById('btn-connect').disabled = !(email.length > 3 && pin.length === 4);
+  document.getElementById('error-msg').classList.remove('show');
+}
+
+function tryConnect() {
+  const pin = getPin();
+
+  // Prototype : PIN temporaire → première connexion
+  if (pin === DEMO_TEMP_PIN && !userPinSet) {
+    // Première connexion : afficher le panneau de choix de PIN
+    document.getElementById('btn-connect').style.display = 'none';
+    document.getElementById('first-login-panel').classList.add('show');
+    newPins[0].focus();
+    return;
+  }
+
+  // PIN personnel déjà défini ou correspondance
+  if ((userPinSet && pin === userPin) || (!userPinSet && pin === DEMO_TEMP_PIN)) {
+    showSuccess();
+    return;
+  }
+
+  document.getElementById('error-msg').classList.add('show');
+  pins.forEach(p => { p.value=''; p.classList.remove('filled'); });
+  pins[0].focus();
+}
+
+// ── Nouveau PIN (première connexion) ─────────────────────
+function newPinNext(input, idx) {
+  input.value = input.value.replace(/\D/g, '').slice(-1);
+  input.classList.toggle('filled', input.value !== '');
+  if (input.value && idx < newPins.length - 1) newPins[idx + 1].focus();
+  document.getElementById('btn-set-pin').disabled =
+    Array.from(newPins).map(p => p.value).join('').length < 4;
+}
+function newPinBack(e, input, idx) {
+  if (e.key === 'Backspace' && !input.value && idx > 0) {
+    newPins[idx - 1].focus(); newPins[idx - 1].value = ''; newPins[idx - 1].classList.remove('filled');
+    document.getElementById('btn-set-pin').disabled = true;
+  }
+}
+
+function confirmNewPin() {
+  const newPin = Array.from(newPins).map(p => p.value).join('');
+  if (newPin.length < 4) return;
+  userPin = newPin;
+  userPinSet = true;
+  showSuccess('Ton PIN est enregistré 🎉');
+}
+
+// ── Succès ────────────────────────────────────────────────
+function showSuccess(msg) {
+  const overlay = document.getElementById('success-overlay');
+  if (msg) overlay.querySelector('.success-sub').textContent = msg + ' Redirection…';
+  overlay.classList.add('show');
+  setTimeout(() => { window.location.href = 'module1_seance.html'; }, 1400);
+}
+
+pins[pins.length - 1].addEventListener('keydown', e => { if (e.key === 'Enter') tryConnect(); });
+</script>
+</body>
+</html>

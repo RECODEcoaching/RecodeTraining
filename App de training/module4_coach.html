@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RECODE Training — Coach</title>
+<style>
+  :root {
+    --bg: #FAFAFA;
+    --surface: #FFFFFF;
+    --surface2: #F5F5F7;
+    --surface3: #E5E5EA;
+    --accent: #7C3AED;
+    --text: #1D1D1F;
+    --text-muted: #6E6E73;
+    --text-dim: #AEAEB2;
+    --success: #34C759;
+    --danger: #FF3B30;
+    --warning: #FF9500;
+    --purple: #7C3AED;
+    --cycle-menstrual: #f87171;
+    --cycle-follicular: #fb923c;
+    --cycle-ovulation: #facc15;
+    --cycle-luteal: #c084fc;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --sidebar: 220px;
+    --transition: 0.18s ease;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: 'Open Sans', -apple-system, sans-serif; height: 100%; }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar); flex: 0 0 var(--sidebar);
+    background: var(--surface); border-right: 1px solid var(--surface3);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-logo {
+    padding: 22px 20px 18px;
+    font-size: 16px; font-weight: 900; letter-spacing: -0.3px;
+    border-bottom: 1px solid var(--surface3);
+  }
+  .sidebar-logo span { color: var(--accent); }
+  .sidebar-role {
+    font-size: 11px; color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px;
+  }
+  .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+  .nav-section-label {
+    font-size: 10px; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    padding: 14px 20px 6px;
+  }
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; border-radius: 0;
+    transition: var(--transition); border-left: 3px solid transparent;
+  }
+  .nav-link:hover { color: var(--text); background: var(--surface2); }
+  .nav-link.active { color: var(--accent); background: rgba(124,58,237,0.08); border-left-color: var(--accent); }
+  .nav-link .nav-icon { font-size: 17px; width: 20px; text-align: center; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: var(--bg);
+    font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 7px;
+  }
+  .sidebar-footer {
+    padding: 16px 20px; border-top: 1px solid var(--surface3);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .coach-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(124,58,237,0.15); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: var(--accent); flex: 0 0 auto;
+  }
+  .coach-name { font-size: 13px; font-weight: 700; }
+  .coach-email { font-size: 11px; color: var(--text-muted); }
+
+  /* ── MAIN ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 1px solid var(--surface3);
+    background: var(--bg); flex: 0 0 auto;
+  }
+  .topbar-title { font-size: 20px; font-weight: 900; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; border: none; transition: var(--transition);
+  }
+  .btn-accent { background: var(--accent); color: var(--bg); }
+  .btn-accent:hover { background: var(--accent); opacity: 0.9; }
+  .btn-ghost { background: var(--surface2); color: var(--text-muted); border: 1.5px solid var(--surface3); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-muted); }
+  .btn-danger { background: rgba(248,113,113,0.15); color: var(--danger); border: 1.5px solid rgba(248,113,113,0.3); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── CLIENT GRID ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border-radius: var(--radius); padding: 18px; }
+  .stat-card-val { font-size: 28px; font-weight: 900; color: var(--accent); }
+  .stat-card-label { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
+  .stat-card-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .clients-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .client-card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 20px; cursor: pointer; transition: var(--transition);
+    border: 1.5px solid transparent; position: relative; overflow: hidden;
+  }
+  .client-card:hover { border-color: var(--surface3); transform: translateY(-1px); }
+  .client-card.active-card { border-color: var(--accent); }
+  .client-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .client-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; flex: 0 0 auto;
+  }
+  .client-name { font-size: 15px; font-weight: 800; }
+  .client-since { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .client-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tag {
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+  }
+  .tag.green { background: rgba(52,199,89,0.12); color: var(--success); }
+  .tag.orange { background: rgba(251,146,60,0.12); color: var(--warning); }
+  .tag.purple { background: rgba(167,139,250,0.12); color: var(--purple); }
+  .client-stats { display: flex; gap: 14px; }
+  .client-stat { font-size: 12px; color: var(--text-muted); }
+  .client-stat strong { display: block; font-size: 15px; font-weight: 800; color: var(--text); }
+  .client-cycle-badge {
+    position: absolute; top: 14px; right: 14px;
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    font-weight: 700;
+  }
+
+  /* ── CLIENT DETAIL ── */
+  .client-detail-header {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 22px;
+  }
+  .back-btn {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer;
+    padding: 8px 14px; border-radius: 8px; background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.2); transition: var(--transition);
+  }
+  .back-btn:hover { background: rgba(124,58,237,0.15); }
+  .client-detail-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800;
+  }
+  .client-detail-name { font-size: 22px; font-weight: 900; }
+  .client-detail-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Client tabs */
+  .client-tabs { display: flex; gap: 4px; margin-bottom: 22px; background: var(--surface); border-radius: 12px; padding: 4px; }
+  .client-tab {
+    flex: 1; padding: 9px 8px; text-align: center; border-radius: 9px;
+    font-size: 13px; font-weight: 700; color: var(--text-muted);
+    cursor: pointer; transition: var(--transition);
+  }
+  .client-tab.active { background: var(--surface2); color: var(--text); }
+
+  .client-tab-content { display: none; }
+  .client-tab-content.active { display: block; }
+
+  /* Programme tab */
+  .week-program { display: flex; flex-direction: column; gap: 10px; }
+  .prog-day {
+    background: var(--surface); border-radius: var(--radius);
+    display: flex; align-items: center; gap: 16px; padding: 14px 18px;
+  }
+  .prog-day-name { width: 80px; font-size: 13px; font-weight: 700; color: var(--text-muted); flex: 0 0 auto; }
+  .prog-day-name.today { color: var(--accent); }
+  .prog-session-name { font-size: 15px; font-weight: 800; flex: 1; }
+  .prog-session-info { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .prog-rest { color: var(--text-dim); font-size: 14px; font-style: italic; }
+  .prog-status { margin-left: auto; }
+
+  /* Perfs tab */
+  .perfs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .perf-card { background: var(--surface); border-radius: var(--radius); padding: 16px; }
+  .perf-card-name { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .perf-card-canvas { width: 100%; display: block; }
+  .perf-pr { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+  .perf-pr strong { color: var(--accent); font-size: 16px; }
+
+  /* Métriques tab */
+  .metrics-manage { display: flex; flex-direction: column; gap: 10px; }
+  .metric-manage-row {
+    background: var(--surface); border-radius: var(--radius);
+    display: flex; align-items: center; gap: 14px; padding: 14px 18px;
+  }
+  .metric-manage-icon { font-size: 22px; width: 34px; text-align: center; }
+  .metric-manage-info { flex: 1; }
+  .metric-manage-name { font-size: 14px; font-weight: 700; }
+  .metric-manage-unit { font-size: 12px; color: var(--text-muted); }
+  .metric-manage-val { font-size: 18px; font-weight: 900; color: var(--accent); margin-right: 14px; }
+  .metric-manage-val span { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+  /* Add metric form */
+  .add-form {
+    background: var(--surface); border-radius: var(--radius); padding: 18px;
+    display: none; margin-top: 4px;
+  }
+  .add-form.open { display: block; }
+  .add-form-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; }
+  .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .form-input {
+    flex: 1; background: var(--surface2); border: 1.5px solid var(--surface3);
+    border-radius: 10px; color: var(--text); font-size: 14px;
+    padding: 10px 14px; outline: none; font-family: inherit; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text-dim); }
+  .form-select {
+    background: var(--surface2); border: 1.5px solid var(--surface3);
+    border-radius: 10px; color: var(--text); font-size: 14px;
+    padding: 10px 14px; outline: none; font-family: inherit; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .form-select:focus { border-color: var(--accent); }
+
+  /* Session detail panel */
+  .session-detail-panel {
+    display: none; margin-top: 16px;
+    background: var(--surface2); border-radius: var(--radius);
+    border: 1.5px solid var(--accent); overflow: hidden;
+  }
+  .session-detail-panel.open { display: block; }
+  .sdp-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; background: rgba(124,58,237,0.07);
+    border-bottom: 1px solid var(--surface3);
+  }
+  .sdp-title { font-size: 16px; font-weight: 800; }
+  .sdp-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .sdp-close { background: var(--surface3); border: none; color: var(--text-muted); font-size: 16px; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
+  .sdp-exo { border-bottom: 1px solid var(--surface3); padding: 16px 20px; }
+  .sdp-exo:last-child { border-bottom: none; }
+  .sdp-exo-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .sdp-exo-num { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex: 0 0 auto; }
+  .sdp-exo-name { font-size: 14px; font-weight: 800; flex: 1; }
+  .sdp-exo-prescribed { font-size: 12px; color: var(--text-muted); }
+  .sdp-table { width: 100%; border-collapse: collapse; }
+  .sdp-table th { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 10px; text-align: left; background: var(--surface3); }
+  .sdp-table td { font-size: 14px; padding: 9px 10px; border-bottom: 1px solid var(--surface3); }
+  .sdp-table tr:last-child td { border-bottom: none; }
+  .sdp-table .val-done { font-weight: 800; color: var(--text); }
+  .sdp-table .val-charge { font-weight: 800; color: var(--accent); }
+  .sdp-table .val-ok { color: var(--success); font-size: 16px; }
+  .sdp-table .val-miss { color: var(--danger); font-size: 16px; }
+  .sdp-comment-row { margin-top: 10px; padding: 10px 12px; background: var(--surface); border-radius: 8px; font-size: 13px; color: var(--text-muted); border-left: 3px solid var(--purple); }
+  .sdp-comment-row strong { color: var(--purple); }
+  .sdp-history-toggle { font-size: 12px; color: var(--accent); font-weight: 700; cursor: pointer; margin-top: 10px; display: inline-block; }
+  .sdp-history { display: none; margin-top: 10px; }
+  .sdp-history.open { display: block; }
+  .sdp-history-row { display: flex; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--surface3); font-size: 12px; color: var(--text-muted); }
+  .sdp-history-row:last-child { border-bottom: none; }
+  .sdp-history-date { width: 90px; flex: 0 0 auto; }
+  .sdp-history-series { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+  .sdp-history-serie { background: var(--surface3); border-radius: 6px; padding: 3px 8px; font-weight: 600; }
+
+  /* Comments */
+  .comments-list { display: flex; flex-direction: column; gap: 10px; }
+  .comment-card { background: var(--surface); border-radius: var(--radius); padding: 16px; border-left: 3px solid var(--surface3); }
+  .comment-card.coach { border-left-color: var(--accent); }
+  .comment-card.client { border-left-color: var(--purple); }
+  .comment-meta { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+  .comment-author { font-size: 12px; font-weight: 700; }
+  .comment-author.coach { color: var(--accent); }
+  .comment-author.client { color: var(--purple); }
+  .comment-date { font-size: 11px; color: var(--text-dim); }
+  .comment-exo { font-size: 11px; color: var(--text-muted); background: var(--surface2); padding: 2px 8px; border-radius: 20px; }
+  .comment-body { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── BIBLIO ── */
+  .library-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  .exo-lib-card {
+    background: var(--surface); border-radius: var(--radius); padding: 16px;
+    cursor: pointer; transition: var(--transition); border: 1.5px solid transparent;
+  }
+  .exo-lib-card:hover { border-color: var(--surface3); }
+  .exo-lib-thumb {
+    width: 100%; aspect-ratio: 16/9; background: var(--surface2);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin-bottom: 12px; position: relative; overflow: hidden;
+  }
+  .exo-lib-play {
+    width: 36px; height: 36px; background: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .exo-lib-play::after {
+    content: ''; border-style: solid;
+    border-width: 7px 0 7px 12px; border-color: transparent transparent transparent var(--bg);
+    margin-left: 2px;
+  }
+  .exo-lib-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .exo-lib-meta { font-size: 12px; color: var(--text-muted); }
+  .exo-lib-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* ── METRICS LIBRARY ── */
+  .lib-metrics-list { display: flex; flex-direction: column; gap: 8px; }
+  .lib-metric-row {
+    background: var(--surface); border-radius: var(--radius);
+    display: flex; align-items: center; gap: 14px; padding: 14px 18px;
+  }
+  .lib-metric-icon { font-size: 20px; width: 28px; text-align: center; }
+  .lib-metric-info { flex: 1; }
+  .lib-metric-name { font-size: 14px; font-weight: 700; }
+  .lib-metric-unit { font-size: 12px; color: var(--text-muted); }
+  .lib-metric-assigned { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .assign-pills { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .assign-pill {
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+  }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--surface); border-radius: 18px; width: 480px; max-width: 95vw; max-height: 85vh; overflow-y: auto; }
+  .modal-header { padding: 22px 24px 0; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header-title { font-size: 18px; font-weight: 800; }
+  .modal-close { background: var(--surface2); border: none; color: var(--text-muted); font-size: 18px; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .modal-body { padding: 20px 24px 24px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--bg); padding: 12px 24px; border-radius: 12px; font-weight: 800; font-size: 14px; z-index: 999; white-space: nowrap; pointer-events: none; }
+
+  .divider { height: 1px; background: var(--surface3); margin: 16px 0; }
+  .section-title { font-size: 16px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <img src="Logo.png" alt="RECODE" style="height:38px;width:auto;display:block;margin-bottom:6px;">
+    <div class="sidebar-role">Espace coach</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Clientes</div>
+    <div class="nav-link active" onclick="showScreen('clients',this)">
+      <span class="nav-icon">👥</span> Mes clientes
+      <span class="nav-badge">6</span>
+    </div>
+
+    <div class="nav-section-label">Contenu</div>
+    <div class="nav-link" onclick="showScreen('biblio-exos',this)">
+      <span class="nav-icon">🏋️</span> Bibliothèque d'exos
+    </div>
+    <div class="nav-link" onclick="showScreen('biblio-metrics',this)">
+      <span class="nav-icon">📊</span> Bibliothèque métriques
+    </div>
+    <div class="nav-link" onclick="showScreen('biblio-habits',this)">
+      <span class="nav-icon">🌿</span> Bibliothèque habitudes
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="coach-avatar">KG</div>
+    <div>
+      <div class="coach-name">Kevin G.</div>
+      <div class="coach-email">Indiana Afit</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Mes clientes</div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm">🔍 Rechercher</button>
+      <button class="btn btn-accent btn-sm" onclick="openAddClient()">+ Nouvelle cliente</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════════════
+         SCREEN : CLIENTES
+    ═══════════════════════════════════════ -->
+    <div class="screen active" id="screen-clients">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-val">6</div>
+          <div class="stat-card-label">Clientes actives</div>
+          <div class="stat-card-sub">+1 ce mois</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-val">23</div>
+          <div class="stat-card-label">Séances cette semaine</div>
+          <div class="stat-card-sub">18 validées</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-val">4</div>
+          <div class="stat-card-label">Commentaires non lus</div>
+          <div class="stat-card-sub">Depuis hier</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-val">94%</div>
+          <div class="stat-card-label">Assiduité globale</div>
+          <div class="stat-card-sub">↑ 3% vs mois dernier</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        Toutes les clientes
+        <span style="font-size:13px;color:var(--text-muted);font-weight:600;">Cliquer sur une carte pour ouvrir le dashboard</span>
+      </div>
+
+      <div class="clients-grid">
+
+        <div class="client-card" onclick="openClient('sofia')">
+          <div class="client-cycle-badge" style="background:rgba(251,146,60,0.15);color:var(--cycle-follicular)">🌱 J8 — Folliculaire</div>
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:rgba(124,58,237,0.15);color:var(--accent)">SM</div>
+            <div>
+              <div class="client-name">Sofia M.</div>
+              <div class="client-since">Cliente depuis janv. 2026</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag green">Active</span>
+            <span class="tag">Prise de masse</span>
+            <span class="tag">3×/sem.</span>
+          </div>
+          <div class="client-stats">
+            <div class="client-stat"><strong>3/3</strong>Séances cette semaine</div>
+            <div class="client-stat"><strong>2</strong>Commentaires</div>
+            <div class="client-stat"><strong>↑+8%</strong>Perfs ce mois</div>
+          </div>
+        </div>
+
+        <div class="client-card" onclick="openClient('lea')">
+          <div class="client-cycle-badge" style="background:rgba(192,132,252,0.15);color:var(--cycle-luteal)">🌙 J21 — Lutéale</div>
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:rgba(167,139,250,0.15);color:var(--purple)">LB</div>
+            <div>
+              <div class="client-name">Léa B.</div>
+              <div class="client-since">Cliente depuis mars 2026</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag green">Active</span>
+            <span class="tag">Rééquilibrage</span>
+            <span class="tag">4×/sem.</span>
+          </div>
+          <div class="client-stats">
+            <div class="client-stat"><strong>2/4</strong>Séances cette semaine</div>
+            <div class="client-stat"><strong>0</strong>Commentaires</div>
+            <div class="client-stat"><strong>↑+5%</strong>Perfs ce mois</div>
+          </div>
+        </div>
+
+        <div class="client-card" onclick="openClient('camille')">
+          <div class="client-cycle-badge" style="background:rgba(248,113,113,0.15);color:var(--cycle-menstrual)">🔴 J2 — Règles</div>
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:rgba(251,146,60,0.15);color:var(--warning)">CR</div>
+            <div>
+              <div class="client-name">Camille R.</div>
+              <div class="client-since">Cliente depuis fév. 2026</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag orange">Attention</span>
+            <span class="tag">Perte de poids</span>
+            <span class="tag">3×/sem.</span>
+          </div>
+          <div class="client-stats">
+            <div class="client-stat"><strong>1/3</strong>Séances cette semaine</div>
+            <div class="client-stat"><strong>1</strong>Commentaire</div>
+            <div class="client-stat"><strong>→ stable</strong>Perfs ce mois</div>
+          </div>
+        </div>
+
+        <div class="client-card" onclick="openClient('marie')">
+          <div class="client-cycle-badge" style="background:rgba(250,204,21,0.15);color:var(--cycle-ovulation)">✨ J14 — Ovulation</div>
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:rgba(52,199,89,0.15);color:var(--success)">ML</div>
+            <div>
+              <div class="client-name">Marie L.</div>
+              <div class="client-since">Cliente depuis janv. 2026</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag green">Active</span>
+            <span class="tag">Performance</span>
+            <span class="tag">5×/sem.</span>
+          </div>
+          <div class="client-stats">
+            <div class="client-stat"><strong>4/5</strong>Séances cette semaine</div>
+            <div class="client-stat"><strong>0</strong>Commentaires</div>
+            <div class="client-stat"><strong>↑+14%</strong>Perfs ce mois</div>
+          </div>
+        </div>
+
+        <div class="client-card" onclick="openClient('julie')">
+          <div class="client-cycle-badge" style="background:rgba(251,146,60,0.15);color:var(--cycle-follicular)">🌱 J10 — Folliculaire</div>
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:rgba(248,113,113,0.15);color:var(--danger)">JD</div>
+            <div>
+              <div class="client-name">Julie D.</div>
+              <div class="client-since">Cliente depuis avr. 2026</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag green">Active</span>
+            <span class="tag">Débutante</span>
+            <span class="tag">2×/sem.</span>
+          </div>
+          <div class="client-stats">
+            <div class="client-stat"><strong>2/2</strong>Séances cette semaine</div>
+            <div class="client-stat"><strong>1</strong>Commentaire</div>
+            <div class="client-stat"><strong>↑+22%</strong>Perfs ce mois</div>
+          </div>
+        </div>
+
+        <div class="client-card" onclick="openClient('emilie')">
+          <div class="client-cycle-badge" style="background:rgba(192,132,252,0.15);color:var(--cycle-luteal)">🌙 J17 — Lutéale</div>
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:rgba(124,58,237,0.1);color:var(--text-muted)">EV</div>
+            <div>
+              <div class="client-name">Émilie V.</div>
+              <div class="client-since">Cliente depuis mai 2026</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag green">Active</span>
+            <span class="tag">Tonification</span>
+            <span class="tag">3×/sem.</span>
+          </div>
+          <div class="client-stats">
+            <div class="client-stat"><strong>1/3</strong>Séances cette semaine</div>
+            <div class="client-stat"><strong>0</strong>Commentaires</div>
+            <div class="client-stat"><strong>Nouvelle</strong></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN : CLIENT DETAIL
+    ═══════════════════════════════════════ -->
+    <div class="screen" id="screen-client-detail">
+      <div class="client-detail-header">
+        <div class="back-btn" onclick="showScreen('clients', document.querySelector('.nav-link.active'))">← Retour</div>
+        <div class="client-detail-avatar" id="detail-avatar" style="background:rgba(124,58,237,0.15);color:var(--accent)">SM</div>
+        <div>
+          <div class="client-detail-name" id="detail-name">Sofia M.</div>
+          <div class="client-detail-meta" id="detail-meta">Cliente depuis janv. 2026 · Prise de masse · 3×/sem.</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm">✉️ Message</button>
+          <button class="btn btn-accent btn-sm">+ Ajouter séance</button>
+        </div>
+      </div>
+
+      <div class="client-tabs">
+        <div class="client-tab active" onclick="switchClientTab(this,'programme')">📅 Programme</div>
+        <div class="client-tab" onclick="switchClientTab(this,'perfs')">📈 Perfs</div>
+        <div class="client-tab" onclick="switchClientTab(this,'metrics')">📊 Métriques</div>
+        <div class="client-tab" onclick="switchClientTab(this,'habits')">🌿 Habitudes</div>
+        <div class="client-tab" onclick="switchClientTab(this,'cycle')">🌙 Cycle</div>
+        <div class="client-tab" onclick="switchClientTab(this,'comments')">💬 Commentaires</div>
+      </div>
+
+      <!-- Programme -->
+      <div class="client-tab-content active" id="ctab-programme">
+        <div class="section-title">
+          Semaine du 19 au 25 mai 2026
+          <button class="btn btn-ghost btn-sm">← Semaine précédente</button>
+        </div>
+        <div class="week-program">
+          <div class="prog-day"><div class="prog-day-name">Lundi 19</div><div class="prog-rest">Repos</div></div>
+          <div class="prog-day" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:0;" onclick="toggleSessionDetail('detail-A')">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="prog-day-name">Mardi 20</div>
+              <div style="flex:1"><div class="prog-session-name">Séance A — Push</div><div class="prog-session-info">6 exercices · ~55 min · Pectoraux, Épaules, Triceps</div></div>
+              <div class="prog-status"><span class="tag green">✓ Validée</span></div>
+              <span style="color:var(--accent);font-size:13px;font-weight:700;">Voir le détail ›</span>
+            </div>
+            <div class="session-detail-panel" id="detail-A">
+              <div class="sdp-header">
+                <div><div class="sdp-title">Séance A — Push · Mardi 20 mai</div><div class="sdp-meta">Durée réelle : 52 min · Séance validée ✓</div></div>
+                <button class="sdp-close" onclick="event.stopPropagation()">×</button>
+              </div>
+              <!-- Exo 1 -->
+              <div class="sdp-exo">
+                <div class="sdp-exo-header">
+                  <div class="sdp-exo-num">1</div>
+                  <div class="sdp-exo-name">Développé couché haltères</div>
+                  <div class="sdp-exo-prescribed">Prescrit : 4×8–10 · RIR 2 · Repos 2'</div>
+                </div>
+                <table class="sdp-table">
+                  <tr><th>#</th><th>Reps prescrites</th><th>Reps réalisées</th><th>Charge</th><th>Vs. séance précédente</th><th>OK ?</th></tr>
+                  <tr><td>1</td><td>8–10</td><td class="val-done">10</td><td class="val-charge">22.5 kg</td><td style="color:var(--success);font-size:12px">↑ +2.5 kg</td><td class="val-ok">✓</td></tr>
+                  <tr><td>2</td><td>8–10</td><td class="val-done">9</td><td class="val-charge">22.5 kg</td><td style="color:var(--success);font-size:12px">↑ +2.5 kg</td><td class="val-ok">✓</td></tr>
+                  <tr><td>3</td><td>8–10</td><td class="val-done">8</td><td class="val-charge">22.5 kg</td><td style="color:var(--text-dim);font-size:12px">→ même</td><td class="val-ok">✓</td></tr>
+                  <tr><td>4</td><td>8–10</td><td class="val-done">7</td><td class="val-charge">22.5 kg</td><td style="color:var(--text-dim);font-size:12px">→ même</td><td class="val-miss">⚠</td></tr>
+                </table>
+                <span class="sdp-history-toggle" onclick="event.stopPropagation();toggleHistory(this)">▸ Voir l'historique de cet exercice</span>
+                <div class="sdp-history">
+                  <div class="sdp-history-row"><div class="sdp-history-date">15 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">10×20kg</span><span class="sdp-history-serie">9×20kg</span><span class="sdp-history-serie">8×20kg</span><span class="sdp-history-serie">7×20kg</span></div></div>
+                  <div class="sdp-history-row"><div class="sdp-history-date">08 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">9×20kg</span><span class="sdp-history-serie">8×20kg</span><span class="sdp-history-serie">8×20kg</span><span class="sdp-history-serie">7×17.5kg</span></div></div>
+                  <div class="sdp-history-row"><div class="sdp-history-date">01 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">8×17.5kg</span><span class="sdp-history-serie">8×17.5kg</span><span class="sdp-history-serie">7×17.5kg</span><span class="sdp-history-serie">6×17.5kg</span></div></div>
+                </div>
+              </div>
+              <!-- Exo 2 -->
+              <div class="sdp-exo">
+                <div class="sdp-exo-header">
+                  <div class="sdp-exo-num">2</div>
+                  <div class="sdp-exo-name">Développé incliné haltères</div>
+                  <div class="sdp-exo-prescribed">Prescrit : 3×10–12 · RIR 2 · Repos 1'30</div>
+                </div>
+                <table class="sdp-table">
+                  <tr><th>#</th><th>Reps prescrites</th><th>Reps réalisées</th><th>Charge</th><th>Vs. séance précédente</th><th>OK ?</th></tr>
+                  <tr><td>1</td><td>10–12</td><td class="val-done">12</td><td class="val-charge">17.5 kg</td><td style="color:var(--success);font-size:12px">↑ +2.5 kg</td><td class="val-ok">✓</td></tr>
+                  <tr><td>2</td><td>10–12</td><td class="val-done">11</td><td class="val-charge">17.5 kg</td><td style="color:var(--success);font-size:12px">↑ +2.5 kg</td><td class="val-ok">✓</td></tr>
+                  <tr><td>3</td><td>10–12</td><td class="val-done">10</td><td class="val-charge">17.5 kg</td><td style="color:var(--text-dim);font-size:12px">→ même</td><td class="val-ok">✓</td></tr>
+                </table>
+                <div class="sdp-comment-row"><strong>💬 Sofia :</strong> Épaule droite légèrement inconfortable sur les dernières reps. Pas douloureux mais à surveiller.</div>
+                <span class="sdp-history-toggle" onclick="event.stopPropagation();toggleHistory(this)">▸ Voir l'historique de cet exercice</span>
+                <div class="sdp-history">
+                  <div class="sdp-history-row"><div class="sdp-history-date">15 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">11×15kg</span><span class="sdp-history-serie">10×15kg</span><span class="sdp-history-serie">9×15kg</span></div></div>
+                  <div class="sdp-history-row"><div class="sdp-history-date">08 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">10×15kg</span><span class="sdp-history-serie">9×15kg</span><span class="sdp-history-serie">8×15kg</span></div></div>
+                </div>
+              </div>
+              <!-- Exo 3 -->
+              <div class="sdp-exo">
+                <div class="sdp-exo-header">
+                  <div class="sdp-exo-num">3</div>
+                  <div class="sdp-exo-name">Écarté câble croisé</div>
+                  <div class="sdp-exo-prescribed">Prescrit : 3×12–15 · RIR 1 · Repos 1'</div>
+                </div>
+                <table class="sdp-table">
+                  <tr><th>#</th><th>Reps prescrites</th><th>Reps réalisées</th><th>Charge</th><th>Vs. séance précédente</th><th>OK ?</th></tr>
+                  <tr><td>1</td><td>12–15</td><td class="val-done">15</td><td class="val-charge">7.5 kg</td><td style="color:var(--text-dim);font-size:12px">→ même</td><td class="val-ok">✓</td></tr>
+                  <tr><td>2</td><td>12–15</td><td class="val-done">14</td><td class="val-charge">7.5 kg</td><td style="color:var(--text-dim);font-size:12px">→ même</td><td class="val-ok">✓</td></tr>
+                  <tr><td>3</td><td>12–15</td><td class="val-done">12</td><td class="val-charge">7.5 kg</td><td style="color:var(--text-dim);font-size:12px">→ même</td><td class="val-ok">✓</td></tr>
+                </table>
+                <span class="sdp-history-toggle" onclick="event.stopPropagation();toggleHistory(this)">▸ Voir l'historique de cet exercice</span>
+                <div class="sdp-history">
+                  <div class="sdp-history-row"><div class="sdp-history-date">15 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">14×7.5kg</span><span class="sdp-history-serie">13×7.5kg</span><span class="sdp-history-serie">12×7.5kg</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="prog-day"><div class="prog-day-name">Mercredi 21</div><div class="prog-rest">Repos</div></div>
+          <div class="prog-day" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:0;" onclick="toggleSessionDetail('detail-B')">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="prog-day-name today">Jeudi 22</div>
+              <div style="flex:1"><div class="prog-session-name">Séance B — Pull</div><div class="prog-session-info">5 exercices · ~60 min · Dos, Biceps, Trapèzes</div></div>
+              <div class="prog-status"><span class="tag orange">En cours</span></div>
+              <span style="color:var(--text-muted);font-size:13px;font-weight:700;">En cours…</span>
+            </div>
+            <div class="session-detail-panel" id="detail-B">
+              <div class="sdp-header">
+                <div><div class="sdp-title">Séance B — Pull · Jeudi 22 mai</div><div class="sdp-meta" style="color:var(--warning)">⏳ Séance en cours — saisies partielles</div></div>
+                <button class="sdp-close" onclick="event.stopPropagation()">×</button>
+              </div>
+              <div class="sdp-exo">
+                <div class="sdp-exo-header">
+                  <div class="sdp-exo-num">1</div>
+                  <div class="sdp-exo-name">Tractions pronation</div>
+                  <div class="sdp-exo-prescribed">Prescrit : 4×6–8 · RIR 2 · Repos 2'30</div>
+                </div>
+                <table class="sdp-table">
+                  <tr><th>#</th><th>Reps prescrites</th><th>Reps réalisées</th><th>Charge</th><th>Vs. séance précédente</th><th>OK ?</th></tr>
+                  <tr><td>1</td><td>6–8</td><td class="val-done">8</td><td class="val-charge">BW+10kg</td><td style="color:var(--success);font-size:12px">↑ +2.5 kg</td><td class="val-ok">✓</td></tr>
+                  <tr><td>2</td><td>6–8</td><td class="val-done">7</td><td class="val-charge">BW+10kg</td><td style="color:var(--success);font-size:12px">↑ +2.5 kg</td><td class="val-ok">✓</td></tr>
+                  <tr><td>3</td><td>6–8</td><td style="color:var(--text-dim);font-style:italic;">—</td><td style="color:var(--text-dim);font-style:italic;">—</td><td>—</td><td style="color:var(--text-dim)">…</td></tr>
+                  <tr><td>4</td><td>6–8</td><td style="color:var(--text-dim);font-style:italic;">—</td><td style="color:var(--text-dim);font-style:italic;">—</td><td>—</td><td style="color:var(--text-dim)">…</td></tr>
+                </table>
+                <span class="sdp-history-toggle" onclick="event.stopPropagation();toggleHistory(this)">▸ Voir l'historique de cet exercice</span>
+                <div class="sdp-history">
+                  <div class="sdp-history-row"><div class="sdp-history-date">15 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">8×BW+7.5</span><span class="sdp-history-serie">7×BW+7.5</span><span class="sdp-history-serie">7×BW+7.5</span><span class="sdp-history-serie">6×BW+7.5</span></div></div>
+                  <div class="sdp-history-row"><div class="sdp-history-date">08 mai</div><div class="sdp-history-series"><span class="sdp-history-serie">7×BW+5</span><span class="sdp-history-serie">7×BW+5</span><span class="sdp-history-serie">6×BW+5</span><span class="sdp-history-serie">6×BW+5</span></div></div>
+                  <div class="sdp-history-row"><div class="sdp-history-date">01 mai ⚙️</div><div class="sdp-history-series"><span class="sdp-history-serie" style="border:1px solid var(--purple);color:var(--purple)">Technique revue</span><span class="sdp-history-serie">6×BW+5</span><span class="sdp-history-serie">6×BW+5</span><span class="sdp-history-serie">5×BW+5</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="prog-day"><div class="prog-day-name">Vendredi 23</div><div class="prog-rest">Repos</div></div>
+          <div class="prog-day">
+            <div class="prog-day-name">Samedi 24</div>
+            <div style="flex:1"><div class="prog-session-name">Séance C — Lower</div><div class="prog-session-info">6 exercices · ~65 min · Quadriceps, Fessiers, Ischio</div></div>
+            <div class="prog-status"><span class="tag">À venir</span></div>
+          </div>
+          <div class="prog-day"><div class="prog-day-name">Dimanche 25</div><div class="prog-rest">Repos</div></div>
+        </div>
+      </div>
+
+      <!-- Perfs -->
+      <div class="client-tab-content" id="ctab-perfs">
+        <div class="section-title">Évolution des performances</div>
+        <div class="perfs-grid" id="coach-perfs-grid">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <!-- Métriques -->
+      <div class="client-tab-content" id="ctab-metrics">
+        <div class="section-title">
+          Métriques assignées
+          <button class="btn btn-accent btn-sm" onclick="toggleAddForm('metrics-add-form')">+ Ajouter une métrique</button>
+        </div>
+
+        <div class="add-form" id="metrics-add-form">
+          <div class="add-form-title">Nouvelle métrique</div>
+          <div class="form-row">
+            <input class="form-input" placeholder="Nom de la métrique (ex: Tour de hanches)" style="flex:2">
+            <input class="form-input" placeholder="Unité (cm, kg, /10…)" style="flex:1">
+            <select class="form-select">
+              <option>Chaque semaine</option>
+              <option>Chaque jour</option>
+              <option>Chaque mois</option>
+              <option>Libre</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <input class="form-input" placeholder="Valeur de départ (optionnel)">
+            <input class="form-input" placeholder="Objectif cible (optionnel)">
+            <button class="btn btn-accent" onclick="addMetric()">Ajouter</button>
+            <button class="btn btn-ghost" onclick="toggleAddForm('metrics-add-form')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="metrics-manage" id="coach-metrics-list">
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">⚖️</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Poids</div><div class="metric-manage-unit">kg · Hebdomadaire</div></div>
+            <div class="metric-manage-val">62.4 <span>kg</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">📏</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Tour de taille</div><div class="metric-manage-unit">cm · Mensuel</div></div>
+            <div class="metric-manage-val">71 <span>cm</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">⚡</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Énergie subjective</div><div class="metric-manage-unit">/10 · Quotidien</div></div>
+            <div class="metric-manage-val">7 <span>/10</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">😴</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Heures de sommeil</div><div class="metric-manage-unit">h · Quotidien</div></div>
+            <div class="metric-manage-val">7.5 <span>h</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">👟</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Pas quotidiens</div><div class="metric-manage-unit">pas · Quotidien</div></div>
+            <div class="metric-manage-val">8 420 <span>pas</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Habitudes -->
+      <div class="client-tab-content" id="ctab-habits">
+        <div class="section-title">
+          Habitudes assignées
+          <button class="btn btn-accent btn-sm" onclick="toggleAddForm('habits-add-form')">+ Ajouter une habitude</button>
+        </div>
+
+        <div class="add-form" id="habits-add-form">
+          <div class="add-form-title">Nouvelle habitude</div>
+          <div class="form-row">
+            <input class="form-input" placeholder="Nom de l'habitude (ex: Méditation 10 min)" style="flex:2">
+            <select class="form-select">
+              <option>Oui / Non (case à cocher)</option>
+              <option>Note de 1 à 4</option>
+              <option>Valeur numérique</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <input class="form-input" placeholder="Description / objectif (optionnel)" style="flex:2">
+            <input class="form-input" placeholder="Emoji (optionnel)">
+            <button class="btn btn-accent" onclick="addHabit()">Ajouter</button>
+            <button class="btn btn-ghost" onclick="toggleAddForm('habits-add-form')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="metrics-manage" id="coach-habits-list">
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">😴</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Qualité du sommeil</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div>
+            <div class="metric-manage-val" style="font-size:14px">Moy. <span style="font-size:18px;color:var(--accent)">2.8</span><span>/4</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">🧘</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Niveau de stress</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div>
+            <div class="metric-manage-val" style="font-size:14px">Moy. <span style="font-size:18px;color:var(--warning)">2.1</span><span>/4</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+          <div class="metric-manage-row">
+            <div class="metric-manage-icon">🚶</div>
+            <div class="metric-manage-info"><div class="metric-manage-name">Marche active</div><div class="metric-manage-unit">Oui / Non · Quotidien</div></div>
+            <div class="metric-manage-val" style="font-size:14px">Cette sem. <span style="font-size:18px;color:var(--accent)">4</span><span>/7</span></div>
+            <button class="btn btn-ghost btn-sm">Historique</button>
+            <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cycle -->
+      <div class="client-tab-content" id="ctab-cycle">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div class="section-title">Résumé du cycle</div>
+            <div style="background:var(--surface);border-radius:var(--radius);padding:18px;margin-bottom:12px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+                <div style="text-align:center;background:var(--surface2);border-radius:10px;padding:12px;"><div style="font-size:22px;font-weight:900;color:var(--accent)">27j</div><div style="font-size:11px;color:var(--text-muted);font-weight:600;">Durée moy.</div></div>
+                <div style="text-align:center;background:var(--surface2);border-radius:10px;padding:12px;"><div style="font-size:22px;font-weight:900;color:var(--cycle-follicular)">J8</div><div style="font-size:11px;color:var(--text-muted);font-weight:600;">Jour actuel</div></div>
+                <div style="text-align:center;background:var(--surface2);border-radius:10px;padding:12px;"><div style="font-size:22px;font-weight:900;color:var(--text)">4</div><div style="font-size:11px;color:var(--text-muted);font-weight:600;">Cycles enreg.</div></div>
+              </div>
+              <div style="background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.3);border-radius:10px;padding:12px;">
+                <div style="font-size:12px;font-weight:700;color:var(--cycle-follicular);margin-bottom:4px;">🌱 PHASE FOLLICULAIRE</div>
+                <div style="font-size:14px;font-weight:700;">Jour 8 · encore ~6 jours</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Énergie en hausse, bon moment pour pousser l'intensité</div>
+              </div>
+            </div>
+            <div style="background:var(--surface);border-radius:var(--radius);padding:18px;">
+              <div style="font-size:14px;font-weight:800;margin-bottom:12px;">Dernières saisies</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--surface3);">
+                  <span style="font-size:13px;color:var(--text-muted)">🌡️ Température</span>
+                  <span style="font-weight:700;">36.7°C</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--surface3);">
+                  <span style="font-size:13px;color:var(--text-muted)">💧 Glaire cervicale</span>
+                  <span style="font-weight:700;">🟠 Crémeuse</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
+                  <span style="font-size:13px;color:var(--text-muted)">📅 Dernier cycle</span>
+                  <span style="font-weight:700;">14 mai 2026</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-title">Insights observés</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="background:var(--surface);border-radius:var(--radius);padding:16px;border-left:3px solid var(--cycle-luteal);">
+                <div style="font-size:13px;font-weight:800;margin-bottom:6px;">😴 Sommeil court en phase lutéale</div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">Moy. 6h15 en lutéale vs 7h40 en folliculaire sur 4 cycles.</div>
+              </div>
+              <div style="background:var(--surface);border-radius:var(--radius);padding:16px;border-left:3px solid var(--cycle-menstrual);">
+                <div style="font-size:13px;font-weight:800;margin-bottom:6px;">⚡ Énergie + stress croisés J1–J2</div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">Score énergie 4/10, stress élevé les deux premiers jours de règles.</div>
+              </div>
+              <div style="background:var(--surface);border-radius:var(--radius);padding:16px;border-left:3px solid var(--cycle-ovulation);">
+                <div style="font-size:13px;font-weight:800;margin-bottom:6px;">🌡️ Hausse temp. confirmée J14</div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">+0.2°C observé à J14 sur 3 cycles consécutifs. Ovulation confirmée.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Commentaires -->
+      <div class="client-tab-content" id="ctab-comments">
+        <div class="section-title">Commentaires par exercice</div>
+        <div class="comments-list">
+          <div class="comment-card client">
+            <div class="comment-meta">
+              <span class="comment-author client">Sofia M.</span>
+              <span class="comment-exo">Tirage horizontal câble</span>
+              <span class="comment-date">22 mai · Séance B</span>
+            </div>
+            <div class="comment-body">J'ai bien pensé à étirer le dos en position basse comme tu m'as dit ! Sensation beaucoup plus travaillée. Par contre le poignet gauche est un peu douloureux depuis hier soir.</div>
+          </div>
+          <div class="comment-card coach">
+            <div class="comment-meta">
+              <span class="comment-author coach">Kevin G. (Coach)</span>
+              <span class="comment-exo">Tirage horizontal câble</span>
+              <span class="comment-date">21 mai · Séance A</span>
+            </div>
+            <div class="comment-body">Super exécution sur les tractions ce soir ! Tu as bien maintenu la rétraction scapulaire sur toutes les séries. On va pouvoir augmenter la charge la prochaine fois.</div>
+          </div>
+          <div class="comment-card client">
+            <div class="comment-meta">
+              <span class="comment-author client">Sofia M.</span>
+              <span class="comment-exo">Tractions pronation</span>
+              <span class="comment-date">20 mai · Séance A</span>
+            </div>
+            <div class="comment-body">Dernière série vraiment dure, j'ai failli ne pas finir la 7ème rep. Est-ce que c'est normal que j'ai autant de mal à descendre lentement ?</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Répondre</div>
+        <div style="display:flex;gap:10px;">
+          <textarea class="form-input" rows="3" placeholder="Écrire un commentaire ou une correction technique…" style="flex:1;resize:none;"></textarea>
+          <button class="btn btn-accent" style="align-self:flex-end;" onclick="toast('Commentaire envoyé !')">Envoyer</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN : BIBLIOTHÈQUE EXERCICES
+    ═══════════════════════════════════════ -->
+    <div class="screen" id="screen-biblio-exos">
+      <div class="section-title">
+        Bibliothèque d'exercices
+        <button class="btn btn-accent btn-sm" onclick="openAddExo()">+ Ajouter un exercice</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" style="border-color:var(--accent);color:var(--accent)">Tous</button>
+        <button class="btn btn-ghost btn-sm">Dos</button>
+        <button class="btn btn-ghost btn-sm">Pectoraux</button>
+        <button class="btn btn-ghost btn-sm">Épaules</button>
+        <button class="btn btn-ghost btn-sm">Jambes</button>
+        <button class="btn btn-ghost btn-sm">Bras</button>
+        <button class="btn btn-ghost btn-sm">Core</button>
+      </div>
+      <div class="library-grid">
+        <div class="exo-lib-card">
+          <div class="exo-lib-thumb"><div class="exo-lib-play"></div></div>
+          <div class="exo-lib-name">Tractions pronation</div>
+          <div class="exo-lib-meta">Vimeo · Dos · 1:24</div>
+          <div class="exo-lib-tags"><span class="tag">Dos</span><span class="tag">Biceps</span></div>
+        </div>
+        <div class="exo-lib-card">
+          <div class="exo-lib-thumb"><div class="exo-lib-play"></div></div>
+          <div class="exo-lib-name">Rowing barre pronation</div>
+          <div class="exo-lib-meta">Vimeo · Dos · 1:12</div>
+          <div class="exo-lib-tags"><span class="tag">Dos</span></div>
+        </div>
+        <div class="exo-lib-card">
+          <div class="exo-lib-thumb"><div class="exo-lib-play"></div></div>
+          <div class="exo-lib-name">Développé couché haltères</div>
+          <div class="exo-lib-meta">Vimeo · Pectoraux · 1:08</div>
+          <div class="exo-lib-tags"><span class="tag">Pectoraux</span><span class="tag">Triceps</span></div>
+        </div>
+        <div class="exo-lib-card">
+          <div class="exo-lib-thumb"><div class="exo-lib-play"></div></div>
+          <div class="exo-lib-name">Squat barre</div>
+          <div class="exo-lib-meta">Vimeo · Jambes · 1:45</div>
+          <div class="exo-lib-tags"><span class="tag">Quadriceps</span><span class="tag">Fessiers</span></div>
+        </div>
+        <div class="exo-lib-card">
+          <div class="exo-lib-thumb"><div class="exo-lib-play"></div></div>
+          <div class="exo-lib-name">RDL haltères</div>
+          <div class="exo-lib-meta">Vimeo · Jambes · 1:30</div>
+          <div class="exo-lib-tags"><span class="tag">Ischio</span><span class="tag">Fessiers</span></div>
+        </div>
+        <div class="exo-lib-card" style="border:1.5px dashed var(--surface3);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;cursor:pointer;min-height:160px;" onclick="openAddExo()">
+          <div style="font-size:28px;color:var(--text-dim)">+</div>
+          <div style="font-size:13px;color:var(--text-dim);font-weight:700;">Ajouter un exercice</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN : BIBLIOTHÈQUE MÉTRIQUES
+    ═══════════════════════════════════════ -->
+    <div class="screen" id="screen-biblio-metrics">
+      <div class="section-title">
+        Bibliothèque de métriques
+        <button class="btn btn-accent btn-sm" onclick="toggleAddForm('new-metric-form')">+ Créer une métrique</button>
+      </div>
+      <div class="add-form" id="new-metric-form">
+        <div class="add-form-title">Nouvelle métrique globale</div>
+        <div class="form-row">
+          <input class="form-input" placeholder="Nom (ex: Tour de hanches)" style="flex:2">
+          <input class="form-input" placeholder="Unité (cm, kg, /10, jours…)">
+          <select class="form-select">
+            <option>Valeur numérique</option>
+            <option>Note 1→10</option>
+            <option>Oui / Non</option>
+          </select>
+          <button class="btn btn-accent" onclick="toast('Métrique créée !');toggleAddForm(\'new-metric-form\')">Créer</button>
+        </div>
+      </div>
+      <div class="lib-metrics-list">
+        <div class="lib-metric-row"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">Léa B.</span><span class="assign-pill">Camille R.</span><span class="assign-pill">+3</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">Camille R.</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/10</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">Marie L.</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN : BIBLIOTHÈQUE HABITUDES
+    ═══════════════════════════════════════ -->
+    <div class="screen" id="screen-biblio-habits">
+      <div class="section-title">
+        Bibliothèque d'habitudes
+        <button class="btn btn-accent btn-sm" onclick="toggleAddForm('new-habit-form')">+ Créer une habitude</button>
+      </div>
+      <div class="add-form" id="new-habit-form">
+        <div class="add-form-title">Nouvelle habitude globale</div>
+        <div class="form-row">
+          <input class="form-input" placeholder="Nom (ex: Méditation, Lecture…)" style="flex:2">
+          <input class="form-input" placeholder="Emoji">
+          <select class="form-select">
+            <option>Oui / Non</option>
+            <option>Note 1→4</option>
+            <option>Valeur numérique</option>
+          </select>
+          <button class="btn btn-accent" onclick="toast('Habitude créée !');toggleAddForm(\'new-habit-form\')">Créer</button>
+        </div>
+      </div>
+      <div class="lib-metrics-list">
+        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Qualité du sommeil</div><div class="lib-metric-unit">Note 1→4</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">🧘</div><div class="lib-metric-info"><div class="lib-metric-name">Niveau de stress</div><div class="lib-metric-unit">Note 1→4</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">🚶</div><div class="lib-metric-info"><div class="lib-metric-name">Marche active</div><div class="lib-metric-unit">Oui / Non</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">Léa B.</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+      </div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end main -->
+</div><!-- end layout -->
+
+<!-- Modal ajout exercice -->
+<div class="modal-overlay" id="modal-exo">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Ajouter un exercice</div>
+      <button class="modal-close" onclick="document.getElementById('modal-exo').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="flex-direction:column;gap:10px;">
+        <input class="form-input" placeholder="Nom de l'exercice">
+        <input class="form-input" placeholder="URL Vimeo (ex: https://vimeo.com/…)">
+        <div style="display:flex;gap:10px;">
+          <select class="form-select" style="flex:1"><option>Dos</option><option>Pectoraux</option><option>Épaules</option><option>Jambes</option><option>Bras</option><option>Core</option></select>
+          <input class="form-input" placeholder="Tags (ex: Biceps, Trapèzes)" style="flex:2">
+        </div>
+        <textarea class="form-input" rows="3" placeholder="Consignes d'exécution (affichées à la coachée)…"></textarea>
+        <button class="btn btn-accent" onclick="toast('Exercice ajouté à la bibliothèque !');document.getElementById(\'modal-exo\').classList.remove(\'open\')">Ajouter à la bibliothèque</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal ajout cliente -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Nouvelle cliente</div>
+      <button class="modal-close" onclick="document.getElementById('modal-client').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="flex-direction:column;gap:12px;">
+
+        <div style="display:flex;gap:10px;">
+          <input class="form-input" id="new-client-prenom" placeholder="Prénom" style="flex:1">
+          <input class="form-input" id="new-client-nom" placeholder="Nom" style="flex:1">
+        </div>
+
+        <input class="form-input" id="new-client-email" type="email" placeholder="adresse@email.com — identifiant de connexion">
+
+        <div style="display:flex;gap:10px;">
+          <select class="form-select" style="flex:1">
+            <option>Prise de masse</option><option>Perte de poids</option><option>Rééquilibrage</option><option>Performance</option><option>Tonification</option>
+          </select>
+          <select class="form-select" style="flex:1">
+            <option>2×/sem.</option><option>3×/sem.</option><option>4×/sem.</option><option>5×/sem.</option>
+          </select>
+        </div>
+
+        <!-- PIN temporaire -->
+        <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">Code PIN temporaire</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input class="form-input" id="new-client-pin" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="4 chiffres" style="flex:1;font-size:22px;font-weight:800;letter-spacing:6px;text-align:center;">
+            <button class="btn btn-ghost btn-sm" onclick="generatePin()" style="white-space:nowrap;flex:0 0 auto;">🎲 Générer</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">La cliente devra changer ce PIN lors de sa première connexion.</div>
+        </div>
+
+        <input class="form-input" placeholder="Notes initiales (optionnel)">
+
+        <!-- Récap avant envoi -->
+        <div id="client-recap" style="display:none;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-muted);line-height:1.7;"></div>
+
+        <button class="btn btn-accent" onclick="createClient()">Créer le profil &amp; envoyer l'invitation →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(id, navEl) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  if (navEl) {
+    document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+    navEl.classList.add('active');
+  }
+  const titles = {
+    'clients': 'Mes clientes',
+    'client-detail': '',
+    'biblio-exos': 'Bibliothèque d\'exercices',
+    'biblio-metrics': 'Bibliothèque de métriques',
+    'biblio-habits': 'Bibliothèque d\'habitudes',
+  };
+  document.getElementById('topbar-title').textContent = titles[id] || '';
+}
+
+function openClient(key) {
+  const clients = {
+    sofia: { name:'Sofia M.', initials:'SM', meta:'Cliente depuis janv. 2026 · Prise de masse · 3×/sem.', color:'rgba(124,58,237,0.15)', textColor:'var(--accent)' },
+    lea:   { name:'Léa B.',   initials:'LB', meta:'Cliente depuis mars 2026 · Rééquilibrage · 4×/sem.', color:'rgba(167,139,250,0.15)', textColor:'var(--purple)' },
+    camille:{ name:'Camille R.', initials:'CR', meta:'Cliente depuis fév. 2026 · Perte de poids · 3×/sem.', color:'rgba(251,146,60,0.15)', textColor:'var(--warning)' },
+    marie: { name:'Marie L.', initials:'ML', meta:'Cliente depuis janv. 2026 · Performance · 5×/sem.', color:'rgba(52,199,89,0.15)', textColor:'var(--success)' },
+    julie: { name:'Julie D.', initials:'JD', meta:'Cliente depuis avr. 2026 · Débutante · 2×/sem.', color:'rgba(248,113,113,0.15)', textColor:'var(--danger)' },
+    emilie:{ name:'Émilie V.', initials:'EV', meta:'Cliente depuis mai 2026 · Tonification · 3×/sem.', color:'rgba(124,58,237,0.1)', textColor:'var(--text-muted)' },
+  };
+  const c = clients[key] || clients.sofia;
+  document.getElementById('detail-name').textContent = c.name;
+  document.getElementById('detail-meta').textContent = c.meta;
+  const av = document.getElementById('detail-avatar');
+  av.textContent = c.initials;
+  av.style.background = c.color;
+  av.style.color = c.textColor;
+  document.getElementById('topbar-title').textContent = c.name;
+
+  // Reset to first tab
+  switchClientTab(document.querySelector('.client-tab'), 'programme');
+  showScreen('client-detail', null);
+  drawCoachPerfs();
+}
+
+function switchClientTab(btn, id) {
+  document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.client-tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ctab-' + id).classList.add('active');
+  if (id === 'perfs') drawCoachPerfs();
+}
+
+function toggleAddForm(id) {
+  const f = document.getElementById(id);
+  f.classList.toggle('open');
+}
+
+function addMetric() {
+  toast('Métrique ajoutée !');
+  document.getElementById('metrics-add-form').classList.remove('open');
+}
+function addHabit() {
+  toast('Habitude ajoutée !');
+  document.getElementById('habits-add-form').classList.remove('open');
+}
+function removeMetric(btn) {
+  if (confirm('Retirer cette métrique / habitude ?')) {
+    btn.closest('.metric-manage-row, .lib-metric-row').remove();
+    toast('Retiré !');
+  }
+}
+
+function openAddExo() { document.getElementById('modal-exo').classList.add('open'); }
+function openAddClient() {
+  // Reset form
+  ['new-client-prenom','new-client-nom','new-client-email','new-client-pin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('client-recap').style.display = 'none';
+  document.getElementById('modal-client').classList.add('open');
+}
+
+function generatePin() {
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  document.getElementById('new-client-pin').value = pin;
+}
+
+function createClient() {
+  const prenom = document.getElementById('new-client-prenom').value.trim();
+  const nom    = document.getElementById('new-client-nom').value.trim();
+  const email  = document.getElementById('new-client-email').value.trim();
+  const pin    = document.getElementById('new-client-pin').value.trim();
+
+  if (!prenom || !email || pin.length !== 4) {
+    toast('Remplis le prénom, l\'e-mail et un PIN à 4 chiffres.');
+    return;
+  }
+
+  // Affiche le récap
+  const recap = document.getElementById('client-recap');
+  recap.style.display = 'block';
+  recap.innerHTML = `
+    <strong style="color:var(--accent)">Profil créé ✓</strong><br>
+    <b>${prenom} ${nom}</b> · ${email}<br>
+    PIN temporaire : <b style="letter-spacing:3px">${pin}</b><br>
+    <span style="font-size:11px;">Une invitation a été envoyée à ${email}. La cliente devra changer son PIN à la première connexion.</span>
+  `;
+
+  setTimeout(() => {
+    document.getElementById('modal-client').classList.remove('open');
+    toast(`✓ Profil de ${prenom} créé — invitation envoyée`);
+  }, 2200);
+}
+
+// Coach perfs mini charts
+function drawCoachPerfs() {
+  const grid = document.getElementById('coach-perfs-grid');
+  const exos = [
+    { name:'Tractions pronation', vals:[0,2.5,2.5,5,7.5,7.5,10], dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'BW+10 kg', color:'#7C3AED' },
+    { name:'Rowing barre',        vals:[36,38,40,44,44,50,52],    dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'52 kg', color:'#34C759' },
+    { name:'Développé couché',    vals:[30,32.5,35,37.5,40,45,47.5], dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'47.5 kg', color:'#fb923c' },
+    { name:'Squat barre',         vals:[40,45,50,55,60,65,70],    dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'70 kg', color:'#a78bfa' },
+  ];
+  grid.innerHTML = exos.map((e,i) => `
+    <div class="perf-card">
+      <div class="perf-card-name">${e.name}</div>
+      <canvas class="perf-card-canvas" id="pfc-${i}" height="80"></canvas>
+      <div class="perf-pr">PR actuel <strong>${e.pr}</strong></div>
+    </div>`).join('');
+  requestAnimationFrame(() => {
+    exos.forEach((e, i) => {
+      const c = document.getElementById('pfc-' + i);
+      if (!c) return;
+      drawMiniLineChart(c, e.vals, e.dates, e.color, 80);
+    });
+  });
+}
+
+function drawMiniLineChart(canvas, vals, dates, color, H) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 280;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const pad = { top: 8, right: 10, bottom: 24, left: 32 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max - min) || 1;
+  const minD = min - range * 0.1, maxD = max + range * 0.1, rangeD = maxD - minD;
+  function xp(i) { return pad.left + (i/(vals.length-1)) * cW; }
+  function yp(v) { return pad.top + cH - ((v - minD)/rangeD) * cH; }
+
+  // Y labels
+  ctx.fillStyle = '#AEAEB2'; ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(max, pad.left - 4, pad.top + 6);
+  ctx.fillText(min, pad.left - 4, pad.top + cH + 4);
+
+  // Grid
+  ctx.strokeStyle = '#E5E5EA'; ctx.lineWidth = 1;
+  [0, 0.5, 1].forEach(f => {
+    const y = pad.top + f * cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+  });
+
+  // Fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+  grad.addColorStop(0, color + '30'); grad.addColorStop(1, color + '00');
+  ctx.beginPath();
+  ctx.moveTo(xp(0), yp(vals[0]));
+  vals.forEach((v,i) => { if(i>0) ctx.lineTo(xp(i), yp(v)); });
+  ctx.lineTo(xp(vals.length-1), pad.top+cH); ctx.lineTo(xp(0), pad.top+cH);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  ctx.moveTo(xp(0), yp(vals[0]));
+  vals.forEach((v,i) => { if(i>0) ctx.lineTo(xp(i), yp(v)); });
+  ctx.stroke();
+
+  // Points + dates
+  ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'center';
+  vals.forEach((v, i) => {
+    const x = xp(i), y = yp(v);
+    ctx.beginPath(); ctx.arc(x, y, i===vals.length-1?4:3, 0, Math.PI*2);
+    ctx.fillStyle = i===vals.length-1 ? color : '#FFFFFF'; ctx.fill();
+    if (i!==vals.length-1) { ctx.strokeStyle = color; ctx.lineWidth=1.5; ctx.stroke(); }
+    if (i===0 || i===vals.length-1 || i===Math.floor(vals.length/2)) {
+      ctx.fillStyle = i===vals.length-1 ? color : '#AEAEB2';
+      ctx.fillText(dates[i], x, H - 5);
+    }
+  });
+}
+
+function toggleSessionDetail(id) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  // Close all panels
+  document.querySelectorAll('.session-detail-panel').forEach(p => p.classList.remove('open'));
+  if (!isOpen) panel.classList.add('open');
+}
+
+function toggleHistory(btn) {
+  const hist = btn.nextElementSibling;
+  const isOpen = hist.classList.contains('open');
+  hist.classList.toggle('open');
+  btn.textContent = isOpen
+    ? '▸ Voir l\'historique de cet exercice'
+    : '▾ Masquer l\'historique';
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+</script>
+</body>
+</html>

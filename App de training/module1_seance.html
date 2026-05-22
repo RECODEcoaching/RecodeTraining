@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RECODE Training — Séances</title>
+<style>
+  :root {
+    --bg: #F7F7F9;
+    --surface: #FFFFFF;
+    --surface2: #F5F3FE;
+    --surface3: #E5E0FA;
+    --accent: #7C3AED;
+    --accent-light: #EDE9FE;
+    --text: #1D1D1F;
+    --text-muted: #6E6E73;
+    --text-dim: #AEAEB2;
+    --success: #34C759;
+    --success-bg: #F0FFF4;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --transition: 0.18s ease;
+    --border: #E5E5EA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Open Sans', -apple-system, sans-serif;
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+  }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--accent);
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; flex-direction: column; min-height: calc(100vh - 70px); }
+  .screen.active { display: flex; }
+
+  /* ── WEEK VIEW ── */
+  .week-header { padding: 24px 20px 8px; }
+  .week-greeting { font-size: 22px; font-weight: 700; margin-bottom: 3px; }
+  .week-sub { color: var(--text-muted); font-size: 14px; }
+  .week-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding: 20px 20px 10px;
+  }
+  .week-days {
+    display: flex; gap: 6px; padding: 0 20px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .week-days::-webkit-scrollbar { display: none; }
+  .day-chip {
+    flex: 0 0 auto; text-align: center; padding: 10px 11px;
+    border-radius: 10px; background: var(--surface);
+    border: 1px solid var(--border);
+    cursor: pointer; transition: var(--transition);
+    min-width: 42px;
+  }
+  .day-chip.today { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .day-chip.has-session::after {
+    content: ''; display: block; width: 4px; height: 4px;
+    background: var(--accent); border-radius: 50%; margin: 4px auto 0;
+  }
+  .day-chip.today.has-session::after { background: rgba(255,255,255,0.6); }
+  .day-name { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+  .day-chip.today .day-name { color: rgba(255,255,255,0.8); }
+  .day-num { font-size: 16px; font-weight: 800; margin-top: 2px; }
+
+  .sessions-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+
+  .session-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    position: relative;
+    overflow: hidden;
+  }
+  .session-card:active { transform: scale(0.985); }
+  .session-card.done { opacity: 0.6; }
+  .session-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%; background: var(--accent);
+  }
+  .session-card.done::before { background: var(--success); }
+  .session-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .session-day { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+  .session-status {
+    font-size: 11px; padding: 3px 9px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+  }
+  .session-status.done { background: var(--success-bg); color: var(--success); }
+  .session-name { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .session-info { display: flex; gap: 12px; }
+  .session-tag { font-size: 12px; color: var(--text-muted); }
+  .session-muscles { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .muscle-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted);
+  }
+
+  /* ── SÉANCE DETAIL ── */
+  .session-top {
+    background: var(--surface);
+    padding: 16px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .back-btn {
+    display: flex; align-items: center; gap: 5px;
+    color: var(--accent); font-size: 14px; font-weight: 600;
+    cursor: pointer; margin-bottom: 14px; width: fit-content;
+  }
+  .session-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .session-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; padding: 4px 11px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .chip.accent { background: var(--accent-light); color: var(--accent); border-color: transparent; }
+
+  /* Warmup section */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--accent);
+    padding: 18px 20px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; display: inline-block;
+    width: 18px; height: 2px;
+    background: var(--accent); border-radius: 2px; flex: 0 0 auto;
+  }
+  .warmup-card {
+    margin: 0 20px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+  }
+  .warmup-thumb {
+    width: 66px; height: 48px; border-radius: var(--radius-sm);
+    background: var(--accent-light);
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  .warmup-thumb .play-btn {
+    width: 26px; height: 26px; background: var(--accent);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  }
+  .warmup-thumb .play-btn::after {
+    content: ''; border-style: solid;
+    border-width: 5px 0 5px 9px; border-color: transparent transparent transparent #fff;
+    margin-left: 2px;
+  }
+  .warmup-info { flex: 1; }
+  .warmup-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .warmup-detail { font-size: 12px; color: var(--text-muted); }
+
+  /* Exercise cards */
+  .exo-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .exo-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    overflow: hidden;
+  }
+  .exo-header {
+    padding: 14px 14px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .exo-num {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex: 0 0 auto;
+  }
+  .exo-info { flex: 1; }
+  .exo-name { font-size: 14px; font-weight: 600; }
+  .exo-params { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .exo-video-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--accent-light); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto; cursor: pointer; font-size: 13px;
+  }
+  .exo-expand { color: var(--text-dim); font-size: 18px; transition: var(--transition); }
+  .exo-expand.open { transform: rotate(180deg); }
+
+  /* Series table */
+  .series-body { padding: 0 14px 14px; display: none; border-top: 1px solid var(--border); }
+  .series-body.open { display: block; }
+  .series-header-row {
+    display: grid; grid-template-columns: 28px 1fr 1fr 1fr;
+    gap: 6px; padding: 10px 0 6px;
+    font-size: 10px; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .series-row {
+    display: grid; grid-template-columns: 28px 1fr 1fr 1fr;
+    gap: 6px; margin-bottom: 6px; align-items: center;
+  }
+  .serie-num {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: var(--surface2); display: flex;
+    align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--text-muted);
+  }
+  .serie-input {
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 7px; color: var(--text);
+    font-size: 14px; font-weight: 700; padding: 7px 8px;
+    text-align: center; width: 100%; outline: none;
+    -webkit-appearance: none;
+    transition: border-color 0.2s;
+  }
+  .serie-input:focus { border-color: var(--accent); }
+  .serie-input.prescribed { color: var(--text-muted); background: var(--surface2); border-color: transparent; }
+  .serie-input.done { border-color: var(--success); color: var(--success); }
+  .exo-meta-row {
+    display: flex; gap: 6px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 8px;
+  }
+  .exo-meta-chip {
+    background: var(--surface2); border-radius: 7px;
+    padding: 5px 10px; font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .exo-meta-chip strong { color: var(--text); font-weight: 700; }
+  .exo-comment {
+    margin-top: 10px;
+    background: var(--accent-light); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: var(--accent);
+    font-style: italic; border-left: 3px solid var(--accent);
+  }
+  .exo-comment-input {
+    width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px;
+    padding: 9px 12px; margin-top: 8px; outline: none; resize: none;
+    font-family: inherit; transition: border-color 0.2s;
+  }
+  .exo-comment-input:focus { border-color: var(--accent); }
+  .exo-comment-input::placeholder { color: var(--text-dim); }
+
+  /* Validate btn */
+  .validate-section { padding: 20px; }
+  .btn-validate {
+    width: 100%; padding: 16px; border-radius: var(--radius);
+    background: var(--accent); color: #fff;
+    font-size: 16px; font-weight: 800; border: none; cursor: pointer;
+    letter-spacing: -0.3px; transition: var(--transition);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-validate:active { transform: scale(0.97); opacity: 0.9; }
+  .btn-validate:disabled { background: var(--surface3); color: var(--text-muted); cursor: default; }
+
+  /* Modal video */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center; flex-direction: column;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border-radius: 16px;
+    width: 100%; max-width: 400px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .modal-video {
+    width: 100%; aspect-ratio: 16/9;
+    background: #000; display: flex; align-items: center; justify-content: center;
+    font-size: 48px; color: rgba(255,255,255,0.3);
+  }
+  .modal-video iframe { width: 100%; height: 100%; border: none; }
+  .modal-content { padding: 18px; }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .modal-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .modal-close {
+    width: 100%; padding: 14px; background: var(--surface2);
+    border: none; color: var(--text-muted); font-size: 14px;
+    font-weight: 700; cursor: pointer; border-top: 1px solid var(--border);
+  }
+
+  /* Success overlay */
+  .success-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--surface); z-index: 300;
+    align-items: center; justify-content: center; flex-direction: column;
+    gap: 20px; text-align: center; padding: 40px;
+  }
+  .success-overlay.open { display: flex; }
+  .success-icon {
+    width: 84px; height: 84px; border-radius: 50%;
+    background: var(--success-bg); display: flex;
+    align-items: center; justify-content: center; font-size: 40px;
+  }
+  .success-title { font-size: 26px; font-weight: 700; }
+  .success-sub { color: var(--text-muted); font-size: 15px; line-height: 1.6; }
+  .btn-secondary {
+    padding: 13px 28px; border-radius: var(--radius);
+    background: var(--surface2); color: var(--text);
+    font-size: 15px; font-weight: 700; border: 1px solid var(--border); cursor: pointer;
+    transition: var(--transition);
+  }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 calc(20px + env(safe-area-inset-bottom, 0px));
+    z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 3px; padding: 8px 0;
+    cursor: pointer; transition: var(--transition);
+  }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .nav-item.active .nav-label { color: var(--accent); }
+  .nav-item.active .nav-icon-wrap { background: var(--accent-light); border-radius: 10px; padding: 4px 14px; }
+  .nav-icon-wrap { padding: 4px 14px; }
+
+  .pb-nav { height: 110px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="app-header">
+  <div class="app-logo"><img src="Logo.png" alt="RECODE" style="height:32px;width:auto;"></div>
+  <div class="avatar" onclick="window.location.href='login.html'" title="Se déconnecter" style="cursor:pointer;">SM</div>
+</div>
+
+<!-- ═══════════════ SCREEN: VUE SEMAINE ═══════════════ -->
+<div class="screen active" id="screen-week">
+  <div class="week-header">
+    <div class="week-greeting">Bonjour Sofia 👋</div>
+    <div class="week-sub">Semaine du 19 au 25 mai 2026</div>
+  </div>
+
+  <!-- Day selector -->
+  <div class="week-label">Semaine</div>
+  <div class="week-days">
+    <div class="day-chip" onclick="filterDay(this,'Lun')"><div class="day-name">Lun</div><div class="day-num">19</div></div>
+    <div class="day-chip has-session" onclick="filterDay(this,'Mar')"><div class="day-name">Mar</div><div class="day-num">20</div></div>
+    <div class="day-chip" onclick="filterDay(this,'Mer')"><div class="day-name">Mer</div><div class="day-num">21</div></div>
+    <div class="day-chip has-session today" onclick="filterDay(this,'Jeu')"><div class="day-name">Jeu</div><div class="day-num">22</div></div>
+    <div class="day-chip" onclick="filterDay(this,'Ven')"><div class="day-name">Ven</div><div class="day-num">23</div></div>
+    <div class="day-chip has-session" onclick="filterDay(this,'Sam')"><div class="day-name">Sam</div><div class="day-num">24</div></div>
+    <div class="day-chip" onclick="filterDay(this,'Dim')"><div class="day-name">Dim</div><div class="day-num">25</div></div>
+  </div>
+
+  <!-- Sessions list -->
+  <div class="sessions-list">
+    <div class="session-card done" data-days="Mar" onclick="openSession('A')">
+      <div class="session-meta">
+        <div class="session-day">Mardi 20 mai</div>
+        <div class="session-status done">✓ Validée</div>
+      </div>
+      <div class="session-name">Séance A — Push</div>
+      <div class="session-info">
+        <div class="session-tag">⏱ 55 min</div>
+        <div class="session-tag">💪 6 exercices</div>
+      </div>
+      <div class="session-muscles">
+        <span class="muscle-tag">Pectoraux</span>
+        <span class="muscle-tag">Épaules</span>
+        <span class="muscle-tag">Triceps</span>
+      </div>
+    </div>
+
+    <div class="session-card" data-days="Jeu" onclick="openSession('B')">
+      <div class="session-meta">
+        <div class="session-day">Jeudi 22 mai · Aujourd'hui</div>
+        <div class="session-status">À faire</div>
+      </div>
+      <div class="session-name">Séance B — Pull</div>
+      <div class="session-info">
+        <div class="session-tag">⏱ 60 min</div>
+        <div class="session-tag">💪 5 exercices</div>
+      </div>
+      <div class="session-muscles">
+        <span class="muscle-tag">Dos</span>
+        <span class="muscle-tag">Biceps</span>
+        <span class="muscle-tag">Trapèzes</span>
+      </div>
+    </div>
+
+    <div class="session-card" data-days="Sam" onclick="openSession('C')">
+      <div class="session-meta">
+        <div class="session-day">Samedi 24 mai</div>
+        <div class="session-status">À faire</div>
+      </div>
+      <div class="session-name">Séance C — Lower</div>
+      <div class="session-info">
+        <div class="session-tag">⏱ 65 min</div>
+        <div class="session-tag">💪 6 exercices</div>
+      </div>
+      <div class="session-muscles">
+        <span class="muscle-tag">Quadriceps</span>
+        <span class="muscle-tag">Fessiers</span>
+        <span class="muscle-tag">Ischio</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pb-nav"></div>
+</div>
+
+<!-- ═══════════════ SCREEN: DÉTAIL SÉANCE B ═══════════════ -->
+<div class="screen" id="screen-session">
+  <!-- Top -->
+  <div class="session-top">
+    <div class="back-btn" onclick="goBack()">← Semaine</div>
+    <div class="session-title">Séance B — Pull</div>
+    <div class="session-chips">
+      <span class="chip accent">Jeudi 22 mai</span>
+      <span class="chip">⏱ ~60 min</span>
+      <span class="chip">5 exercices</span>
+    </div>
+  </div>
+
+  <!-- Warmup -->
+  <div class="section-label">Échauffement</div>
+  <div class="warmup-card" onclick="openVideoModal('Échauffement général', 'Mobilisation des épaules, activation du dos et du core. Réaliser 2 tours du circuit complet avant de commencer la séance.')">
+    <div class="warmup-thumb"><div class="play-btn"></div></div>
+    <div class="warmup-info">
+      <div class="warmup-name">Échauffement Pull</div>
+      <div class="warmup-detail">Vidéo · 3 min · 2 séries</div>
+    </div>
+  </div>
+
+  <!-- Exercises -->
+  <div class="section-label">Exercices</div>
+  <div class="exo-list">
+
+    <!-- Exo 1 -->
+    <div class="exo-card">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">1</div>
+        <div class="exo-info">
+          <div class="exo-name">Tractions pronation</div>
+          <div class="exo-params">4 × 6–8 reps · RIR 2 · Repos 2'30</div>
+        </div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tractions pronation', 'Prise légèrement plus large que les épaules. Tirez les coudes vers les hanches, rétraction des scapulas en haut du mouvement. Descente contrôlée en 3 secondes.')">▶</div>
+        <div class="exo-expand">›</div>
+      </div>
+      <div class="series-body" id="series-1">
+        <div class="series-header-row">
+          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+        </div>
+        <div class="series-row">
+          <div class="serie-num">1</div>
+          <input class="serie-input prescribed" value="6–8" readonly>
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">2</div>
+          <input class="serie-input prescribed" value="6–8" readonly>
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">3</div>
+          <input class="serie-input prescribed" value="6–8" readonly>
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">4</div>
+          <input class="serie-input prescribed" value="6–8" readonly>
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+        </div>
+        <div class="exo-meta-row">
+          <div class="exo-meta-chip">⏱ Repos <strong>2'30</strong></div>
+          <div class="exo-meta-chip">🎯 RIR <strong>2</strong></div>
+        </div>
+        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+      </div>
+    </div>
+
+    <!-- Exo 2 -->
+    <div class="exo-card">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">2</div>
+        <div class="exo-info">
+          <div class="exo-name">Rowing barre pronation</div>
+          <div class="exo-params">4 × 8–10 reps · RIR 2 · Repos 2'</div>
+        </div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Rowing barre pronation', 'Légère flexion de buste à 45°. Tirer la barre vers le nombril en gardant les coudes proches du corps. Contraction maximale en haut.')">▶</div>
+        <div class="exo-expand">›</div>
+      </div>
+      <div class="series-body">
+        <div class="series-header-row">
+          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+        </div>
+        <div class="series-row">
+          <div class="serie-num">1</div>
+          <input class="serie-input prescribed" value="8–10" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">2</div>
+          <input class="serie-input prescribed" value="8–10" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">3</div>
+          <input class="serie-input prescribed" value="8–10" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">4</div>
+          <input class="serie-input prescribed" value="8–10" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="exo-meta-row">
+          <div class="exo-meta-chip">⏱ Repos <strong>2'</strong></div>
+          <div class="exo-meta-chip">🎯 RIR <strong>2</strong></div>
+        </div>
+        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+      </div>
+    </div>
+
+    <!-- Exo 3 -->
+    <div class="exo-card">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">3</div>
+        <div class="exo-info">
+          <div class="exo-name">Tirage horizontal câble</div>
+          <div class="exo-params">3 × 10–12 reps · RIR 1 · Repos 1'30</div>
+        </div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tirage horizontal câble', 'Assis au câble, dos droit. Tirer la poignée vers le sternum, coudes à 45°. Etirer complètement le dos en position basse.')">▶</div>
+        <div class="exo-expand">›</div>
+      </div>
+      <div class="series-body">
+        <div class="series-header-row">
+          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+        </div>
+        <div class="series-row">
+          <div class="serie-num">1</div>
+          <input class="serie-input prescribed" value="10–12" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">2</div>
+          <input class="serie-input prescribed" value="10–12" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">3</div>
+          <input class="serie-input prescribed" value="10–12" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="exo-meta-row">
+          <div class="exo-meta-chip">⏱ Repos <strong>1'30</strong></div>
+          <div class="exo-meta-chip">🎯 RIR <strong>1</strong></div>
+        </div>
+        <div class="exo-comment">
+          💬 Coach : Pense à vraiment étirer ton dos en position basse avant de tirer. Qualité > quantité !
+        </div>
+        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter ton commentaire…"></textarea>
+      </div>
+    </div>
+
+    <!-- Exo 4 -->
+    <div class="exo-card">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">4</div>
+        <div class="exo-info">
+          <div class="exo-name">Curl haltères alternés</div>
+          <div class="exo-params">3 × 10 reps/bras · RIR 2 · Repos 1'</div>
+        </div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Curl haltères alternés', 'Debout ou assise, coudes fixes contre le buste. Supination en haut du mouvement. Descente contrôlée.')">▶</div>
+        <div class="exo-expand">›</div>
+      </div>
+      <div class="series-body">
+        <div class="series-header-row">
+          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+        </div>
+        <div class="series-row">
+          <div class="serie-num">1</div>
+          <input class="serie-input prescribed" value="10/bras" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">2</div>
+          <input class="serie-input prescribed" value="10/bras" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">3</div>
+          <input class="serie-input prescribed" value="10/bras" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="exo-meta-row">
+          <div class="exo-meta-chip">⏱ Repos <strong>1'</strong></div>
+          <div class="exo-meta-chip">🎯 RIR <strong>2</strong></div>
+        </div>
+        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+      </div>
+    </div>
+
+    <!-- Exo 5 -->
+    <div class="exo-card">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">5</div>
+        <div class="exo-info">
+          <div class="exo-name">Face pull à la corde</div>
+          <div class="exo-params">3 × 15 reps · RIR 1 · Repos 1'</div>
+        </div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Face pull à la corde', 'Câble haut, tirer la corde vers le visage en ouvrant les coudes. Position finale : bras en croix, mains derrière la tête.')">▶</div>
+        <div class="exo-expand">›</div>
+      </div>
+      <div class="series-body">
+        <div class="series-header-row">
+          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+        </div>
+        <div class="series-row">
+          <div class="serie-num">1</div>
+          <input class="serie-input prescribed" value="15" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">2</div>
+          <input class="serie-input prescribed" value="15" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="series-row">
+          <div class="serie-num">3</div>
+          <input class="serie-input prescribed" value="15" readonly>
+          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input" type="number" placeholder="—">
+        </div>
+        <div class="exo-meta-row">
+          <div class="exo-meta-chip">⏱ Repos <strong>1'</strong></div>
+          <div class="exo-meta-chip">🎯 RIR <strong>1</strong></div>
+        </div>
+        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+      </div>
+    </div>
+
+  </div><!-- end exo-list -->
+
+  <!-- Validate -->
+  <div class="validate-section">
+    <button class="btn-validate" onclick="validateSession()">
+      ✓ Valider la séance
+    </button>
+  </div>
+
+  <div class="pb-nav"></div>
+</div><!-- end screen-session -->
+
+<!-- ═══════════════ MODAL VIDÉO ═══════════════ -->
+<div class="modal-overlay" id="modal-video">
+  <div class="modal-box">
+    <div class="modal-video">▶</div>
+    <div class="modal-content">
+      <div class="modal-title" id="modal-title">Exercice</div>
+      <div class="modal-desc" id="modal-desc">Description de l'exercice</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- ═══════════════ SUCCESS OVERLAY ═══════════════ -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-icon">🎉</div>
+  <div class="success-title">Séance validée !</div>
+  <div class="success-sub">Super boulot ! Séance B enregistrée.<br>Tes perfs ont été sauvegardées.</div>
+  <button class="btn-secondary" onclick="closeSuccess()">← Retour à la semaine</button>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active">
+    <div class="nav-icon-wrap"><div class="nav-icon">🏠</div></div>
+    <div class="nav-label">Séances</div>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module2_perfs.html'">
+    <div class="nav-icon-wrap"><div class="nav-icon">📈</div></div>
+    <div class="nav-label">Perfs</div>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module3_metriques.html'">
+    <div class="nav-icon-wrap"><div class="nav-icon">📋</div></div>
+    <div class="nav-label">Suivi</div>
+  </div>
+  <div class="nav-item" style="opacity:0.4; pointer-events:none;">
+    <div class="nav-icon-wrap"><div class="nav-icon">👤</div></div>
+    <div class="nav-label">Profil</div>
+  </div>
+</div>
+
+<script>
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  function openSession(id) {
+    showScreen('screen-session');
+  }
+
+  function goBack() {
+    showScreen('screen-week');
+  }
+
+  function toggleExo(header) {
+    const body = header.nextElementSibling;
+    const arrow = header.querySelector('.exo-expand');
+    const isOpen = body.classList.contains('open');
+    // close all
+    document.querySelectorAll('.series-body').forEach(b => b.classList.remove('open'));
+    document.querySelectorAll('.exo-expand').forEach(a => a.classList.remove('open'));
+    // toggle
+    if (!isOpen) {
+      body.classList.add('open');
+      arrow.classList.add('open');
+    }
+  }
+
+  function openVideoModal(title, desc) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-desc').textContent = desc;
+    document.getElementById('modal-video').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-video').classList.remove('open');
+  }
+
+  function validateSession() {
+    document.getElementById('success-overlay').classList.add('open');
+  }
+
+  function closeSuccess() {
+    document.getElementById('success-overlay').classList.remove('open');
+    showScreen('screen-week');
+    // Mark session as done
+    document.querySelectorAll('.session-card[data-days="Jeu"]').forEach(c => {
+      c.classList.add('done');
+      c.querySelector('.session-status').textContent = '✓ Validée';
+      c.querySelector('.session-status').classList.add('done');
+    });
+  }
+
+  function checkDone(input) {
+    if (input.value) input.classList.add('done');
+    else input.classList.remove('done');
+  }
+
+  function filterDay(chip, day) {
+    document.querySelectorAll('.day-chip').forEach(c => c.style.outline = 'none');
+    chip.style.outline = '2px solid var(--accent)';
+    const cards = document.querySelectorAll('.session-card');
+    cards.forEach(c => {
+      const days = c.getAttribute('data-days') || '';
+      c.style.display = (!day || days.includes(day) || day === 'all') ? '' : 'none';
+    });
+    setTimeout(() => {
+      document.querySelectorAll('.day-chip').forEach(c => c.style.outline = 'none');
+    }, 400);
+  }
+
+  function switchNav(item, tab) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+  }
+
+  // Auto-open first exo
+  setTimeout(() => {
+    const firstHeader = document.querySelector('.exo-header');
+    if (firstHeader) toggleExo(firstHeader);
+  }, 100);
+</script>
+</body>
+</html>
