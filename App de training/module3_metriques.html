@@ -11,225 +11,256 @@ function getSession(){try{return JSON.parse(localStorage.getItem('recode_session
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
 function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Suivi</title>
 <style>
   :root {
-    --bg: #F7F7F9;
+    --bg: #F6F6F8;
     --surface: #FFFFFF;
-    --surface2: #F5F3FE;
-    --surface3: #E5E0FA;
-    --accent: #7C3AED;
-    --accent-light: #EDE9FE;
-    --text: #1D1D1F;
-    --text-muted: #6E6E73;
-    --text-dim: #AEAEB2;
-    --success: #34C759;
+    --surface2: #F2F2F5;
+    --surface3: #E8E8ED;
+    /* Design system violet */
+    --accent: #6D28D9;
+    --accent-mid: #8B5CF6;
+    --accent-bg: rgba(109,40,217,0.09);
+    --accent-bg-soft: rgba(109,40,217,0.05);
+    --accent-light: rgba(109,40,217,0.08);
+    --text: #111827;
+    --text-muted: #6B7280;
+    --text-dim: #9CA3AF;
+    --success: #16A34A;
+    --danger: #DC2626;
     --cycle-menstrual: #f87171;
     --cycle-follicular: #fb923c;
     --cycle-ovulation: #facc15;
     --cycle-luteal: #c084fc;
     --radius: 12px;
     --radius-sm: 8px;
-    --transition: 0.18s ease;
-    --border: #E5E5EA;
+    --transition: 0.15s ease;
+    --border: rgba(0,0,0,0.07);
+    --border-md: rgba(0,0,0,0.10);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
     background: var(--bg); color: var(--text);
-    font-family: 'Open Sans', -apple-system, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
     min-height: 100vh; max-width: 430px; margin: 0 auto; overflow-x: hidden;
   }
+
+  /* ── HEADER ── */
   .app-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 20px 12px; position: sticky; top: 0;
+    padding: 16px 20px 12px; position: sticky; top: 0;
     background: var(--surface); z-index: 100; border-bottom: 1px solid var(--border);
   }
-  .app-logo { font-size: 18px; font-weight: 800; }
-  .app-logo span { color: var(--accent); }
   .avatar {
-    width: 36px; height: 36px; border-radius: 50%; background: var(--accent-light);
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-bg);
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: var(--accent); border: 2px solid var(--border);
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    border: 1px solid rgba(109,40,217,0.15);
   }
+
+  /* ── TAB BAR ── */
   .tab-bar {
     display: flex; background: var(--surface);
     border-bottom: 1px solid var(--border);
-    position: sticky; top: 65px; z-index: 90;
+    position: sticky; top: 61px; z-index: 90;
   }
   .tab-btn {
-    flex: 1; padding: 14px 6px; text-align: center;
-    font-size: 12px; font-weight: 700; color: var(--text-muted);
-    cursor: pointer; border-bottom: 2.5px solid transparent; transition: var(--transition);
+    flex: 1; padding: 13px 6px; text-align: center;
+    font-size: 13px; font-weight: 500; color: var(--text-dim);
+    cursor: pointer; border-bottom: 2px solid transparent; transition: var(--transition);
   }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn.active { color: var(--accent); font-weight: 600; border-bottom-color: var(--accent); }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
+
+  /* ── SECTION LABEL ── */
   .section-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-    text-transform: uppercase; color: var(--accent);
-    padding: 18px 20px 10px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::before {
-    content: ''; display: inline-block;
-    width: 18px; height: 2px;
-    background: var(--accent); border-radius: 2px; flex: 0 0 auto;
+    font-size: 12px; font-weight: 600; color: var(--text-dim);
+    padding: 20px 20px 10px; letter-spacing: 0.2px;
+    text-transform: uppercase;
   }
 
-  /* ═══════════════ MÉTRIQUES ═══════════════ */
-  .metrics-list { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
-  .metric-card { background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: 0 2px 14px rgba(124,58,237,0.09); }
+  /* ── ICON SYSTEM ──
+     Deux tons du design system violet :
+     - .icon-primary  : métriques (accent fort)
+     - .icon-secondary: habitudes, insights (accent doux)
+  */
+  .ic {
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto; border-radius: 9px;
+  }
+  .ic-sm  { width: 36px; height: 36px; }
+  .ic-md  { width: 38px; height: 38px; }
+  .icon-primary   { background: var(--accent-bg);   color: var(--accent); }
+  .icon-secondary { background: var(--accent-bg-soft); color: var(--accent-mid); }
+
+  /* ═══════ MÉTRIQUES ═══════ */
+  .metrics-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .metric-card {
+    background: var(--surface); border-radius: var(--radius);
+    overflow: hidden; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
   .metric-card-top {
     display: flex; align-items: center; gap: 14px;
-    padding: 16px; cursor: pointer;
+    padding: 14px 16px; cursor: pointer;
   }
-  .metric-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex: 0 0 auto;
-  }
-  .metric-info { flex: 1; }
-  .metric-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
-  .metric-last { font-size: 12px; color: var(--text-muted); }
-  .metric-current { text-align: right; }
-  .metric-val { font-size: 20px; font-weight: 800; }
-  .metric-unit { font-size: 12px; color: var(--text-muted); font-weight: 600; }
-  .metric-delta { font-size: 12px; font-weight: 700; margin-top: 2px; }
-  .metric-delta.up { color: var(--success); }
-  .metric-delta.down { color: var(--cycle-menstrual); }
-  .metric-delta.neutral { color: var(--text-muted); }
-
-  /* Chart with dates */
-  .metric-chart-wrap { padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  .metric-info { flex: 1; min-width: 0; }
+  .metric-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .metric-last { font-size: 12px; color: var(--text-dim); }
+  .metric-current { text-align: right; flex: 0 0 auto; }
+  .metric-val { font-size: 17px; font-weight: 700; }
+  .metric-unit { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .metric-delta { font-size: 11px; font-weight: 600; margin-top: 2px; }
+  .metric-delta.up   { color: var(--success); }
+  .metric-delta.down { color: var(--danger); }
+  .metric-delta.neutral { color: var(--text-dim); }
+  .metric-chart-wrap { padding: 0 16px 14px; border-top: 1px solid var(--border); }
   .metric-chart-canvas { width: 100%; display: block; }
 
-  /* Modal */
+  /* ── MODAL ── */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.45); z-index: 200; align-items: flex-end; justify-content: center;
+    background: rgba(0,0,0,0.38); z-index: 200; align-items: flex-end; justify-content: center;
   }
   .modal-overlay.open { display: flex; }
   .modal-sheet {
-    background: var(--surface); border-radius: 24px 24px 0 0;
+    background: var(--surface); border-radius: 20px 20px 0 0;
     width: 100%; max-width: 430px; padding: 24px 24px 40px;
-    box-shadow: 0 -4px 40px rgba(0,0,0,0.12);
+    box-shadow: 0 -2px 24px rgba(0,0,0,0.08);
   }
-  .modal-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--surface3); margin: 0 auto 20px; }
-  .modal-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
-  .modal-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
-  .modal-input-wrap { position: relative; margin-bottom: 16px; }
+  .modal-handle { width: 36px; height: 3px; border-radius: 2px; background: var(--surface3); margin: 0 auto 20px; }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  .modal-input-wrap { position: relative; margin-bottom: 14px; }
   .modal-input {
     width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 12px; color: var(--text); font-size: 28px; font-weight: 800;
+    border-radius: 12px; color: var(--text); font-size: 28px; font-weight: 700;
     padding: 16px 70px 16px 20px; outline: none; font-family: inherit;
-    transition: border-color 0.18s; text-align: center;
+    transition: border-color 0.18s, box-shadow 0.18s; text-align: center;
   }
-  .modal-input:focus { border-color: var(--accent); }
-  .modal-unit-badge { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; font-weight: 700; color: var(--text-muted); }
+  .modal-input:focus { border-color: rgba(109,40,217,0.35); box-shadow: 0 0 0 3px rgba(109,40,217,0.06); }
+  .modal-unit-badge { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 14px; font-weight: 600; color: var(--text-muted); }
   .modal-note {
     width: 100%; background: var(--surface2); border: 1px solid var(--border);
     border-radius: 12px; color: var(--text); font-size: 14px;
     padding: 12px 16px; outline: none; font-family: inherit;
-    resize: none; margin-bottom: 16px; transition: border-color 0.18s;
+    resize: none; margin-bottom: 14px; transition: border-color 0.18s;
   }
-  .modal-note:focus { border-color: var(--accent); }
+  .modal-note:focus { border-color: rgba(109,40,217,0.35); }
   .modal-note::placeholder { color: var(--text-dim); }
-  .btn-primary { width: 100%; padding: 16px; border-radius: var(--radius); background: var(--accent); color: #fff; font-size: 16px; font-weight: 800; border: none; cursor: pointer; }
-  .btn-ghost { width: 100%; padding: 14px; border-radius: var(--radius); background: transparent; color: var(--text-muted); font-size: 15px; font-weight: 600; border: none; cursor: pointer; margin-top: 8px; }
-
-  /* Glaire selector in modal */
-  .glaire-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-  .glaire-opt {
-    padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--surface2); cursor: pointer; transition: var(--transition);
-    display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; color: var(--text-muted);
+  .btn-primary {
+    width: 100%; padding: 14px; border-radius: var(--radius);
+    background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
   }
-  .glaire-opt.selected { border-color: var(--accent); color: var(--text); background: var(--accent-light); }
-  .glaire-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+  .btn-ghost {
+    width: 100%; padding: 13px; border-radius: var(--radius);
+    background: transparent; color: var(--text-muted);
+    font-size: 14px; font-weight: 500; border: none; cursor: pointer; margin-top: 6px; font-family: inherit;
+  }
 
-  /* ═══════════════ HABITUDES ═══════════════ */
+  /* ═══════ HABITUDES ═══════ */
   .habits-week {
     display: grid; grid-template-columns: repeat(7,1fr);
     gap: 4px; padding: 0 20px 16px;
   }
-  .habit-day-col { text-align: center; }
-  .habit-day-name { font-size: 10px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; }
+  .habit-day-col { text-align: center; cursor: pointer; }
+  .habit-day-name { font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
   .habit-day-num {
     width: 28px; height: 28px; border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 800; margin: 0 auto 4px;
+    font-size: 12px; font-weight: 600; margin: 0 auto 4px;
     background: var(--surface2); color: var(--text-muted);
   }
   .habit-day-num.today { background: var(--accent); color: #fff; }
-  .habit-day-score { width: 28px; height: 6px; border-radius: 3px; margin: 0 auto; background: var(--surface3); overflow: hidden; }
-  .habit-day-score-fill { height: 100%; border-radius: 3px; background: var(--accent); }
-  .habit-day-col { text-align: center; cursor: pointer; }
-  .habit-day-col.selected .habit-day-num:not(.today) { border: 2px solid var(--accent); color: var(--accent); background: var(--accent-light); }
-  .habit-day-col.selected .habit-day-num.today { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-light); }
+  .habit-day-score { width: 28px; height: 3px; border-radius: 2px; margin: 0 auto; background: var(--surface3); overflow: hidden; }
+  .habit-day-score-fill { height: 100%; border-radius: 2px; background: var(--accent-mid); }
+  .habit-day-col.selected .habit-day-num:not(.today) { border: 1.5px solid var(--accent); color: var(--accent); background: var(--accent-light); }
 
   .habits-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
-  .habit-card { background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: 0 2px 14px rgba(124,58,237,0.09); }
+  .habit-card {
+    background: var(--surface); border-radius: var(--radius); padding: 14px 16px;
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
   .habit-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .habit-emoji { font-size: 26px; width: 42px; text-align: center; }
-  .habit-info { flex: 1; }
-  .habit-name { font-size: 15px; font-weight: 600; }
+  .habit-info { flex: 1; min-width: 0; }
+  .habit-name { font-size: 14px; font-weight: 600; }
   .habit-target { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   .habit-streak {
     display: flex; flex-direction: column; align-items: center;
-    background: var(--accent-light); border-radius: 10px; padding: 6px 10px;
+    background: var(--surface2); border-radius: 8px; padding: 5px 10px;
+    border: 1px solid var(--border); min-width: 42px;
   }
-  .streak-val { font-size: 18px; font-weight: 800; color: var(--accent); }
-  .streak-label { font-size: 10px; font-weight: 700; color: var(--accent); }
+  .streak-val { font-size: 15px; font-weight: 700; color: var(--text); }
+  .streak-label { font-size: 10px; font-weight: 500; color: var(--text-dim); margin-top: 1px; }
+
+  /* Rating buttons */
   .habit-rating-row { display: flex; gap: 6px; }
   .rating-btn {
-    flex: 1; padding: 10px 4px; border-radius: 10px;
+    flex: 1; padding: 9px 4px 10px; border-radius: 9px;
     border: 1px solid var(--border); background: var(--surface2);
-    font-size: 18px; cursor: pointer; text-align: center; transition: var(--transition);
+    cursor: pointer; text-align: center; transition: var(--transition);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
   }
-  .rating-btn.selected { border-color: var(--accent); background: var(--accent-light); }
-  .rating-btn.selected.red { border-color: var(--cycle-menstrual); background: rgba(248,113,113,0.1); }
-  .rating-btn.selected.orange { border-color: var(--cycle-follicular); background: rgba(251,146,60,0.1); }
-  .rating-btn.selected.yellow { border-color: var(--cycle-ovulation); background: rgba(250,204,21,0.1); }
+  .r-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--surface3); transition: background var(--transition), transform var(--transition);
+  }
+  .rating-btn span { font-size: 10px; font-weight: 500; color: var(--text-dim); line-height: 1.2; }
+  .rating-btn.selected { border-color: var(--border-md); background: var(--surface); }
+  .rating-btn.selected span { color: var(--text-muted); font-weight: 600; }
+  .rating-btn.selected .r-dot { transform: scale(1.15); background: var(--success); }
+  .rating-btn.selected.red    .r-dot { background: var(--cycle-menstrual); }
+  .rating-btn.selected.orange .r-dot { background: var(--cycle-follicular); }
+  .rating-btn.selected.yellow .r-dot { background: #D97706; }
+
   .habit-check-row { display: flex; gap: 6px; }
   .check-day {
     flex: 1; aspect-ratio: 1; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface2);
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; color: var(--text-dim); cursor: pointer; transition: var(--transition);
+    cursor: pointer; transition: var(--transition);
     flex-direction: column; gap: 1px;
   }
-  .check-day.done { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-size: 14px; }
-  .check-day.today { border-color: var(--accent); color: var(--text-muted); }
+  .check-day .cd-check { font-size: 12px; color: var(--text-dim); }
+  .check-day .cd-day  { font-size: 9px; font-weight: 600; color: var(--text-dim); }
+  .check-day.done {
+    background: rgba(109,40,217,0.06); border-color: rgba(109,40,217,0.2);
+  }
+  .check-day.done .cd-check { color: var(--accent); }
+  .check-day.today { border-color: var(--accent); }
+  .check-day.today .cd-check { color: var(--text-muted); }
 
-  /* ═══════════════ CYCLE ═══════════════ */
+  /* ═══════ CYCLE ═══════ */
   .cycle-banner {
     margin: 16px 20px 0; border-radius: var(--radius);
-    padding: 20px; position: relative; overflow: hidden;
+    padding: 18px 20px; position: relative;
   }
-  .cycle-banner.menstrual { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: #c0392b; }
-  .cycle-banner.follicular { background: rgba(251,146,60,0.08); border: 1px solid rgba(251,146,60,0.25); color: #c05621; }
-  .cycle-banner.ovulation { background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.35); color: #92620a; }
-  .cycle-banner.luteal { background: rgba(192,132,252,0.08); border: 1px solid rgba(192,132,252,0.25); color: #6d28d9; }
-  .cycle-phase-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; opacity: 0.7; color: var(--text); }
-  .cycle-phase-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
-  .cycle-day-info { font-size: 14px; color: var(--text-muted); }
-  .cycle-emoji { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 44px; opacity: 0.5; }
+  .cycle-banner.menstrual  { background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.18); }
+  .cycle-banner.follicular { background: rgba(251,146,60,0.06);  border: 1px solid rgba(251,146,60,0.18); }
+  .cycle-banner.ovulation  { background: rgba(250,204,21,0.06);  border: 1px solid rgba(250,204,21,0.22); }
+  .cycle-banner.luteal     { background: rgba(192,132,252,0.06); border: 1px solid rgba(192,132,252,0.18); }
+  .cycle-phase-label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 4px; }
+  .cycle-phase-name  { font-size: 19px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .cycle-day-info    { font-size: 13px; color: var(--text-muted); }
 
-  /* Cycle stats row */
   .cycle-stats {
     display: grid; grid-template-columns: 1fr 1fr 1fr;
     gap: 8px; padding: 12px 20px 0;
   }
   .cycle-stat {
     background: var(--surface); border-radius: var(--radius-sm);
-    padding: 12px; text-align: center; box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    padding: 12px; text-align: center; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
-  .cycle-stat-val { font-size: 20px; font-weight: 800; color: var(--accent); }
-  .cycle-stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+  .cycle-stat-val   { font-size: 17px; font-weight: 700; color: var(--text); }
+  .cycle-stat-label { font-size: 11px; color: var(--text-dim); font-weight: 500; margin-top: 3px; }
 
-  /* Cycle ring */
   .cycle-ring-wrap { display: flex; justify-content: center; padding: 16px 20px 0; }
   .cycle-ring-inner { position: relative; width: 180px; height: 180px; }
   #cycleCanvas { width: 180px; height: 180px; }
@@ -237,32 +268,40 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     position: absolute; inset: 0; display: flex;
     flex-direction: column; align-items: center; justify-content: center;
   }
-  .cycle-center-day { font-size: 32px; font-weight: 800; }
-  .cycle-center-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .cycle-center-day   { font-size: 30px; font-weight: 700; }
+  .cycle-center-label { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
 
   .phase-legend {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 20px 0;
   }
-  .phase-item { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 10px; padding: 10px 12px; box-shadow: 0 2px 14px rgba(124,58,237,0.09); }
-  .phase-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-  .phase-name { font-size: 12px; font-weight: 700; }
-  .phase-days { font-size: 11px; color: var(--text-muted); }
+  .phase-item {
+    display: flex; align-items: center; gap: 8px; background: var(--surface);
+    border-radius: 9px; padding: 10px 12px; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .phase-dot  { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .phase-name { font-size: 12px; font-weight: 600; }
+  .phase-days { font-size: 11px; color: var(--text-dim); }
 
-  /* Daily cycle log */
-  .cycle-daily-log { margin: 16px 20px 0; background: var(--surface); border-radius: var(--radius); padding: 18px; box-shadow: 0 2px 14px rgba(124,58,237,0.09); }
-  .cycle-daily-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
-
+  .cycle-daily-log {
+    margin: 14px 20px 0; background: var(--surface); border-radius: var(--radius);
+    padding: 18px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .cycle-daily-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
   .cycle-field { margin-bottom: 14px; }
-  .cycle-field-label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cycle-field-label {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    margin-bottom: 8px; letter-spacing: 0.1px;
+  }
   .temp-input-row { display: flex; align-items: center; gap: 10px; }
   .temp-input {
     flex: 1; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text); font-size: 22px; font-weight: 800;
+    border-radius: 10px; color: var(--text); font-size: 22px; font-weight: 700;
     padding: 12px 16px; outline: none; font-family: inherit;
     transition: border-color 0.18s; text-align: center;
   }
-  .temp-input:focus { border-color: var(--accent); }
-  .temp-unit { font-size: 16px; color: var(--text-muted); font-weight: 700; }
+  .temp-input:focus { border-color: rgba(109,40,217,0.35); }
+  .temp-unit { font-size: 15px; color: var(--text-muted); font-weight: 600; }
 
   .glaire-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .glaire-card {
@@ -270,85 +309,107 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     background: var(--surface2); cursor: pointer; transition: var(--transition);
     text-align: center;
   }
-  .glaire-card.selected { border-color: var(--accent); background: var(--accent-light); }
-  .glaire-card-icon { font-size: 22px; margin-bottom: 4px; }
-  .glaire-card-name { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+  .glaire-card.selected { border-color: rgba(109,40,217,0.3); background: var(--accent-light); }
+  .glaire-dot-icon {
+    width: 12px; height: 12px; border-radius: 50%;
+    margin: 0 auto 6px;
+  }
+  .glaire-card-name { font-size: 12px; font-weight: 600; color: var(--text-muted); }
   .glaire-card.selected .glaire-card-name { color: var(--accent); }
   .glaire-card-desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
 
   .cycle-save-btn {
-    width: 100%; padding: 14px; border-radius: var(--radius);
+    width: 100%; padding: 13px; border-radius: var(--radius);
     background: var(--accent); color: #fff;
-    font-size: 15px; font-weight: 800; border: none; cursor: pointer; margin-top: 4px;
+    font-size: 14px; font-weight: 600; border: none; cursor: pointer; margin-top: 4px; font-family: inherit;
   }
 
-  /* Log règles btn */
   .log-cycle-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
     margin: 12px 20px 0; background: var(--surface); border-radius: var(--radius);
-    padding: 14px; cursor: pointer; border: 1.5px dashed var(--surface3);
-    color: var(--text-muted); font-size: 14px; font-weight: 600; transition: var(--transition);
+    padding: 13px; cursor: pointer; border: 1px dashed var(--border-md);
+    color: var(--text-muted); font-size: 13px; font-weight: 500; transition: var(--transition);
+  }
+  .log-cycle-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cycle-menstrual); flex: 0 0 auto;
   }
 
   /* Insights */
   .insights-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
   .insight-card {
     background: var(--surface); border-radius: var(--radius);
-    padding: 16px; box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    padding: 14px 16px; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   }
-  .insight-top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
-  .insight-emoji { font-size: 24px; }
-  .insight-title { font-size: 14px; font-weight: 700; }
+  .insight-top { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+  .insight-title { font-size: 13px; font-weight: 700; line-height: 1.3; }
   .insight-phase { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-  .insight-body { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+  .insight-body  { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+  .insight-tags  { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
   .insight-tag {
-    display: inline-block; margin-top: 8px; margin-right: 4px;
-    font-size: 11px; padding: 3px 8px; border-radius: 20px;
-    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+    font-size: 11px; padding: 3px 9px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 500;
     border: 1px solid var(--border);
   }
 
-  .pb-nav { height: 110px; }
+  /* ── BOTTOM NAV ── */
+  .pb-nav { height: 100px; }
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 430px;
     background: var(--surface); border-top: 1px solid var(--border);
-    display: flex; padding: 8px 0 calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 100;
+    display: flex; padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 100;
   }
-  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; cursor: pointer; }
-  .nav-icon { font-size: 22px; }
-  .nav-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .nav-item.active .nav-label { color: var(--accent); }
-  .nav-item.active .nav-icon-wrap { background: var(--accent-light); border-radius: 12px; padding: 4px 16px; }
-  .nav-icon-wrap { padding: 4px 16px; }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; padding: 6px 0; cursor: pointer;
+    position: relative;
+  }
+  /* Indicateur actif : fine barre en haut */
+  .nav-item.active::before {
+    content: '';
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2px; border-radius: 0 0 2px 2px;
+    background: var(--accent);
+  }
+  .nav-icon { width: 22px; height: 22px; color: var(--text-dim); transition: color var(--transition); }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); transition: color var(--transition); }
+  .nav-item.active .nav-icon  { color: var(--accent); }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
 
 <div class="app-header">
-  <div class="app-logo"><img src="Logo.png" alt="RECODE" style="height:32px;width:auto;"></div>
+  <img src="Logo.png" alt="RECODE" style="height:28px;width:auto;">
   <div class="avatar" onclick="window.location.href='login.html'" title="Se déconnecter" style="cursor:pointer;">SM</div>
 </div>
 
 <div class="tab-bar">
-  <div class="tab-btn active" onclick="switchTab(this,'metrics')">📊 Métriques</div>
-  <div class="tab-btn" onclick="switchTab(this,'habits')">🌿 Habitudes</div>
-  <div class="tab-btn" onclick="switchTab(this,'cycle')">🌙 Cycle</div>
+  <div class="tab-btn active" onclick="switchTab(this,'metrics')">Métriques</div>
+  <div class="tab-btn" onclick="switchTab(this,'habits')">Habitudes</div>
+  <div class="tab-btn" onclick="switchTab(this,'cycle')">Cycle</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TAB 1 : MÉTRIQUES
-═══════════════════════════════════════════════════ -->
+<!-- ═══════ TAB 1 : MÉTRIQUES ═══════ -->
 <div class="tab-content active" id="tab-metrics">
   <div class="section-label">Mes métriques</div>
   <div class="metrics-list" id="metrics-list">
 
+    <!-- Poids -->
     <div class="metric-card">
       <div class="metric-card-top" onclick="openLog('Poids','kg','62.4')">
-        <div class="metric-icon" style="background:rgba(124,58,237,0.1)">⚖️</div>
+        <div class="ic ic-md icon-primary">
+          <!-- Scale / Balance -->
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v4M6 20h12M7 20l1.5-9h7L17 20"/>
+            <circle cx="12" cy="3" r="1.5"/>
+          </svg>
+        </div>
         <div class="metric-info">
           <div class="metric-name">Poids</div>
-          <div class="metric-last">Dernière saisie : 20 mai</div>
+          <div class="metric-last">Dernière saisie · 20 mai</div>
         </div>
         <div class="metric-current">
           <div class="metric-val">62.4 <span class="metric-unit">kg</span></div>
@@ -363,12 +424,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       </div>
     </div>
 
+    <!-- Tour de taille -->
     <div class="metric-card">
       <div class="metric-card-top" onclick="openLog('Tour de taille','cm','71')">
-        <div class="metric-icon" style="background:rgba(74,240,160,0.1)">📏</div>
+        <div class="ic ic-md icon-primary">
+          <!-- Ruler / Tape measure -->
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="2" y="9" width="20" height="6" rx="2"/>
+            <line x1="6"  y1="9" x2="6"  y2="13"/>
+            <line x1="10" y1="9" x2="10" y2="12"/>
+            <line x1="14" y1="9" x2="14" y2="13"/>
+            <line x1="18" y1="9" x2="18" y2="12"/>
+          </svg>
+        </div>
         <div class="metric-info">
           <div class="metric-name">Tour de taille</div>
-          <div class="metric-last">Dernière saisie : 15 mai</div>
+          <div class="metric-last">Dernière saisie · 15 mai</div>
         </div>
         <div class="metric-current">
           <div class="metric-val">71 <span class="metric-unit">cm</span></div>
@@ -379,16 +450,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <canvas class="metric-chart-canvas" height="90"
           data-values="73,72.5,72.2,72,71.5,71.2,71"
           data-dates="24/03,07/04,21/04,01/05,08/05,15/05,20/05"
-          data-color="#4af0a0"></canvas>
+          data-color="#7C3AED"></canvas>
       </div>
     </div>
 
+    <!-- Énergie -->
     <div class="metric-card">
       <div class="metric-card-top" onclick="openLog('Énergie subjective','/10','7')">
-        <div class="metric-icon" style="background:rgba(250,204,21,0.1)">⚡</div>
+        <div class="ic ic-md icon-primary">
+          <!-- Lightning bolt -->
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
         <div class="metric-info">
           <div class="metric-name">Énergie subjective</div>
-          <div class="metric-last">Dernière saisie : aujourd'hui</div>
+          <div class="metric-last">Dernière saisie · aujourd'hui</div>
         </div>
         <div class="metric-current">
           <div class="metric-val">7 <span class="metric-unit">/10</span></div>
@@ -399,16 +476,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <canvas class="metric-chart-canvas" height="90"
           data-values="5,6,5,7,6,8,7"
           data-dates="24/03,07/04,21/04,01/05,08/05,15/05,22/05"
-          data-color="#facc15"></canvas>
+          data-color="#7C3AED"></canvas>
       </div>
     </div>
 
+    <!-- Sommeil -->
     <div class="metric-card">
       <div class="metric-card-top" onclick="openLog('Heures de sommeil','h','7.5')">
-        <div class="metric-icon" style="background:rgba(167,139,250,0.1)">😴</div>
+        <div class="ic ic-md icon-primary">
+          <!-- Moon crescent -->
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </div>
         <div class="metric-info">
           <div class="metric-name">Heures de sommeil</div>
-          <div class="metric-last">Dernière saisie : hier</div>
+          <div class="metric-last">Dernière saisie · hier</div>
         </div>
         <div class="metric-current">
           <div class="metric-val">7.5 <span class="metric-unit">h</span></div>
@@ -419,16 +502,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <canvas class="metric-chart-canvas" height="90"
           data-values="6.5,7,7.5,6,7.5,8,7.5"
           data-dates="24/03,07/04,21/04,01/05,08/05,15/05,21/05"
-          data-color="#a78bfa"></canvas>
+          data-color="#7C3AED"></canvas>
       </div>
     </div>
 
+    <!-- Pas quotidiens -->
     <div class="metric-card">
       <div class="metric-card-top" onclick="openLog('Pas quotidiens','pas','8420')">
-        <div class="metric-icon" style="background:rgba(251,146,60,0.1)">👟</div>
+        <div class="ic ic-md icon-primary">
+          <!-- Activity / pulse line -->
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
         <div class="metric-info">
           <div class="metric-name">Pas quotidiens</div>
-          <div class="metric-last">Dernière saisie : hier</div>
+          <div class="metric-last">Dernière saisie · hier</div>
         </div>
         <div class="metric-current">
           <div class="metric-val">8 420 <span class="metric-unit">pas</span></div>
@@ -439,7 +528,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <canvas class="metric-chart-canvas" height="90"
           data-values="6000,7200,6800,8000,7500,9200,8420"
           data-dates="24/03,07/04,21/04,01/05,08/05,15/05,21/05"
-          data-color="#fb923c"></canvas>
+          data-color="#7C3AED"></canvas>
       </div>
     </div>
 
@@ -447,66 +536,92 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="pb-nav"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TAB 2 : HABITUDES
-═══════════════════════════════════════════════════ -->
+<!-- ═══════ TAB 2 : HABITUDES ═══════ -->
 <div class="tab-content" id="tab-habits">
   <div class="section-label">Cette semaine</div>
   <div class="habits-week" id="habits-week-grid"></div>
-  <div class="section-label" id="habits-day-label">Mes habitudes du jour</div>
+  <div class="section-label" id="habits-day-label">Habitudes du jour</div>
   <div class="habits-list">
 
+    <!-- Sommeil -->
     <div class="habit-card">
       <div class="habit-card-top">
-        <div class="habit-emoji">😴</div>
+        <div class="ic ic-md icon-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </div>
         <div class="habit-info">
           <div class="habit-name">Qualité du sommeil</div>
-          <div class="habit-target">Objectif : 7h+, qualité bonne</div>
+          <div class="habit-target">Objectif · 7h+, qualité bonne</div>
         </div>
-        <div class="habit-streak"><div class="streak-val">🔥 5</div><div class="streak-label">jours</div></div>
+        <div class="habit-streak">
+          <div class="streak-val">5</div>
+          <div class="streak-label">jours</div>
+        </div>
       </div>
       <div class="habit-rating-row">
-        <div class="rating-btn selected red" onclick="selectRating(this,'sommeil',1)">😴<br><span style="font-size:10px">Mauvais</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'sommeil',2)">😐<br><span style="font-size:10px">Moyen</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'sommeil',3)">😊<br><span style="font-size:10px">Bon</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'sommeil',4)">🌟<br><span style="font-size:10px">Très bon</span></div>
+        <div class="rating-btn selected red" onclick="selectRating(this,'sommeil',1)"><div class="r-dot"></div><span>Mauvais</span></div>
+        <div class="rating-btn" onclick="selectRating(this,'sommeil',2)"><div class="r-dot"></div><span>Moyen</span></div>
+        <div class="rating-btn" onclick="selectRating(this,'sommeil',3)"><div class="r-dot"></div><span>Bon</span></div>
+        <div class="rating-btn" onclick="selectRating(this,'sommeil',4)"><div class="r-dot"></div><span>Très bon</span></div>
       </div>
     </div>
 
+    <!-- Stress -->
     <div class="habit-card">
       <div class="habit-card-top">
-        <div class="habit-emoji">🧘</div>
+        <div class="ic ic-md icon-secondary">
+          <!-- Heartbeat / pulse — stress monitoring -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
         <div class="habit-info">
           <div class="habit-name">Niveau de stress</div>
-          <div class="habit-target">Objectif : score ≤ 2</div>
+          <div class="habit-target">Objectif · score ≤ 2</div>
         </div>
-        <div class="habit-streak"><div class="streak-val">—</div><div class="streak-label">streak</div></div>
+        <div class="habit-streak">
+          <div class="streak-val">—</div>
+          <div class="streak-label">série</div>
+        </div>
       </div>
       <div class="habit-rating-row">
-        <div class="rating-btn" onclick="selectRating(this,'stress',1)">😌<br><span style="font-size:10px">Calme</span></div>
-        <div class="rating-btn selected yellow" onclick="selectRating(this,'stress',2)">😶<br><span style="font-size:10px">Moyen</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'stress',3)">😤<br><span style="font-size:10px">Stressé</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'stress',4)">🤯<br><span style="font-size:10px">Épuisé</span></div>
+        <div class="rating-btn" onclick="selectRating(this,'stress',1)"><div class="r-dot"></div><span>Calme</span></div>
+        <div class="rating-btn selected yellow" onclick="selectRating(this,'stress',2)"><div class="r-dot"></div><span>Moyen</span></div>
+        <div class="rating-btn" onclick="selectRating(this,'stress',3)"><div class="r-dot"></div><span>Stressé</span></div>
+        <div class="rating-btn" onclick="selectRating(this,'stress',4)"><div class="r-dot"></div><span>Épuisé</span></div>
       </div>
     </div>
 
+    <!-- Marche -->
     <div class="habit-card">
       <div class="habit-card-top">
-        <div class="habit-emoji">🚶</div>
+        <div class="ic ic-md icon-secondary">
+          <!-- Footsteps / walking -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="2"/>
+            <path d="M7 22l2-7 3 3 3-7 2 4"/>
+            <line x1="5" y1="22" x2="19" y2="22"/>
+          </svg>
+        </div>
         <div class="habit-info">
           <div class="habit-name">Marche active</div>
-          <div class="habit-target">Objectif : 8 000 pas/jour</div>
+          <div class="habit-target">Objectif · 8 000 pas/jour</div>
         </div>
-        <div class="habit-streak"><div class="streak-val">🔥 7</div><div class="streak-label">jours</div></div>
+        <div class="habit-streak">
+          <div class="streak-val">7</div>
+          <div class="streak-label">jours</div>
+        </div>
       </div>
       <div class="habit-check-row">
-        <div class="check-day done" onclick="toggleCheck(this)"><div>✓</div><div style="font-size:9px">L</div></div>
-        <div class="check-day done" onclick="toggleCheck(this)"><div>✓</div><div style="font-size:9px">M</div></div>
-        <div class="check-day done" onclick="toggleCheck(this)"><div>✓</div><div style="font-size:9px">Me</div></div>
-        <div class="check-day done" onclick="toggleCheck(this)"><div>✓</div><div style="font-size:9px">J</div></div>
-        <div class="check-day today" onclick="toggleCheck(this)"><div>?</div><div style="font-size:9px">Auj.</div></div>
-        <div class="check-day" onclick="toggleCheck(this)"><div></div><div style="font-size:9px">V</div></div>
-        <div class="check-day" onclick="toggleCheck(this)"><div></div><div style="font-size:9px">S</div></div>
+        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">L</div></div>
+        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">M</div></div>
+        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">Me</div></div>
+        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">J</div></div>
+        <div class="check-day today" onclick="toggleCheck(this)"><div class="cd-check">·</div><div class="cd-day">Auj.</div></div>
+        <div class="check-day"       onclick="toggleCheck(this)"><div class="cd-check"></div><div class="cd-day">V</div></div>
+        <div class="check-day"       onclick="toggleCheck(this)"><div class="cd-check"></div><div class="cd-day">S</div></div>
       </div>
     </div>
 
@@ -514,23 +629,19 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="pb-nav"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TAB 3 : CYCLE
-═══════════════════════════════════════════════════ -->
+<!-- ═══════ TAB 3 : CYCLE ═══════ -->
 <div class="tab-content" id="tab-cycle">
 
   <div class="cycle-banner follicular">
     <div class="cycle-phase-label">Phase actuelle</div>
     <div class="cycle-phase-name">Phase folliculaire</div>
     <div class="cycle-day-info">Jour 8 · encore ~6 jours</div>
-    <div class="cycle-emoji">🌱</div>
   </div>
 
-  <!-- Stats calculées -->
   <div class="cycle-stats">
     <div class="cycle-stat">
       <div class="cycle-stat-val" id="stat-avg-cycle">27j</div>
-      <div class="cycle-stat-label">Durée moy. cycle</div>
+      <div class="cycle-stat-label">Durée moy.</div>
     </div>
     <div class="cycle-stat">
       <div class="cycle-stat-val">8</div>
@@ -538,11 +649,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
     <div class="cycle-stat">
       <div class="cycle-stat-val" id="stat-cycles-recorded">4</div>
-      <div class="cycle-stat-label">Cycles enregistrés</div>
+      <div class="cycle-stat-label">Cycles enreg.</div>
     </div>
   </div>
 
-  <!-- Anneau -->
   <div class="cycle-ring-wrap">
     <div class="cycle-ring-inner">
       <canvas id="cycleCanvas" width="180" height="180"></canvas>
@@ -560,17 +670,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <div class="phase-item"><div class="phase-dot" style="background:var(--cycle-luteal)"></div><div><div class="phase-name">Lutéale</div><div class="phase-days">J17–J27</div></div></div>
   </div>
 
-  <!-- Déclarer règles -->
   <div class="log-cycle-btn" onclick="openCycleLog()">
-    🔴 Déclarer le début de mes règles
+    <div class="log-cycle-dot"></div>
+    Déclarer le début de mes règles
   </div>
 
-  <!-- Saisie quotidienne -->
   <div class="cycle-daily-log">
     <div class="cycle-daily-title">Saisie du jour · 22 mai</div>
 
     <div class="cycle-field">
-      <div class="cycle-field-label">🌡️ Température buccale</div>
+      <div class="cycle-field-label">Température buccale</div>
       <div class="temp-input-row">
         <input class="temp-input" type="number" step="0.01" placeholder="36.8" id="temp-input">
         <div class="temp-unit">°C</div>
@@ -579,25 +688,25 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="cycle-field">
-      <div class="cycle-field-label">💧 Glaire cervicale</div>
+      <div class="cycle-field-label">Glaire cervicale</div>
       <div class="glaire-grid">
         <div class="glaire-card" onclick="selectGlaire(this,'absente')">
-          <div class="glaire-card-icon">🔴</div>
+          <div class="glaire-dot-icon" style="background:#f87171;"></div>
           <div class="glaire-card-name">Absente</div>
           <div class="glaire-card-desc">Sèche</div>
         </div>
         <div class="glaire-card" onclick="selectGlaire(this,'collante')">
-          <div class="glaire-card-icon">🟡</div>
+          <div class="glaire-dot-icon" style="background:#fbbf24;"></div>
           <div class="glaire-card-name">Collante</div>
           <div class="glaire-card-desc">Blanche, épaisse</div>
         </div>
         <div class="glaire-card selected" onclick="selectGlaire(this,'crémeuse')">
-          <div class="glaire-card-icon">🟠</div>
+          <div class="glaire-dot-icon" style="background:#fb923c;"></div>
           <div class="glaire-card-name">Crémeuse</div>
           <div class="glaire-card-desc">Lisse, blanche</div>
         </div>
         <div class="glaire-card" onclick="selectGlaire(this,'filante')">
-          <div class="glaire-card-icon">🟢</div>
+          <div class="glaire-dot-icon" style="background:#34d399;"></div>
           <div class="glaire-card-name">Filante</div>
           <div class="glaire-card-desc">Transparente, fertile</div>
         </div>
@@ -607,44 +716,62 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <button class="cycle-save-btn" onclick="saveDailyLog()">Enregistrer la saisie</button>
   </div>
 
-  <!-- Insights -->
-  <div class="section-label" style="margin-top:8px">Insights · Habitudes & Cycle</div>
+  <div class="section-label" style="margin-top:6px">Insights</div>
   <div class="insights-list">
 
-    <div class="insight-card luteal">
+    <div class="insight-card">
       <div class="insight-top">
-        <div class="insight-emoji">😴</div>
+        <div class="ic ic-sm icon-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </div>
         <div>
           <div class="insight-title">Sommeil plus court en phase lutéale</div>
           <div class="insight-phase">Phase lutéale J17–J27 · Corrélation forte</div>
         </div>
       </div>
       <div class="insight-body">Ton sommeil baisse en moyenne à 6h15 pendant la phase lutéale (vs 7h40 en folliculaire). Anticiper en te couchant plus tôt dès J17 pourrait aider ta récupération.</div>
-      <span class="insight-tag">😴 Sommeil</span><span class="insight-tag">🌙 Cycle</span>
+      <div class="insight-tags">
+        <span class="insight-tag">Sommeil</span><span class="insight-tag">Cycle</span>
+      </div>
     </div>
 
-    <div class="insight-card menstrual">
+    <div class="insight-card">
       <div class="insight-top">
-        <div class="insight-emoji">⚡</div>
+        <div class="ic ic-sm icon-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
         <div>
           <div class="insight-title">Énergie et stress plus élevés J1–J2</div>
           <div class="insight-phase">Règles · Corrélation observée</div>
         </div>
       </div>
       <div class="insight-body">Tes scores d'énergie tombent à 4/10 et ton niveau de stress monte lors des deux premiers jours de règles. C'est pris en compte dans ta programmation — les séances J1–J2 sont allégées.</div>
-      <span class="insight-tag">⚡ Énergie</span><span class="insight-tag">🧘 Stress</span><span class="insight-tag">🏋️ Training</span>
+      <div class="insight-tags">
+        <span class="insight-tag">Énergie</span><span class="insight-tag">Stress</span><span class="insight-tag">Training</span>
+      </div>
     </div>
 
-    <div class="insight-card ovulation">
+    <div class="insight-card">
       <div class="insight-top">
-        <div class="insight-emoji">🌡️</div>
+        <div class="ic ic-sm icon-secondary">
+          <!-- Thermometer -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+          </svg>
+        </div>
         <div>
           <div class="insight-title">Température buccale : hausse autour de J14</div>
           <div class="insight-phase">Ovulation · Suivi en cours</div>
         </div>
       </div>
       <div class="insight-body">Ta courbe de température montre une légère hausse (≥ 0.2°C) à partir de J14, ce qui confirme l'ovulation. Couplé à la glaire cervicale filante, c'est un bon marqueur de ta fenêtre fertile.</div>
-      <span class="insight-tag">🌡️ Température</span><span class="insight-tag">💧 Glaire</span>
+      <div class="insight-tags">
+        <span class="insight-tag">Température</span><span class="insight-tag">Glaire</span>
+      </div>
     </div>
 
   </div>
@@ -674,11 +801,11 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <div class="modal-title">Début des règles</div>
     <div class="modal-sub" id="cycle-modal-sub">Dernier cycle déclaré : 15 avril (il y a 37 jours)</div>
     <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:16px;">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Date de début</div>
-      <input type="date" id="cycle-date-input" style="background:transparent;border:none;color:var(--text);font-size:18px;font-weight:800;outline:none;width:100%;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Date de début</div>
+      <input type="date" id="cycle-date-input" style="background:transparent;border:none;color:var(--text);font-size:18px;font-weight:700;outline:none;width:100%;font-family:inherit;">
     </div>
-    <div id="cycle-calc-preview" style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-muted);display:none;">
-      <strong style="color:var(--accent)">Nouveau calcul :</strong> durée de ce cycle = <span id="cycle-days-calc">—</span> jours · Moyenne mise à jour : <span id="cycle-avg-new">—</span> jours
+    <div id="cycle-calc-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-muted);display:none;">
+      <strong style="color:var(--text)">Nouveau calcul :</strong> durée de ce cycle = <span id="cycle-days-calc">—</span> jours · Moyenne mise à jour : <span id="cycle-avg-new">—</span> jours
     </div>
     <button class="btn-primary" onclick="confirmCycleLog()">Confirmer</button>
     <button class="btn-ghost" onclick="document.getElementById('modal-cycle').classList.remove('open')">Annuler</button>
@@ -688,20 +815,33 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <div class="nav-item" onclick="window.location.href='module1_seance.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">🏠</div></div>
-    <div class="nav-label">Séances</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+    <span class="nav-label">Séances</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module2_perfs.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">📈</div></div>
-    <div class="nav-label">Perfs</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span class="nav-label">Perfs</span>
   </div>
   <div class="nav-item active">
-    <div class="nav-icon-wrap"><div class="nav-icon">📋</div></div>
-    <div class="nav-label">Suivi</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span class="nav-label">Suivi</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module5_profil.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">👤</div></div>
-    <div class="nav-label">Profil</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <span class="nav-label">Profil</span>
   </div>
 </div>
 
@@ -749,14 +889,12 @@ function drawMetricChart(canvas) {
   function xp(i) { return pad.left + (i / (vals.length - 1)) * cW; }
   function yp(v) { return pad.top + cH - ((v - minD) / rangeD) * cH; }
 
-  // Y axis labels (2 labels: min and max)
   ctx.fillStyle = '#AEAEB2';
   ctx.font = `${10 * Math.min(1, W/300)}px -apple-system, sans-serif`;
   ctx.textAlign = 'right';
   ctx.fillText(max, pad.left - 4, pad.top + 6);
   ctx.fillText(min, pad.left - 4, pad.top + cH + 4);
 
-  // Subtle grid
   ctx.strokeStyle = '#E5E5EA';
   ctx.lineWidth = 1;
   [0, 0.5, 1].forEach(f => {
@@ -764,9 +902,8 @@ function drawMetricChart(canvas) {
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
   });
 
-  // Gradient fill
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
-  grad.addColorStop(0, color + '35');
+  grad.addColorStop(0, color + '30');
   grad.addColorStop(1, color + '00');
   ctx.beginPath();
   ctx.moveTo(xp(0), yp(vals[0]));
@@ -777,7 +914,6 @@ function drawMetricChart(canvas) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Line
   ctx.beginPath();
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
@@ -786,23 +922,17 @@ function drawMetricChart(canvas) {
   for (let i = 1; i < vals.length; i++) ctx.lineTo(xp(i), yp(vals[i]));
   ctx.stroke();
 
-  // Points + date labels
   ctx.font = `${9.5 * Math.min(1, W/300)}px -apple-system, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#48484A';
   vals.forEach((v, i) => {
     const x = xp(i), y = yp(v);
-    // Point
     ctx.beginPath();
     ctx.arc(x, y, i === vals.length - 1 ? 4.5 : 3.5, 0, Math.PI * 2);
     ctx.fillStyle = i === vals.length - 1 ? color : '#FFFFFF';
     ctx.fill();
     if (i !== vals.length - 1) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
     }
-    // Date label — show first, last, and midpoint
     const showDate = (i === 0 || i === vals.length - 1 || i === Math.floor(vals.length / 2));
     if (showDate && dates[i]) {
       ctx.fillStyle = i === vals.length - 1 ? color : '#AEAEB2';
@@ -829,10 +959,10 @@ function drawCycleRing(currentDay, avgLen) {
   const L = avgLen || 28;
 
   const phases = [
-    { start: 0, end: 5,  color: '#f87171' },
-    { start: 5, end: 13, color: '#fb923c' },
+    { start: 0,  end: 5,  color: '#f87171' },
+    { start: 5,  end: 13, color: '#fb923c' },
     { start: 13, end: 16, color: '#facc15' },
-    { start: 16, end: L, color: '#c084fc' },
+    { start: 16, end: L,  color: '#c084fc' },
   ];
 
   const startAngle = -Math.PI / 2;
@@ -842,10 +972,9 @@ function drawCycleRing(currentDay, avgLen) {
     const a1 = startAngle + (p.start / L) * 2 * Math.PI + gap;
     const a2 = startAngle + (p.end / L) * 2 * Math.PI - gap;
     ctx.beginPath(); ctx.arc(cx, cy, R, a1, a2);
-    ctx.strokeStyle = p.color + '45'; ctx.lineWidth = thick; ctx.stroke();
+    ctx.strokeStyle = p.color + '40'; ctx.lineWidth = thick; ctx.stroke();
   });
 
-  // Highlight up to current day
   const activePhase = phases.find(p => currentDay > p.start && currentDay <= p.end);
   if (activePhase) {
     const a1 = startAngle + (activePhase.start / L) * 2 * Math.PI + gap;
@@ -854,7 +983,6 @@ function drawCycleRing(currentDay, avgLen) {
     ctx.strokeStyle = activePhase.color; ctx.lineWidth = thick; ctx.stroke();
   }
 
-  // Current day dot
   const dayAngle = startAngle + ((currentDay - 1) / L) * 2 * Math.PI;
   const mx = cx + R * Math.cos(dayAngle), my = cy + R * Math.sin(dayAngle);
   ctx.beginPath(); ctx.arc(mx, my, thick / 2 + 2, 0, Math.PI * 2);
@@ -863,22 +991,17 @@ function drawCycleRing(currentDay, avgLen) {
   ctx.fillStyle = '#fff'; ctx.fill();
 }
 
-// ─── CYCLE STATS — durée moyenne calculée ─────────────────────
-// Exemples de cycles passés (dates de début de règles)
+// ─── CYCLE STATS ──────────────────────────────────────────────
 const pastCycles = [
-  new Date('2026-01-14'),
-  new Date('2026-02-10'),
-  new Date('2026-03-10'),
-  new Date('2026-04-15'),
-  new Date('2026-05-14'), // dernier cycle
+  new Date('2026-01-14'), new Date('2026-02-10'),
+  new Date('2026-03-10'), new Date('2026-04-15'),
+  new Date('2026-05-14'),
 ];
 
 function calcAvgCycle(dates) {
   if (dates.length < 2) return null;
   let total = 0;
-  for (let i = 1; i < dates.length; i++) {
-    total += (dates[i] - dates[i-1]) / (1000 * 60 * 60 * 24);
-  }
+  for (let i = 1; i < dates.length; i++) total += (dates[i] - dates[i-1]) / 86400000;
   return Math.round(total / (dates.length - 1));
 }
 
@@ -893,25 +1016,21 @@ function updateCycleStats() {
 }
 
 // ─── WEEK GRID ────────────────────────────────────────────────
-// ─── DONNÉES HABITUDES PAR JOUR ───────────────────────────────
 const WEEK_DAYS  = ['L','M','Me','J','V','S','D'];
 const WEEK_NUMS  = [19,20,21,22,23,24,25];
 const WEEK_NAMES = ['Lundi 19','Mardi 20','Mercredi 21','Jeudi 22','Vendredi 23','Samedi 24','Dimanche 25'];
-const TODAY_IDX  = 3; // Jeudi 22 mai
+const TODAY_IDX  = 3;
 
-// sommeil: 1-4 (null = pas saisi), stress: 1-4, marche: true/false/null
 const HABITS_DATA = {
-  0: { sommeil: 3, stress: 1, marche: true  },
-  1: { sommeil: 2, stress: 2, marche: true  },
-  2: { sommeil: 4, stress: 1, marche: true  },
-  3: { sommeil: 1, stress: 2, marche: true  }, // aujourd'hui
-  4: { sommeil: null, stress: null, marche: null },
-  5: { sommeil: null, stress: null, marche: null },
-  6: { sommeil: null, stress: null, marche: null },
+  0: { sommeil:3, stress:1, marche:true  },
+  1: { sommeil:2, stress:2, marche:true  },
+  2: { sommeil:4, stress:1, marche:true  },
+  3: { sommeil:1, stress:2, marche:true  },
+  4: { sommeil:null, stress:null, marche:null },
+  5: { sommeil:null, stress:null, marche:null },
+  6: { sommeil:null, stress:null, marche:null },
 };
-// score 0-1 par jour (calculé depuis habitudes)
 const DAY_SCORES = [0.8, 0.6, 0.9, 1.0, null, null, null];
-
 let selectedDayIdx = TODAY_IDX;
 
 function buildWeekGrid() {
@@ -927,52 +1046,32 @@ function buildWeekGrid() {
 function selectDay(idx) {
   selectedDayIdx = idx;
   buildWeekGrid();
-
   const isToday = idx === TODAY_IDX;
   const isFuture = idx > TODAY_IDX;
   const label = document.getElementById('habits-day-label');
-  label.textContent = isToday
-    ? "Mes habitudes du jour"
-    : isFuture
-      ? `Habitudes · ${WEEK_NAMES[idx]} (à venir)`
-      : `Habitudes · ${WEEK_NAMES[idx]}`;
+  label.textContent = isToday ? "Habitudes du jour"
+    : isFuture ? `Habitudes · ${WEEK_NAMES[idx]} (à venir)`
+    : `Habitudes · ${WEEK_NAMES[idx]}`;
 
   const d = HABITS_DATA[idx] || {};
 
-  // Sommeil
-  const sommeilRow = document.querySelectorAll('.habit-rating-row')[0];
-  sommeilRow.querySelectorAll('.rating-btn').forEach((b,i) => {
+  document.querySelectorAll('.habit-rating-row')[0].querySelectorAll('.rating-btn').forEach((b,i) => {
     b.classList.remove('selected','red','orange','yellow');
-    if (d.sommeil === i+1) {
-      b.classList.add('selected');
-      if (i===0) b.classList.add('red');
-      if (i===1) b.classList.add('orange');
-    }
+    if (d.sommeil === i+1) { b.classList.add('selected'); if(i===0) b.classList.add('red'); if(i===1) b.classList.add('orange'); }
+  });
+  document.querySelectorAll('.habit-rating-row')[1].querySelectorAll('.rating-btn').forEach((b,i) => {
+    b.classList.remove('selected','red','orange','yellow');
+    if (d.stress === i+1) { b.classList.add('selected'); if(i===2) b.classList.add('orange'); if(i===1) b.classList.add('yellow'); }
   });
 
-  // Stress
-  const stressRow = document.querySelectorAll('.habit-rating-row')[1];
-  stressRow.querySelectorAll('.rating-btn').forEach((b,i) => {
-    b.classList.remove('selected','red','orange','yellow');
-    if (d.stress === i+1) {
-      b.classList.add('selected');
-      if (i===2) b.classList.add('orange');
-      if (i===1) b.classList.add('yellow');
-    }
-  });
-
-  // Marche — check-row : on marque le jour sélectionné
-  const checks = document.querySelectorAll('.check-day');
-  checks.forEach((c, i) => {
+  document.querySelectorAll('.check-day').forEach((c, i) => {
     const doneState = HABITS_DATA[i] && HABITS_DATA[i].marche;
     c.classList.remove('done','today');
     if (i < TODAY_IDX && doneState) c.classList.add('done');
     if (i === TODAY_IDX) c.classList.add('today');
-    // Highlight selected day in the check row
-    if (i === idx) c.style.outline = '2px solid var(--accent)';
-    else c.style.outline = '';
-    const top = c.querySelector('div');
-    if (top) top.textContent = c.classList.contains('done') ? '✓' : (c.classList.contains('today') ? '?' : '');
+    c.style.outline = (i === idx) ? '2px solid var(--accent)' : '';
+    const ck = c.querySelector('.cd-check');
+    if (ck) ck.textContent = c.classList.contains('done') ? '✓' : c.classList.contains('today') ? '·' : '';
   });
 }
 
@@ -986,8 +1085,8 @@ function selectRating(btn, group, val) {
 
 function toggleCheck(el) {
   el.classList.toggle('done');
-  const top = el.querySelector('div');
-  if (top) top.textContent = el.classList.contains('done') ? '✓' : (el.classList.contains('today') ? '?' : '');
+  const ck = el.querySelector('.cd-check');
+  if (ck) ck.textContent = el.classList.contains('done') ? '✓' : el.classList.contains('today') ? '·' : '';
 }
 
 function selectGlaire(card, type) {
@@ -997,12 +1096,11 @@ function selectGlaire(card, type) {
 
 function saveDailyLog() {
   const temp = document.getElementById('temp-input').value;
-  toast(`Saisie enregistrée${temp ? ' · ' + temp + '°C' : ''} ✓`);
+  toast(`Saisie enregistrée${temp ? ' · ' + temp + '°C' : ''}`);
 }
 
-// ─── LOG MODAL ────────────────────────────────────────────────
 function openLog(name, unit, lastVal) {
-  document.getElementById('log-title').textContent = 'Saisir — ' + name;
+  document.getElementById('log-title').textContent = name;
   document.getElementById('log-sub').textContent = 'Dernière valeur : ' + lastVal + ' ' + unit;
   document.getElementById('log-unit').textContent = unit;
   document.getElementById('log-input').value = '';
@@ -1012,13 +1110,12 @@ function closeLog() { document.getElementById('modal-log').classList.remove('ope
 function saveLog() {
   const v = document.getElementById('log-input').value;
   if (!v) { alert('Entre une valeur.'); return; }
-  closeLog(); toast('✓ Valeur enregistrée !');
+  closeLog(); toast('Valeur enregistrée');
 }
 
-// ─── CYCLE LOG MODAL ──────────────────────────────────────────
 function openCycleLog() {
   const lastDate = pastCycles[pastCycles.length - 1];
-  const daysSince = Math.round((new Date() - lastDate) / (1000*60*60*24));
+  const daysSince = Math.round((new Date() - lastDate) / 86400000);
   document.getElementById('cycle-modal-sub').textContent =
     `Dernier cycle déclaré : ${lastDate.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} (il y a ${daysSince} jours)`;
   const inp = document.getElementById('cycle-date-input');
@@ -1033,12 +1130,11 @@ function updateCyclePreview() {
   const newDate = new Date(inp.value);
   if (isNaN(newDate)) return;
   const lastDate = pastCycles[pastCycles.length - 1];
-  const thisCycleLen = Math.round((newDate - lastDate) / (1000*60*60*24));
+  const thisCycleLen = Math.round((newDate - lastDate) / 86400000);
   if (thisCycleLen > 0) {
     const preview = [...pastCycles, newDate];
-    const newAvg = calcAvgCycle(preview);
     document.getElementById('cycle-days-calc').textContent = thisCycleLen;
-    document.getElementById('cycle-avg-new').textContent = newAvg;
+    document.getElementById('cycle-avg-new').textContent = calcAvgCycle(preview);
     document.getElementById('cycle-calc-preview').style.display = 'block';
   }
 }
@@ -1049,26 +1145,23 @@ function confirmCycleLog() {
   if (isNaN(newDate)) return;
   pastCycles.push(newDate);
   const avg = updateCycleStats();
-  drawCycleRing(1, avg); // reset to day 1
+  drawCycleRing(1, avg);
   document.getElementById('modal-cycle').classList.remove('open');
-  toast('🔴 Nouveau cycle enregistré · Moyenne recalculée : ' + avg + ' jours');
+  toast('Nouveau cycle enregistré · Moyenne : ' + avg + ' jours');
 }
 
-// ─── TOAST ────────────────────────────────────────────────────
 function toast(msg) {
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#7C3AED;color:#fff;padding:12px 24px;border-radius:12px;font-weight:800;z-index:999;font-size:13px;white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden;';
+  el.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1D1D1F;color:#fff;padding:11px 20px;border-radius:10px;font-weight:500;z-index:999;font-size:13px;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;';
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2400);
 }
 
-// ─── INIT ─────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   const avg = updateCycleStats();
   drawCycleRing(8, avg);
   buildWeekGrid();
-  // Draw charts after layout
   requestAnimationFrame(() => drawAllMetricCharts());
 });
 window.addEventListener('resize', () => {

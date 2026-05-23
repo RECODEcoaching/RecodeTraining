@@ -11,313 +11,336 @@ function getSession(){try{return JSON.parse(localStorage.getItem('recode_session
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
 function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Séances</title>
 <style>
   :root {
-    --bg: #F7F7F9;
+    --bg: #F6F6F8;
     --surface: #FFFFFF;
-    --surface2: #F5F3FE;
-    --surface3: #E5E0FA;
-    --accent: #7C3AED;
-    --accent-light: #EDE9FE;
-    --text: #1D1D1F;
-    --text-muted: #6E6E73;
-    --text-dim: #AEAEB2;
-    --success: #34C759;
-    --success-bg: #F0FFF4;
+    --surface2: #F2F2F5;
+    --surface3: #E8E8ED;
+    --accent: #6D28D9;
+    --accent-mid: #8B5CF6;
+    --accent-bg: rgba(109,40,217,0.09);
+    --accent-bg-soft: rgba(109,40,217,0.05);
+    --accent-light: rgba(109,40,217,0.08);
+    --text: #111827;
+    --text-muted: #6B7280;
+    --text-dim: #9CA3AF;
+    --success: #16A34A;
+    --success-bg: rgba(22,163,74,0.08);
+    --danger: #DC2626;
     --radius: 12px;
     --radius-sm: 8px;
-    --transition: 0.18s ease;
-    --border: #E5E5EA;
+    --transition: 0.15s ease;
+    --border: rgba(0,0,0,0.07);
+    --border-md: rgba(0,0,0,0.10);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Open Sans', -apple-system, sans-serif;
-    min-height: 100vh;
-    max-width: 430px;
-    margin: 0 auto;
-    overflow-x: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; max-width: 430px; margin: 0 auto; overflow-x: hidden;
   }
 
   /* ── HEADER ── */
   .app-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px 12px;
-    position: sticky;
-    top: 0;
-    background: var(--surface);
-    z-index: 100;
-    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 12px; position: sticky; top: 0;
+    background: var(--surface); z-index: 100; border-bottom: 1px solid var(--border);
   }
   .avatar {
-    width: 34px; height: 34px; border-radius: 50%;
-    background: var(--accent-light);
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-bg);
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: var(--accent);
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    border: 1px solid rgba(109,40,217,0.15);
   }
 
   /* ── SCREENS ── */
-  .screen { display: none; flex-direction: column; min-height: calc(100vh - 70px); }
+  .screen { display: none; flex-direction: column; min-height: calc(100vh - 61px); }
   .screen.active { display: flex; }
 
-  /* ── WEEK VIEW ── */
-  .week-header { padding: 24px 20px 8px; }
-  .week-greeting { font-size: 22px; font-weight: 700; margin-bottom: 3px; }
-  .week-sub { color: var(--text-muted); font-size: 14px; }
-  .week-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-    text-transform: uppercase; color: var(--text-dim);
-    padding: 20px 20px 10px;
-  }
-  .week-days {
-    display: flex; gap: 6px; padding: 0 20px;
-    overflow-x: auto; scrollbar-width: none;
-  }
-  .week-days::-webkit-scrollbar { display: none; }
-  .day-chip {
-    flex: 0 0 auto; text-align: center; padding: 10px 11px;
-    border-radius: 10px; background: var(--surface);
-    border: 1px solid var(--border);
-    cursor: pointer; transition: var(--transition);
-    min-width: 42px;
-  }
-  .day-chip.today { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .day-chip.has-session::after {
-    content: ''; display: block; width: 4px; height: 4px;
-    background: var(--accent); border-radius: 50%; margin: 4px auto 0;
-  }
-  .day-chip.today.has-session::after { background: rgba(255,255,255,0.6); }
-  .day-name { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
-  .day-chip.today .day-name { color: rgba(255,255,255,0.8); }
-  .day-num { font-size: 16px; font-weight: 800; margin-top: 2px; }
+  /* ── VUE SEMAINE ── */
+  .week-header { padding: 20px 20px 6px; }
+  .week-greeting { font-size: 19px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.3px; }
 
-  .sessions-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  /* Week navigation */
+  .week-nav {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .week-nav-btn {
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    padding: 4px; display: flex; align-items: center; transition: color var(--transition);
+  }
+  .week-nav-btn:active { color: var(--accent); }
+  .week-nav-label {
+    font-size: 13px; color: var(--text-muted); font-weight: 500; flex: 1; text-align: center;
+  }
 
+  .section-label {
+    font-size: 12px; font-weight: 600; color: var(--text-dim);
+    padding: 20px 20px 10px; letter-spacing: 0.2px; text-transform: uppercase;
+  }
+
+  /* ── SESSION CARDS ── */
+  .sessions-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
   .session-card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 16px;
-    cursor: pointer;
-    transition: var(--transition);
-    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
-    position: relative;
-    overflow: hidden;
+    background: var(--surface); border-radius: var(--radius); padding: 14px 16px;
+    cursor: pointer; transition: var(--transition);
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    position: relative; overflow: hidden;
   }
   .session-card:active { transform: scale(0.985); }
-  .session-card.done { opacity: 0.6; }
+  .session-card.done { opacity: 0.55; }
   .session-card::before {
     content: ''; position: absolute; top: 0; left: 0;
-    width: 3px; height: 100%; background: var(--accent);
+    width: 2px; height: 100%; background: var(--accent);
   }
   .session-card.done::before { background: var(--success); }
   .session-meta {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
   }
-  .session-day { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; }
+  .session-day {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
   .session-status {
     font-size: 11px; padding: 3px 9px; border-radius: 20px;
-    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+    background: var(--surface2); color: var(--text-muted); font-weight: 500;
   }
-  .session-status.done { background: var(--success-bg); color: var(--success); }
-  .session-name { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-  .session-info { display: flex; gap: 12px; }
-  .session-tag { font-size: 12px; color: var(--text-muted); }
-  .session-muscles { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-  .muscle-tag {
-    font-size: 11px; padding: 3px 10px; border-radius: 20px;
-    background: var(--surface2); color: var(--text-muted);
-  }
+  .session-status.done { background: var(--success-bg); color: var(--success); font-weight: 600; }
+  .session-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .session-info { display: none; }
+  .session-muscles { display: none; }
 
   /* ── SÉANCE DETAIL ── */
   .session-top {
-    background: var(--surface);
-    padding: 16px 20px 20px;
+    background: var(--surface); padding: 14px 20px 18px;
     border-bottom: 1px solid var(--border);
   }
   .back-btn {
-    display: flex; align-items: center; gap: 5px;
-    color: var(--accent); font-size: 14px; font-weight: 600;
-    cursor: pointer; margin-bottom: 14px; width: fit-content;
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--text-muted); font-size: 13px; font-weight: 500;
+    cursor: pointer; margin-bottom: 14px;
   }
-  .session-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .session-title { font-size: 19px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
   .session-chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip {
     font-size: 12px; padding: 4px 11px; border-radius: 20px;
-    background: var(--surface2); color: var(--text-muted); font-weight: 600;
+    background: var(--surface2); color: var(--text-muted); font-weight: 500;
     border: 1px solid var(--border);
   }
-  .chip.accent { background: var(--accent-light); color: var(--accent); border-color: transparent; }
+  .chip.accent { background: var(--accent-bg); color: var(--accent); border-color: rgba(109,40,217,0.15); font-weight: 600; }
 
-  /* Warmup section */
-  .section-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-    text-transform: uppercase; color: var(--accent);
-    padding: 18px 20px 10px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::before {
-    content: ''; display: inline-block;
-    width: 18px; height: 2px;
-    background: var(--accent); border-radius: 2px; flex: 0 0 auto;
-  }
+  /* Warmup */
   .warmup-card {
-    margin: 0 20px;
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 14px;
-    display: flex; align-items: center; gap: 12px;
-    cursor: pointer;
-    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    margin: 0 20px; background: var(--surface); border-radius: var(--radius);
+    padding: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
   .warmup-thumb {
-    width: 66px; height: 48px; border-radius: var(--radius-sm);
-    background: var(--accent-light);
+    width: 60px; height: 44px; border-radius: var(--radius-sm);
+    background: var(--accent-bg); display: flex; align-items: center;
+    justify-content: center; flex: 0 0 auto;
+  }
+  .play-btn {
+    width: 26px; height: 26px; background: var(--accent); border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    flex: 0 0 auto;
-  }
-  .warmup-thumb .play-btn {
-    width: 26px; height: 26px; background: var(--accent);
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  }
-  .warmup-thumb .play-btn::after {
-    content: ''; border-style: solid;
-    border-width: 5px 0 5px 9px; border-color: transparent transparent transparent #fff;
-    margin-left: 2px;
   }
   .warmup-info { flex: 1; }
   .warmup-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
   .warmup-detail { font-size: 12px; color: var(--text-muted); }
 
-  /* Exercise cards */
+  /* Exercises */
   .exo-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; }
   .exo-card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     overflow: hidden;
   }
   .exo-header {
-    padding: 14px 14px;
-    display: flex; align-items: center; gap: 10px;
-    cursor: pointer;
+    padding: 13px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer;
   }
   .exo-num {
-    width: 26px; height: 26px; border-radius: 7px;
-    background: var(--accent); color: #fff;
+    width: 22px; height: 22px; border-radius: 6px;
+    background: transparent; color: var(--text-dim);
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 800; flex: 0 0 auto;
+    font-size: 11px; font-weight: 500; flex: 0 0 auto;
+    border: 1px solid var(--border);
   }
-  .exo-info { flex: 1; }
-  .exo-name { font-size: 14px; font-weight: 600; }
-  .exo-params { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .exo-info { flex: 1; min-width: 0; }
+  .exo-name   { font-size: 13px; font-weight: 500; }
+  .exo-params { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .exo-video-btn {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: var(--accent-light); color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
-    flex: 0 0 auto; cursor: pointer; font-size: 13px;
+    width: 26px; height: 26px; border-radius: 7px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto; cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
   }
-  .exo-expand { color: var(--text-dim); font-size: 18px; transition: var(--transition); }
-  .exo-expand.open { transform: rotate(180deg); }
+  .exo-video-btn:active { color: var(--accent); border-color: var(--accent); }
+
+  /* Progress bar */
+  .session-progress { padding: 12px 0 0; }
+  .progress-track {
+    height: 2px; background: var(--surface3); border-radius: 1px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent); border-radius: 1px;
+    width: 0%; transition: width 0.4s ease;
+  }
+  .progress-label {
+    font-size: 10px; color: var(--text-dim); font-weight: 500;
+    margin-top: 6px; text-align: right; letter-spacing: 0.2px;
+  }
+
+  /* Rest timer */
+  .rest-timer {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--surface); border: 1px solid var(--border-md);
+    border-radius: 28px; padding: 9px 16px 9px 14px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+    z-index: 150; opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .rest-timer.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .rest-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .rest-info { display: flex; flex-direction: column; gap: 1px; }
+  .rest-label { font-size: 9px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
+  .rest-countdown { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
+  .rest-close {
+    background: var(--surface2); border: none; border-radius: 50%;
+    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); cursor: pointer; margin-left: 4px;
+  }
+  .exo-expand {
+    color: var(--text-dim); display: flex; align-items: center; transition: transform var(--transition);
+  }
+  .exo-expand.open { transform: rotate(90deg); }
 
   /* Series table */
   .series-body { padding: 0 14px 14px; display: none; border-top: 1px solid var(--border); }
   .series-body.open { display: block; }
   .series-header-row {
-    display: grid; grid-template-columns: 28px 1fr 1fr 1fr;
-    gap: 6px; padding: 10px 0 6px;
-    font-size: 10px; font-weight: 700; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.4px;
+    display: grid; grid-template-columns: 22px 1fr 1fr 1fr;
+    gap: 6px; padding: 9px 0 5px;
+    font-size: 9px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px;
   }
+  .series-header-row.uni { grid-template-columns: 22px 1fr 1fr 1fr 1fr; }
   .series-row {
-    display: grid; grid-template-columns: 28px 1fr 1fr 1fr;
-    gap: 6px; margin-bottom: 6px; align-items: center;
+    display: grid; grid-template-columns: 22px 1fr 1fr 1fr;
+    gap: 6px; margin-bottom: 5px; align-items: center;
+  }
+  .series-row.uni { grid-template-columns: 22px 1fr 1fr 1fr 1fr; }
+
+  /* Indicateur latéral G/D */
+  .side-label {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    font-size: 8px; font-weight: 700; color: var(--accent-mid);
+    letter-spacing: 0.3px; pointer-events: none;
+  }
+  .serie-input-wrap { position: relative; }
+  .serie-input.side-g { border-color: rgba(109,40,217,0.15); }
+  .serie-input.side-g:focus { border-color: rgba(109,40,217,0.4); }
+  .serie-input.side-d { border-color: rgba(109,40,217,0.08); }
+  .serie-input.side-g.done, .serie-input.side-d.done { border-color: rgba(22,163,74,0.4); color: var(--success); }
+
+  /* Badge unilatéral dans le header exo */
+  .uni-badge {
+    font-size: 9px; font-weight: 600; color: var(--accent-mid);
+    background: var(--accent-bg-soft); border-radius: 4px;
+    padding: 2px 5px; letter-spacing: 0.3px; flex: 0 0 auto;
   }
   .serie-num {
-    width: 26px; height: 26px; border-radius: 6px;
-    background: var(--surface2); display: flex;
-    align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; color: var(--text-muted);
+    width: 22px; height: 22px; border-radius: 5px; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 500; color: var(--text-dim);
   }
   .serie-input {
-    background: var(--surface2); border: 1.5px solid var(--border);
-    border-radius: 7px; color: var(--text);
-    font-size: 14px; font-weight: 700; padding: 7px 8px;
-    text-align: center; width: 100%; outline: none;
-    -webkit-appearance: none;
-    transition: border-color 0.2s;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 13px; font-weight: 500;
+    padding: 6px 6px; text-align: center; width: 100%; outline: none;
+    -webkit-appearance: none; transition: border-color 0.18s; font-family: inherit;
   }
-  .serie-input:focus { border-color: var(--accent); }
+  .serie-input:focus { border-color: rgba(109,40,217,0.35); }
   .serie-input.prescribed { color: var(--text-muted); background: var(--surface2); border-color: transparent; }
-  .serie-input.done { border-color: var(--success); color: var(--success); }
+  .serie-input.done { border-color: rgba(22,163,74,0.4); color: var(--success); }
+
   .exo-meta-row {
-    display: flex; gap: 6px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 8px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding-top: 10px; border-top: 1px solid var(--border); margin-top: 8px;
   }
   .exo-meta-chip {
-    background: var(--surface2); border-radius: 7px;
-    padding: 5px 10px; font-size: 12px; color: var(--text-muted);
-    display: flex; align-items: center; gap: 4px;
+    background: var(--surface2); border-radius: 7px; padding: 5px 10px;
+    font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;
   }
   .exo-meta-chip strong { color: var(--text); font-weight: 700; }
+
+  /* Coach comment */
   .exo-comment {
-    margin-top: 10px;
-    background: var(--accent-light); border-radius: 8px;
-    padding: 10px 12px; font-size: 13px; color: var(--accent);
-    font-style: italic; border-left: 3px solid var(--accent);
+    margin-top: 10px; background: var(--surface2); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: var(--text-muted);
+    border-left: 2px solid var(--border-md); line-height: 1.5;
+  }
+  .exo-comment-label {
+    font-size: 10px; font-weight: 700; color: var(--accent-mid);
+    text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px;
   }
   .exo-comment-input {
-    width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
     border-radius: 8px; color: var(--text); font-size: 13px;
     padding: 9px 12px; margin-top: 8px; outline: none; resize: none;
-    font-family: inherit; transition: border-color 0.2s;
+    font-family: inherit; transition: border-color 0.18s;
   }
-  .exo-comment-input:focus { border-color: var(--accent); }
+  .exo-comment-input:focus { border-color: rgba(109,40,217,0.35); }
   .exo-comment-input::placeholder { color: var(--text-dim); }
 
-  /* Validate btn */
+  /* Validate button */
   .validate-section { padding: 20px; }
   .btn-validate {
-    width: 100%; padding: 16px; border-radius: var(--radius);
+    width: 100%; padding: 15px; border-radius: var(--radius);
     background: var(--accent); color: #fff;
-    font-size: 16px; font-weight: 800; border: none; cursor: pointer;
-    letter-spacing: -0.3px; transition: var(--transition);
+    font-size: 15px; font-weight: 600; border: none; cursor: pointer;
+    letter-spacing: -0.2px; transition: var(--transition);
     display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: inherit;
   }
   .btn-validate:active { transform: scale(0.97); opacity: 0.9; }
   .btn-validate:disabled { background: var(--surface3); color: var(--text-muted); cursor: default; }
 
-  /* Modal video */
+  /* Modal vidéo */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5); z-index: 200;
-    align-items: center; justify-content: center; flex-direction: column;
-    padding: 20px;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    align-items: center; justify-content: center; flex-direction: column; padding: 20px;
   }
   .modal-overlay.open { display: flex; }
   .modal-box {
     background: var(--surface); border-radius: 16px;
     width: 100%; max-width: 400px; overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
   }
   .modal-video {
-    width: 100%; aspect-ratio: 16/9;
-    background: #000; display: flex; align-items: center; justify-content: center;
-    font-size: 48px; color: rgba(255,255,255,0.3);
+    width: 100%; aspect-ratio: 16/9; background: #111;
+    display: flex; align-items: center; justify-content: center;
   }
+  .modal-play-icon { color: rgba(255,255,255,0.25); }
   .modal-video iframe { width: 100%; height: 100%; border: none; }
   .modal-content { padding: 18px; }
-  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-  .modal-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .modal-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
   .modal-close {
     width: 100%; padding: 14px; background: var(--surface2);
-    border: none; color: var(--text-muted); font-size: 14px;
-    font-weight: 700; cursor: pointer; border-top: 1px solid var(--border);
+    border: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
+    cursor: pointer; border-top: 1px solid var(--border); font-family: inherit;
   }
 
   /* Success overlay */
@@ -329,71 +352,67 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   }
   .success-overlay.open { display: flex; }
   .success-icon {
-    width: 84px; height: 84px; border-radius: 50%;
-    background: var(--success-bg); display: flex;
-    align-items: center; justify-content: center; font-size: 40px;
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--accent-bg); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
   }
-  .success-title { font-size: 26px; font-weight: 700; }
-  .success-sub { color: var(--text-muted); font-size: 15px; line-height: 1.6; }
+  .success-title { font-size: 24px; font-weight: 700; }
+  .success-sub { color: var(--text-muted); font-size: 14px; line-height: 1.6; max-width: 280px; }
   .btn-secondary {
     padding: 13px 28px; border-radius: var(--radius);
     background: var(--surface2); color: var(--text);
-    font-size: 15px; font-weight: 700; border: 1px solid var(--border); cursor: pointer;
-    transition: var(--transition);
+    font-size: 14px; font-weight: 600; border: 1px solid var(--border);
+    cursor: pointer; transition: var(--transition); font-family: inherit;
   }
 
-  /* Bottom nav */
+  /* ── BOTTOM NAV ── */
+  .pb-nav { height: 100px; }
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 430px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    display: flex; padding: 8px 0 calc(20px + env(safe-area-inset-bottom, 0px));
-    z-index: 100;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 100;
   }
   .nav-item {
     flex: 1; display: flex; flex-direction: column;
-    align-items: center; gap: 3px; padding: 8px 0;
-    cursor: pointer; transition: var(--transition);
+    align-items: center; gap: 4px; padding: 6px 0;
+    cursor: pointer; position: relative;
   }
-  .nav-icon { font-size: 20px; }
-  .nav-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .nav-item.active .nav-label { color: var(--accent); }
-  .nav-item.active .nav-icon-wrap { background: var(--accent-light); border-radius: 10px; padding: 4px 14px; }
-  .nav-icon-wrap { padding: 4px 14px; }
-
-  .pb-nav { height: 110px; }
+  .nav-item.active::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent);
+  }
+  .nav-icon  { width: 22px; height: 22px; color: var(--text-dim); transition: color var(--transition); }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); transition: color var(--transition); }
+  .nav-item.active .nav-icon  { color: var(--accent); }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
 
 <!-- HEADER -->
 <div class="app-header">
-  <div class="app-logo"><img src="Logo.png" alt="RECODE" style="height:32px;width:auto;"></div>
+  <img src="Logo.png" alt="RECODE" style="height:28px;width:auto;">
   <div class="avatar" onclick="window.location.href='login.html'" title="Se déconnecter" style="cursor:pointer;">SM</div>
 </div>
 
-<!-- ═══════════════ SCREEN: VUE SEMAINE ═══════════════ -->
+<!-- ═══════════════ SCREEN : VUE SEMAINE ═══════════════ -->
 <div class="screen active" id="screen-week">
   <div class="week-header">
-    <div class="week-greeting" id="week-greeting">Bonjour 👋</div>
-    <div class="week-sub" id="week-sub">Semaine du 19 au 25 mai 2026</div>
+    <div class="week-greeting" id="week-greeting">Bonjour</div>
+    <div class="week-nav">
+      <button class="week-nav-btn" onclick="shiftWeek(-1)" aria-label="Semaine précédente">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="week-nav-label" id="week-sub">Semaine du 19 au 25 mai</div>
+      <button class="week-nav-btn" onclick="shiftWeek(1)" aria-label="Semaine suivante">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
   </div>
 
-  <!-- Day selector -->
-  <div class="week-label">Semaine</div>
-  <div class="week-days">
-    <div class="day-chip" onclick="filterDay(this,'Lun')"><div class="day-name">Lun</div><div class="day-num">19</div></div>
-    <div class="day-chip has-session" onclick="filterDay(this,'Mar')"><div class="day-name">Mar</div><div class="day-num">20</div></div>
-    <div class="day-chip" onclick="filterDay(this,'Mer')"><div class="day-name">Mer</div><div class="day-num">21</div></div>
-    <div class="day-chip has-session today" onclick="filterDay(this,'Jeu')"><div class="day-name">Jeu</div><div class="day-num">22</div></div>
-    <div class="day-chip" onclick="filterDay(this,'Ven')"><div class="day-name">Ven</div><div class="day-num">23</div></div>
-    <div class="day-chip has-session" onclick="filterDay(this,'Sam')"><div class="day-name">Sam</div><div class="day-num">24</div></div>
-    <div class="day-chip" onclick="filterDay(this,'Dim')"><div class="day-name">Dim</div><div class="day-num">25</div></div>
-  </div>
-
-  <!-- Sessions list -->
   <div class="sessions-list">
+
     <div class="session-card done" data-days="Mar" onclick="openSession('A')">
       <div class="session-meta">
         <div class="session-day">Mardi 20 mai</div>
@@ -401,8 +420,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       </div>
       <div class="session-name">Séance A — Push</div>
       <div class="session-info">
-        <div class="session-tag">⏱ 55 min</div>
-        <div class="session-tag">💪 6 exercices</div>
+        <div class="session-tag">55 min</div>
+        <div class="session-dot">·</div>
+        <div class="session-tag">6 exercices</div>
       </div>
       <div class="session-muscles">
         <span class="muscle-tag">Pectoraux</span>
@@ -418,8 +438,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       </div>
       <div class="session-name">Séance B — Pull</div>
       <div class="session-info">
-        <div class="session-tag">⏱ 60 min</div>
-        <div class="session-tag">💪 5 exercices</div>
+        <div class="session-tag">60 min</div>
+        <div class="session-dot">·</div>
+        <div class="session-tag">5 exercices</div>
       </div>
       <div class="session-muscles">
         <span class="muscle-tag">Dos</span>
@@ -435,8 +456,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       </div>
       <div class="session-name">Séance C — Lower</div>
       <div class="session-info">
-        <div class="session-tag">⏱ 65 min</div>
-        <div class="session-tag">💪 6 exercices</div>
+        <div class="session-tag">65 min</div>
+        <div class="session-dot">·</div>
+        <div class="session-tag">6 exercices</div>
       </div>
       <div class="session-muscles">
         <span class="muscle-tag">Quadriceps</span>
@@ -444,35 +466,44 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <span class="muscle-tag">Ischio</span>
       </div>
     </div>
-  </div>
 
+  </div>
   <div class="pb-nav"></div>
 </div>
 
-<!-- ═══════════════ SCREEN: DÉTAIL SÉANCE B ═══════════════ -->
+<!-- ═══════════════ SCREEN : DÉTAIL SÉANCE ═══════════════ -->
 <div class="screen" id="screen-session">
-  <!-- Top -->
+
   <div class="session-top">
-    <div class="back-btn" onclick="goBack()">← Semaine</div>
+    <div class="back-btn" onclick="goBack()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Semaine
+    </div>
     <div class="session-title">Séance B — Pull</div>
     <div class="session-chips">
       <span class="chip accent">Jeudi 22 mai</span>
-      <span class="chip">⏱ ~60 min</span>
-      <span class="chip">5 exercices</span>
+    </div>
+    <div class="session-progress">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">0 / 5 exercices</div>
     </div>
   </div>
 
-  <!-- Warmup -->
+  <!-- Échauffement -->
   <div class="section-label">Échauffement</div>
   <div class="warmup-card" onclick="openVideoModal('Échauffement général', 'Mobilisation des épaules, activation du dos et du core. Réaliser 2 tours du circuit complet avant de commencer la séance.')">
-    <div class="warmup-thumb"><div class="play-btn"></div></div>
+    <div class="warmup-thumb">
+      <div class="play-btn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+    </div>
     <div class="warmup-info">
       <div class="warmup-name">Échauffement Pull</div>
       <div class="warmup-detail">Vidéo · 3 min · 2 séries</div>
     </div>
   </div>
 
-  <!-- Exercises -->
+  <!-- Exercices -->
   <div class="section-label">Exercices</div>
   <div class="exo-list">
 
@@ -484,12 +515,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="exo-name">Tractions pronation</div>
           <div class="exo-params">4 × 6–8 reps · RIR 2 · Repos 2'30</div>
         </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tractions pronation', 'Prise légèrement plus large que les épaules. Tirez les coudes vers les hanches, rétraction des scapulas en haut du mouvement. Descente contrôlée en 3 secondes.')">▶</div>
-        <div class="exo-expand">›</div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tractions pronation', 'Prise légèrement plus large que les épaules. Tirez les coudes vers les hanches, rétraction des scapulas en haut du mouvement. Descente contrôlée en 3 secondes.')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="exo-expand">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
       <div class="series-body" id="series-1">
         <div class="series-header-row">
-          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
         </div>
         <div class="series-row">
           <div class="serie-num">1</div>
@@ -515,11 +550,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
           <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
         </div>
-        <div class="exo-meta-row">
-          <div class="exo-meta-chip">⏱ Repos <strong>2'30</strong></div>
-          <div class="exo-meta-chip">🎯 RIR <strong>2</strong></div>
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
       </div>
     </div>
 
@@ -531,12 +562,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="exo-name">Rowing barre pronation</div>
           <div class="exo-params">4 × 8–10 reps · RIR 2 · Repos 2'</div>
         </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Rowing barre pronation', 'Légère flexion de buste à 45°. Tirer la barre vers le nombril en gardant les coudes proches du corps. Contraction maximale en haut.')">▶</div>
-        <div class="exo-expand">›</div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Rowing barre pronation', 'Légère flexion de buste à 45°. Tirer la barre vers le nombril en gardant les coudes proches du corps. Contraction maximale en haut.')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="exo-expand">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
       <div class="series-body">
         <div class="series-header-row">
-          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
         </div>
         <div class="series-row">
           <div class="serie-num">1</div>
@@ -562,11 +597,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <input class="serie-input" type="number" placeholder="—">
           <input class="serie-input" type="number" placeholder="—">
         </div>
-        <div class="exo-meta-row">
-          <div class="exo-meta-chip">⏱ Repos <strong>2'</strong></div>
-          <div class="exo-meta-chip">🎯 RIR <strong>2</strong></div>
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
       </div>
     </div>
 
@@ -578,12 +609,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="exo-name">Tirage horizontal câble</div>
           <div class="exo-params">3 × 10–12 reps · RIR 1 · Repos 1'30</div>
         </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tirage horizontal câble', 'Assis au câble, dos droit. Tirer la poignée vers le sternum, coudes à 45°. Etirer complètement le dos en position basse.')">▶</div>
-        <div class="exo-expand">›</div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tirage horizontal câble', 'Assis au câble, dos droit. Tirer la poignée vers le sternum, coudes à 45°. Etirer complètement le dos en position basse.')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="exo-expand">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
       <div class="series-body">
         <div class="series-header-row">
-          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
         </div>
         <div class="series-row">
           <div class="serie-num">1</div>
@@ -603,55 +638,55 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <input class="serie-input" type="number" placeholder="—">
           <input class="serie-input" type="number" placeholder="—">
         </div>
-        <div class="exo-meta-row">
-          <div class="exo-meta-chip">⏱ Repos <strong>1'30</strong></div>
-          <div class="exo-meta-chip">🎯 RIR <strong>1</strong></div>
-        </div>
         <div class="exo-comment">
-          💬 Coach : Pense à vraiment étirer ton dos en position basse avant de tirer. Qualité > quantité !
+          <div class="exo-comment-label">Coach</div>
+          Pense à vraiment étirer ton dos en position basse avant de tirer. Qualité > quantité !
         </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter ton commentaire…"></textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter ton commentaire…"></textarea>
       </div>
     </div>
 
-    <!-- Exo 4 -->
-    <div class="exo-card">
+    <!-- Exo 4 — UNILATÉRAL -->
+    <div class="exo-card" data-unilateral="true" data-rest-side="40" data-rest-series="60">
       <div class="exo-header" onclick="toggleExo(this)">
         <div class="exo-num">4</div>
         <div class="exo-info">
-          <div class="exo-name">Curl haltères alternés</div>
-          <div class="exo-params">3 × 10 reps/bras · RIR 2 · Repos 1'</div>
+          <div class="exo-name">Curl haltères alternés <span class="uni-badge">Uni</span></div>
+          <div class="exo-params">3 × 10 reps/bras · RIR 2 · Côté 40'' · Série 1'</div>
         </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Curl haltères alternés', 'Debout ou assise, coudes fixes contre le buste. Supination en haut du mouvement. Descente contrôlée.')">▶</div>
-        <div class="exo-expand">›</div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Curl haltères alternés', 'Debout ou assise, coudes fixes contre le buste. Supination en haut du mouvement. Descente contrôlée.')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="exo-expand">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
       <div class="series-body">
-        <div class="series-header-row">
-          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+        <div class="series-header-row uni">
+          <div>#</div><div>Prévu</div><div>G</div><div>D</div><div>Charge</div>
         </div>
-        <div class="series-row">
+        <div class="series-row uni">
           <div class="serie-num">1</div>
-          <input class="serie-input prescribed" value="10/bras" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input prescribed" value="10" readonly>
+          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
         </div>
-        <div class="series-row">
+        <div class="series-row uni">
           <div class="serie-num">2</div>
-          <input class="serie-input prescribed" value="10/bras" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input prescribed" value="10" readonly>
+          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
         </div>
-        <div class="series-row">
+        <div class="series-row uni">
           <div class="serie-num">3</div>
-          <input class="serie-input prescribed" value="10/bras" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
+          <input class="serie-input prescribed" value="10" readonly>
+          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
         </div>
-        <div class="exo-meta-row">
-          <div class="exo-meta-chip">⏱ Repos <strong>1'</strong></div>
-          <div class="exo-meta-chip">🎯 RIR <strong>2</strong></div>
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
       </div>
     </div>
 
@@ -663,12 +698,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="exo-name">Face pull à la corde</div>
           <div class="exo-params">3 × 15 reps · RIR 1 · Repos 1'</div>
         </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Face pull à la corde', 'Câble haut, tirer la corde vers le visage en ouvrant les coudes. Position finale : bras en croix, mains derrière la tête.')">▶</div>
-        <div class="exo-expand">›</div>
+        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Face pull à la corde', 'Câble haut, tirer la corde vers le visage en ouvrant les coudes. Position finale : bras en croix, mains derrière la tête.')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="exo-expand">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
       <div class="series-body">
         <div class="series-header-row">
-          <div>#</div><div>Reps prévues</div><div>Reps réalisées</div><div>Charge (kg)</div>
+          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
         </div>
         <div class="series-row">
           <div class="serie-num">1</div>
@@ -688,87 +727,120 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <input class="serie-input" type="number" placeholder="—">
           <input class="serie-input" type="number" placeholder="—">
         </div>
-        <div class="exo-meta-row">
-          <div class="exo-meta-chip">⏱ Repos <strong>1'</strong></div>
-          <div class="exo-meta-chip">🎯 RIR <strong>1</strong></div>
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="💬 Ajouter un commentaire sur cet exercice…"></textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
       </div>
     </div>
 
   </div><!-- end exo-list -->
 
-  <!-- Validate -->
   <div class="validate-section">
     <button class="btn-validate" onclick="validateSession()">
-      ✓ Valider la séance
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Valider la séance
     </button>
   </div>
-
   <div class="pb-nav"></div>
-</div><!-- end screen-session -->
+</div>
 
-<!-- ═══════════════ MODAL VIDÉO ═══════════════ -->
+<!-- REST TIMER -->
+<div class="rest-timer" id="rest-timer">
+  <div class="rest-dot"></div>
+  <div class="rest-info">
+    <div class="rest-label">Repos</div>
+    <div class="rest-countdown" id="rest-countdown">2:30</div>
+  </div>
+  <button class="rest-close" onclick="stopRest()">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+</div>
+
+<!-- MODAL VIDÉO -->
 <div class="modal-overlay" id="modal-video">
   <div class="modal-box">
-    <div class="modal-video">▶</div>
+    <div class="modal-video">
+      <svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </div>
     <div class="modal-content">
       <div class="modal-title" id="modal-title">Exercice</div>
-      <div class="modal-desc" id="modal-desc">Description de l'exercice</div>
+      <div class="modal-desc"  id="modal-desc">Description de l'exercice</div>
     </div>
     <button class="modal-close" onclick="closeModal()">Fermer</button>
   </div>
 </div>
 
-<!-- ═══════════════ SUCCESS OVERLAY ═══════════════ -->
+<!-- SUCCESS OVERLAY -->
 <div class="success-overlay" id="success-overlay">
-  <div class="success-icon">🎉</div>
-  <div class="success-title">Séance validée !</div>
-  <div class="success-sub">Super boulot ! Séance B enregistrée.<br>Tes perfs ont été sauvegardées.</div>
-  <button class="btn-secondary" onclick="closeSuccess()">← Retour à la semaine</button>
+  <div class="success-icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="success-title">Séance validée</div>
+  <div class="success-sub">Bien joué ! Séance B enregistrée.<br>Tes perfs ont été sauvegardées.</div>
+  <button class="btn-secondary" onclick="closeSuccess()">Retour à la semaine</button>
 </div>
 
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <div class="nav-item active">
-    <div class="nav-icon-wrap"><div class="nav-icon">🏠</div></div>
-    <div class="nav-label">Séances</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+    <span class="nav-label">Séances</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module2_perfs.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">📈</div></div>
-    <div class="nav-label">Perfs</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span class="nav-label">Perfs</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module3_metriques.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">📋</div></div>
-    <div class="nav-label">Suivi</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span class="nav-label">Suivi</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module5_profil.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">👤</div></div>
-    <div class="nav-label">Profil</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <span class="nav-label">Profil</span>
   </div>
 </div>
 
 <script>
   // ── Auth ──────────────────────────────────────────────────
   const SESSION = requireAuth();
+  let weekOffset = 0;
+
+  function updateWeekLabel() {
+    const now = new Date();
+    const day = now.getDay();
+    const diffLun = (day === 0 ? -6 : 1 - day);
+    const lundi = new Date(now);
+    lundi.setDate(now.getDate() + diffLun + weekOffset * 7);
+    const dimanche = new Date(lundi); dimanche.setDate(lundi.getDate() + 6);
+    const fmtShort = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const sub = document.getElementById('week-sub');
+    if (sub) sub.textContent = fmtShort(lundi) + ' — ' + fmtShort(dimanche);
+  }
+
+  function shiftWeek(dir) {
+    weekOffset += dir;
+    updateWeekLabel();
+  }
+
   if (SESSION) {
-    // Avatar — initiale du prénom
     const av = document.querySelector('.avatar');
     if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
-
-    // Salutation personnalisée
     const greet = document.getElementById('week-greeting');
-    if (greet) greet.textContent = 'Bonjour ' + SESSION.prenom + ' 👋';
-
-    // Date dynamique — semaine courante
-    const now = new Date();
-    const day = now.getDay(); // 0=dim, 1=lun...
-    const diffLun = (day === 0 ? -6 : 1 - day);
-    const lundi = new Date(now); lundi.setDate(now.getDate() + diffLun);
-    const dimanche = new Date(lundi); dimanche.setDate(lundi.getDate() + 6);
-    const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-    const sub = document.getElementById('week-sub');
-    if (sub) sub.textContent = 'Semaine du ' + fmt(lundi) + ' au ' + fmt(dimanche);
+    if (greet) greet.textContent = 'Bonjour ' + SESSION.prenom;
+    updateWeekLabel();
+  } else {
+    updateWeekLabel();
   }
 
   function showScreen(id) {
@@ -777,26 +849,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     window.scrollTo(0,0);
   }
 
-  function openSession(id) {
-    showScreen('screen-session');
-  }
-
-  function goBack() {
-    showScreen('screen-week');
-  }
+  function openSession(id) { showScreen('screen-session'); }
+  function goBack() { showScreen('screen-week'); }
 
   function toggleExo(header) {
     const body = header.nextElementSibling;
     const arrow = header.querySelector('.exo-expand');
     const isOpen = body.classList.contains('open');
-    // close all
     document.querySelectorAll('.series-body').forEach(b => b.classList.remove('open'));
     document.querySelectorAll('.exo-expand').forEach(a => a.classList.remove('open'));
-    // toggle
-    if (!isOpen) {
-      body.classList.add('open');
-      arrow.classList.add('open');
-    }
+    if (!isOpen) { body.classList.add('open'); arrow.classList.add('open'); }
   }
 
   function openVideoModal(title, desc) {
@@ -805,18 +867,13 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     document.getElementById('modal-video').classList.add('open');
   }
 
-  function closeModal() {
-    document.getElementById('modal-video').classList.remove('open');
-  }
+  function closeModal() { document.getElementById('modal-video').classList.remove('open'); }
 
-  function validateSession() {
-    document.getElementById('success-overlay').classList.add('open');
-  }
+  function validateSession() { document.getElementById('success-overlay').classList.add('open'); }
 
   function closeSuccess() {
     document.getElementById('success-overlay').classList.remove('open');
     showScreen('screen-week');
-    // Mark session as done
     document.querySelectorAll('.session-card[data-days="Jeu"]').forEach(c => {
       c.classList.add('done');
       c.querySelector('.session-status').textContent = '✓ Validée';
@@ -824,33 +881,127 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     });
   }
 
+  // ── Progress bar ──────────────────────────────────────────
+  function updateProgress() {
+    const cards = document.querySelectorAll('.exo-card');
+    const total = cards.length;
+    let done = 0;
+    cards.forEach(card => {
+      const inputs = card.querySelectorAll('.serie-input:not(.prescribed)');
+      if (inputs.length && Array.from(inputs).some(i => i.value.trim() !== '')) done++;
+    });
+    const fill = document.getElementById('progress-fill');
+    const label = document.getElementById('progress-label');
+    if (fill) fill.style.width = (done / total * 100) + '%';
+    if (label) label.textContent = done + ' / ' + total + ' exercices';
+  }
+
+  // ── Rest timer ────────────────────────────────────────────
+  let restInterval = null;
+  let restSecs = 0;
+
+  function startRest(secs, label) {
+    if (restInterval) clearInterval(restInterval);
+    restSecs = secs;
+    document.getElementById('rest-label').textContent = label || 'Repos';
+    document.getElementById('rest-timer').classList.add('visible');
+    renderCountdown();
+    restInterval = setInterval(() => {
+      restSecs--;
+      if (restSecs <= 0) {
+        clearInterval(restInterval); restInterval = null;
+        document.getElementById('rest-timer').classList.remove('visible');
+        if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+      } else { renderCountdown(); }
+    }, 1000);
+  }
+
+  function renderCountdown() {
+    const m = Math.floor(restSecs / 60);
+    const s = restSecs % 60;
+    document.getElementById('rest-countdown').textContent = m + ':' + String(s).padStart(2,'0');
+  }
+
+  function stopRest() {
+    if (restInterval) { clearInterval(restInterval); restInterval = null; }
+    document.getElementById('rest-timer').classList.remove('visible');
+  }
+
+  function parseRest(card, type) {
+    // type = 'side' | 'series'
+    if (type === 'side') return parseInt(card.dataset.restSide) || 45;
+    const s = parseInt(card.dataset.restSeries) || 0;
+    if (s) return s;
+    // fallback : lire depuis exo-params "Repos X'XX"
+    const p = card.querySelector('.exo-params');
+    if (!p) return 90;
+    const m = p.textContent.match(/Repos\s+(\d+)'(\d+)?/);
+    if (m) return parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
+    return 90;
+  }
+
+  // Exercice bilatéral standard
   function checkDone(input) {
     if (input.value) input.classList.add('done');
     else input.classList.remove('done');
+    const row = input.closest('.series-row');
+    if (row) {
+      const rowInputs = row.querySelectorAll('.serie-input:not(.prescribed)');
+      if (Array.from(rowInputs).every(i => i.value.trim() !== '')) {
+        startRest(parseRest(input.closest('.exo-card'), 'series'), 'Repos série');
+      }
+    }
+    updateProgress();
   }
 
-  function filterDay(chip, day) {
-    document.querySelectorAll('.day-chip').forEach(c => c.style.outline = 'none');
-    chip.style.outline = '2px solid var(--accent)';
-    const cards = document.querySelectorAll('.session-card');
-    cards.forEach(c => {
-      const days = c.getAttribute('data-days') || '';
-      c.style.display = (!day || days.includes(day) || day === 'all') ? '' : 'none';
-    });
-    setTimeout(() => {
-      document.querySelectorAll('.day-chip').forEach(c => c.style.outline = 'none');
-    }, 400);
+  // Exercice unilatéral — côté G puis côté D
+  function checkSide(input) {
+    if (input.value) input.classList.add('done');
+    else input.classList.remove('done');
+    const card = input.closest('.exo-card');
+    const row  = input.closest('.series-row');
+
+    if (input.classList.contains('side-g') && input.value.trim() !== '') {
+      // Côté G validé → mini repos entre les deux côtés
+      startRest(parseRest(card, 'side'), 'Repos côté');
+    } else if (input.classList.contains('side-d') && input.value.trim() !== '') {
+      // Côté D validé → vérifier si charge aussi remplie
+      const charge = row.querySelector('.serie-input:not(.prescribed):not(.side-g):not(.side-d)');
+      if (!charge || charge.value.trim() !== '') {
+        startRest(parseRest(card, 'series'), 'Repos série');
+      }
+    } else if (!input.classList.contains('side-g') && !input.classList.contains('side-d')) {
+      // C'est la charge pour un exo uni
+      const sideD = row.querySelector('.side-d');
+      if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '') {
+        startRest(parseRest(card, 'series'), 'Repos série');
+      }
+    }
+    updateProgress();
   }
+
+  // ── Swipe semaine ─────────────────────────────────────────
+  let swipeX = 0, swipeY = 0;
+  const weekScreen = document.getElementById('screen-week');
+  weekScreen.addEventListener('touchstart', e => {
+    swipeX = e.touches[0].clientX;
+    swipeY = e.touches[0].clientY;
+  }, { passive: true });
+  weekScreen.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - swipeX;
+    const dy = e.changedTouches[0].clientY - swipeY;
+    if (Math.abs(dx) > 55 && Math.abs(dy) < 70) shiftWeek(dx < 0 ? 1 : -1);
+  }, { passive: true });
 
   function switchNav(item, tab) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     item.classList.add('active');
   }
 
-  // Auto-open first exo
   setTimeout(() => {
     const firstHeader = document.querySelector('.exo-header');
     if (firstHeader) toggleExo(firstHeader);
+    updateProgress();
   }, 100);
 </script>
 </body>

@@ -11,34 +11,38 @@ function getSession(){try{return JSON.parse(localStorage.getItem('recode_session
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
 function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Performances</title>
 <style>
   :root {
-    --bg: #F7F7F9;
+    --bg: #F6F6F8;
     --surface: #FFFFFF;
-    --surface2: #F5F3FE;
-    --surface3: #E5E0FA;
-    --accent: #7C3AED;
-    --accent-light: #EDE9FE;
-    --text: #1D1D1F;
-    --text-muted: #6E6E73;
-    --text-dim: #AEAEB2;
-    --danger: #FF3B30;
-    --warning: #FF9500;
-    --success: #34C759;
-    --technique: #a78bfa;
+    --surface2: #F2F2F5;
+    --surface3: #E8E8ED;
+    --accent: #6D28D9;
+    --accent-mid: #8B5CF6;
+    --accent-bg: rgba(109,40,217,0.09);
+    --accent-bg-soft: rgba(109,40,217,0.05);
+    --accent-light: rgba(109,40,217,0.08);
+    --text: #111827;
+    --text-muted: #6B7280;
+    --text-dim: #9CA3AF;
+    --success: #16A34A;
+    --danger: #DC2626;
+    --technique: #8B5CF6;
     --radius: 12px;
     --radius-sm: 8px;
-    --transition: 0.18s ease;
-    --border: #E5E5EA;
+    --transition: 0.15s ease;
+    --border: rgba(0,0,0,0.07);
+    --border-md: rgba(0,0,0,0.10);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Open Sans', -apple-system, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
     min-height: 100vh;
     max-width: 430px;
     margin: 0 auto;
@@ -52,17 +56,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     position: sticky; top: 0; background: var(--surface); z-index: 100;
     border-bottom: 1px solid var(--border);
   }
-  .app-logo { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
-  .app-logo span { color: var(--accent); }
   .avatar {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--accent-light); display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: var(--accent); border: 2px solid var(--border);
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    border: 1px solid rgba(109,40,217,0.15);
   }
 
   /* ── PAGE TITLE ── */
   .page-header { padding: 20px 20px 10px; }
-  .page-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
   .page-sub { color: var(--text-muted); font-size: 14px; }
 
   /* ── SEARCH / FILTER ── */
@@ -100,21 +103,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     background: var(--surface); border-radius: var(--radius);
     display: flex; align-items: center; gap: 14px;
     padding: 14px 16px; cursor: pointer; transition: var(--transition);
-    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
   }
   .exo-row:active { transform: scale(0.98); }
   .exo-row.active { border-color: var(--accent); }
-  .exo-icon {
-    width: 42px; height: 42px; border-radius: 10px;
-    background: var(--surface2); display: flex; align-items: center;
-    justify-content: center; font-size: 20px; flex: 0 0 auto;
-  }
+  /* Icon system */
+  .ic { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 9px; }
+  .ic-md { width: 38px; height: 38px; }
+  .icon-primary   { background: var(--accent-bg);      color: var(--accent); }
+  .icon-secondary { background: var(--accent-bg-soft); color: var(--accent-mid); }
+
   .exo-row-info { flex: 1; }
-  .exo-row-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
-  .exo-row-meta { font-size: 12px; color: var(--text-muted); }
+  .exo-row-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .exo-row-meta { font-size: 11px; color: var(--text-dim); }
   .exo-pr { text-align: right; }
-  .pr-value { font-size: 17px; font-weight: 800; color: var(--accent); }
-  .pr-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+  .pr-value { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .pr-label { font-size: 10px; color: var(--text-dim); font-weight: 500; margin-top: 1px; }
 
   /* ── SCREEN DETAIL ── */
   .screen { display: none; }
@@ -122,21 +126,21 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
   .back-btn {
     display: flex; align-items: center; gap: 6px;
-    color: var(--accent); font-size: 14px; font-weight: 600;
+    color: var(--text-muted); font-size: 13px; font-weight: 500;
     cursor: pointer; padding: 16px 20px 0; width: fit-content;
   }
 
   .detail-header { padding: 14px 20px 20px; }
-  .detail-title { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+  .detail-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
   .detail-stats {
     display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
   }
   .stat-box {
     background: var(--surface); border-radius: var(--radius-sm);
     padding: 12px; text-align: center;
-    box-shadow: 0 2px 10px rgba(124,58,237,0.08);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .stat-val { font-size: 20px; font-weight: 800; color: var(--accent); }
+  .stat-val { font-size: 17px; font-weight: 700; color: var(--accent); }
   .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 
   /* ── METRIC TOGGLE ── */
@@ -156,7 +160,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     margin: 0 20px 20px;
     background: var(--surface); border-radius: var(--radius);
     padding: 16px;
-    box-shadow: 0 2px 14px rgba(124,58,237,0.09);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
   }
   .chart-title-row {
     display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
@@ -209,23 +213,17 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
   /* ── HISTORY TABLE ── */
   .section-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-    text-transform: uppercase; color: var(--accent);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--text-dim);
     padding: 4px 20px 12px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::before {
-    content: ''; display: inline-block;
-    width: 18px; height: 2px;
-    background: var(--accent); border-radius: 2px; flex: 0 0 auto;
   }
   .history-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
   .history-row {
     background: var(--surface); border-radius: var(--radius-sm);
     padding: 14px 16px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 10px rgba(124,58,237,0.08);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .history-row.technique-row { border-left: 3px solid var(--technique); }
+  .history-row.technique-row { border-left: 2px solid var(--technique); }
   .history-date { font-size: 13px; color: var(--text-muted); flex: 1; }
   .history-date strong { display: block; font-size: 14px; color: var(--text); font-weight: 700; }
   .history-data { text-align: right; }
@@ -248,22 +246,26 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   .pb-nav { height: 110px; }
 
   /* Bottom nav */
+  .pb-nav { height: 100px; }
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 430px;
     background: var(--surface); border-top: 1px solid var(--border);
-    display: flex; padding: 8px 0 calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 100;
+    display: flex; padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 100;
   }
   .nav-item {
     flex: 1; display: flex; flex-direction: column;
-    align-items: center; gap: 4px; padding: 8px 0;
-    cursor: pointer; transition: var(--transition);
+    align-items: center; gap: 4px; padding: 6px 0;
+    cursor: pointer; position: relative;
   }
-  .nav-icon { font-size: 22px; }
-  .nav-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .nav-item.active .nav-label { color: var(--accent); }
-  .nav-item.active .nav-icon-wrap { background: var(--accent-light); border-radius: 12px; padding: 4px 16px; }
-  .nav-icon-wrap { padding: 4px 16px; }
+  .nav-item.active::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent);
+  }
+  .nav-icon  { width: 22px; height: 22px; color: var(--text-dim); transition: color var(--transition); }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); transition: color var(--transition); }
+  .nav-item.active .nav-icon  { color: var(--accent); }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -281,7 +283,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   </div>
 
   <div class="search-wrap">
-    <span class="search-icon">🔍</span>
+    <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:34px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input class="search-input" placeholder="Rechercher un exercice…" oninput="filterExos(this.value)">
   </div>
 
@@ -297,7 +299,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
   <div class="exo-list" id="exo-list">
     <div class="exo-row" data-group="dos" onclick="openDetail('tractions')">
-      <div class="exo-icon">🏋️</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5"/><line x1="5" y1="8" x2="5" y2="16"/><line x1="19" y1="8" x2="19" y2="16"/><line x1="5" y1="16" x2="9" y2="16"/><line x1="15" y1="16" x2="19" y2="16"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">Tractions pronation</div>
         <div class="exo-row-meta">Dos · 12 séances · Technique revue ×1</div>
@@ -309,7 +313,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="exo-row" data-group="dos" onclick="openDetail('rowing')">
-      <div class="exo-icon">↔️</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M5 12l4-4M5 12l4 4"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">Rowing barre pronation</div>
         <div class="exo-row-meta">Dos · 10 séances · Technique revue ×2</div>
@@ -321,7 +327,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="exo-row" data-group="pec" onclick="openDetail('developpecouche')">
-      <div class="exo-icon">💪</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M6 12l4 4M6 12l4-4"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">Développé couché</div>
         <div class="exo-row-meta">Pectoraux · 14 séances</div>
@@ -333,7 +341,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="exo-row" data-group="jambes" onclick="openDetail('squat')">
-      <div class="exo-icon">🦵</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6l-4 4v8"/><path d="M12 9l4 4v8"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">Squat barre</div>
         <div class="exo-row-meta">Jambes · 16 séances · Technique revue ×1</div>
@@ -345,7 +355,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="exo-row" data-group="jambes" onclick="openDetail('rdl')">
-      <div class="exo-icon">🏗️</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M5 8l2 12h10l2-12"/><path d="M9 8V5h6v3"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">RDL haltères</div>
         <div class="exo-row-meta">Ischio · Fessiers · 10 séances</div>
@@ -357,7 +369,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="exo-row" data-group="epaules" onclick="openDetail('ohp')">
-      <div class="exo-icon">☝️</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">Développé militaire</div>
         <div class="exo-row-meta">Épaules · 10 séances · Technique revue ×1</div>
@@ -369,7 +383,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
 
     <div class="exo-row" data-group="bras" onclick="openDetail('curl')">
-      <div class="exo-icon">💪</div>
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18c0-4 2-7 6-7s6 3 6 7"/><path d="M12 11V3"/></svg>
+      </div>
       <div class="exo-row-info">
         <div class="exo-row-name">Curl haltères alternés</div>
         <div class="exo-row-meta">Biceps · 12 séances</div>
@@ -385,7 +401,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
 <!-- ═══════════════ SCREEN: DÉTAIL EXERCICE ═══════════════ -->
 <div class="screen" id="screen-detail">
-  <div class="back-btn" onclick="goBack()">← Performances</div>
+  <div class="back-btn" onclick="goBack()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Performances
+  </div>
 
   <div class="detail-header">
     <div class="detail-title" id="detail-title">Tractions pronation</div>
@@ -433,7 +452,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <div class="chart-tooltip" id="chartTooltip">
       <div class="tooltip-date" id="tt-date"></div>
       <div class="tooltip-val" id="tt-val"></div>
-      <span class="tooltip-badge" id="tt-badge" style="display:none">🔧 Technique revue</span>
+      <span class="tooltip-badge" id="tt-badge" style="display:none">Technique revue</span>
       <div class="tooltip-note" id="tt-note"></div>
     </div>
   </div>
@@ -447,20 +466,33 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <div class="nav-item" onclick="window.location.href='module1_seance.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">🏠</div></div>
-    <div class="nav-label">Séances</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+    <span class="nav-label">Séances</span>
   </div>
   <div class="nav-item active">
-    <div class="nav-icon-wrap"><div class="nav-icon">📈</div></div>
-    <div class="nav-label">Perfs</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span class="nav-label">Perfs</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module3_metriques.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">📋</div></div>
-    <div class="nav-label">Suivi</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span class="nav-label">Suivi</span>
   </div>
   <div class="nav-item" onclick="window.location.href='module5_profil.html'">
-    <div class="nav-icon-wrap"><div class="nav-icon">👤</div></div>
-    <div class="nav-label">Profil</div>
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <span class="nav-label">Profil</span>
   </div>
 </div>
 
