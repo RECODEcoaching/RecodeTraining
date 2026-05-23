@@ -46,6 +46,8 @@ async function hashPin(pin) {
     --text:      #111827;
     --muted:     #6B7280;
     --dim:       #9CA3AF;
+    --text-dim:  #9CA3AF;
+    --text-muted:#6B7280;
     --success:   #16A34A;
     --danger:    #DC2626;
     --warning:   #D97706;
@@ -490,6 +492,175 @@ async function hashPin(pin) {
     white-space: pre; font-family: 'SF Mono', 'Fira Code', monospace;
     overflow-x: auto; color: var(--muted);
   }
+
+  /* ─── SESSION CARDS CLIQUABLES ───────────────────────────── */
+  .seance-card {
+    background: var(--surface); border-radius: var(--r);
+    border: 1px solid var(--border); margin-bottom: 7px; overflow: hidden;
+  }
+  .seance-card-top {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+    cursor: pointer; transition: background 0.12s;
+  }
+  .seance-card-top:hover { background: var(--surface2); }
+  .seance-card.expanded > .seance-card-top { background: var(--surface2); }
+  .seance-card-date { width: 68px; font-size: 10px; font-weight: 600; color: var(--muted); flex: 0 0 auto; line-height: 1.4; }
+  .seance-card-name { flex: 1; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seance-card-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; flex: 0 0 auto; }
+  .seance-card-chevron { color: var(--dim); flex: 0 0 auto; transition: transform 0.2s; }
+  .seance-card.expanded .seance-card-chevron { transform: rotate(180deg); }
+  .seance-exo-panel { display: none; border-top: 1px solid var(--border); }
+  .seance-card.expanded .seance-exo-panel { display: block; }
+  .seance-exo-row {
+    display: flex; align-items: center; gap: 11px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .seance-exo-num {
+    width: 22px; height: 22px; border-radius: 6px; background: transparent;
+    color: var(--text-dim); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 500; display: flex; align-items: center;
+    justify-content: center; flex: 0 0 auto;
+  }
+  .seance-exo-info { flex: 1; min-width: 0; }
+  .seance-exo-name { font-size: 13px; font-weight: 600; }
+  .seance-exo-params { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .seance-exo-del {
+    background: none; border: none; color: var(--dim); font-size: 15px;
+    cursor: pointer; padding: 4px; line-height: 1; border-radius: 4px; transition: var(--t);
+  }
+  .seance-exo-del:hover { color: var(--danger); background: rgba(220,38,38,0.07); }
+  .seance-exo-add {
+    display: flex; align-items: center; gap: 7px; padding: 10px 14px;
+    color: var(--accent); font-size: 12px; font-weight: 600;
+    cursor: pointer; background: none; border: none; font-family: inherit;
+    width: 100%; text-align: left; transition: background 0.12s;
+  }
+  .seance-exo-add:hover { background: var(--accent-bg); }
+  .seance-exo-empty { padding: 12px 14px; font-size: 12px; color: var(--dim); }
+
+  /* ─── EXO PICKER MODAL ───────────────────────────────────── */
+  .exo-picker-search {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border-md);
+    border-radius: var(--rs); color: var(--text); font-size: 13px;
+    padding: 8px 11px; outline: none; font-family: inherit; transition: border-color 0.15s; margin-bottom: 8px;
+  }
+  .exo-picker-search:focus { border-color: var(--accent); }
+  .exo-picker-list {
+    max-height: 200px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: var(--rs); margin-bottom: 12px;
+  }
+  .exo-picker-item {
+    padding: 9px 12px; font-size: 13px; cursor: pointer;
+    border-bottom: 1px solid var(--border); transition: background 0.1s;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .exo-picker-item:last-child { border-bottom: none; }
+  .exo-picker-item:hover { background: var(--surface2); }
+  .exo-picker-item.selected { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .ep-muscle { font-size: 10px; color: var(--dim); }
+  .exo-params-form { display: none; border-top: 1px solid var(--border); padding-top: 10px; }
+  .exo-params-form.open { display: block; }
+  .params-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-bottom: 10px; }
+  .param-block label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 3px; }
+  .param-block input { width: 100%; background: var(--surface2); border: 1px solid var(--border-md); border-radius: var(--rs); color: var(--text); font-size: 14px; font-weight: 700; padding: 6px 8px; outline: none; font-family: inherit; text-align: center; }
+  .param-block input:focus { border-color: var(--accent); }
+  .uni-toggle-row { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+  .uni-toggle-row label { font-size: 12px; color: var(--muted); }
+  .uni-extra { display: none; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+  .uni-extra.open { display: grid; }
+
+  /* ─── HISTORIQUE MODAL ───────────────────────────────────── */
+  .history-list { display: flex; flex-direction: column; gap: 5px; }
+  .history-row {
+    display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+    background: var(--surface2); border-radius: var(--rs);
+  }
+  .history-date { font-size: 11px; color: var(--muted); width: 62px; flex: 0 0 auto; }
+  .history-val { font-size: 15px; font-weight: 700; color: var(--accent); flex: 1; }
+  .history-delta { font-size: 11px; font-weight: 600; }
+  .history-delta.up { color: var(--success); }
+  .history-delta.down { color: var(--danger); }
+  .history-delta.eq { color: var(--dim); }
+
+  /* ─── PROGRAMMATION 4 SEMAINES ───────────────────────────── */
+  .prog-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+  }
+  .prog-nav-group { display: flex; align-items: center; gap: 6px; }
+  .prog-nav-btn {
+    padding: 6px 11px; border-radius: var(--rs); border: 1px solid var(--border-md);
+    background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer;
+    font-family: inherit; transition: var(--t); display: flex; align-items: center; gap: 3px;
+  }
+  .prog-nav-btn:hover { color: var(--text); background: var(--surface2); }
+  .prog-period-label { font-size: 13px; font-weight: 600; color: var(--text); min-width: 130px; text-align: center; }
+  .prog-client-select {
+    background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--rs);
+    color: var(--text); font-size: 13px; padding: 6px 10px; outline: none;
+    font-family: inherit; cursor: pointer; min-width: 150px;
+  }
+  .prog-client-select:focus { border-color: var(--accent); }
+
+  .prog-grid-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); }
+  .prog-grid { display: grid; grid-template-columns: 96px repeat(7,1fr); min-width: 620px; }
+  .prog-grid-th {
+    font-size: 10px; font-weight: 600; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 8px 4px; text-align: center; background: var(--surface2);
+    border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+  .prog-grid-th:last-child { border-right: none; }
+  .prog-grid-th:first-child { text-align: left; padding-left: 10px; }
+  .prog-week-cell {
+    padding: 8px 10px; background: var(--surface); border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); display: flex; flex-direction: column;
+    justify-content: space-between; gap: 5px;
+  }
+  .prog-week-cell:last-of-type { border-bottom: none; }
+  .prog-week-num { font-size: 11px; font-weight: 700; color: var(--text); }
+  .prog-week-range { font-size: 10px; color: var(--muted); line-height: 1.3; }
+  .prog-dup-btn {
+    font-size: 10px; font-weight: 600; color: var(--accent);
+    background: var(--accent-bg); border: 1px solid rgba(109,40,217,0.2);
+    border-radius: 5px; padding: 3px 6px; cursor: pointer;
+    font-family: inherit; transition: var(--t); white-space: nowrap;
+  }
+  .prog-dup-btn:hover { background: rgba(109,40,217,0.16); }
+  .prog-day-cell {
+    padding: 4px 3px; min-height: 72px; border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); background: var(--surface);
+    position: relative; cursor: pointer; transition: background 0.1s;
+    vertical-align: top;
+  }
+  .prog-grid > .prog-day-cell:nth-last-child(-n+7) { border-bottom: none; }
+  .prog-day-cell:last-child { border-right: none; }
+  .prog-day-cell:hover { background: rgba(109,40,217,0.02); }
+  .prog-day-cell.today-col { background: rgba(109,40,217,0.03); }
+  .prog-day-cell.today-col::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent);
+  }
+  .prog-day-num {
+    font-size: 10px; font-weight: 600; color: var(--text-dim);
+    text-align: center; margin-bottom: 3px;
+  }
+  .prog-day-num.today-num { color: var(--accent); font-weight: 700; }
+  .prog-chip {
+    display: block; font-size: 10px; font-weight: 600; color: var(--accent);
+    background: var(--accent-bg); border-radius: 4px; padding: 2px 4px;
+    margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .prog-chip.validée { color: var(--success); background: rgba(22,163,74,0.09); }
+  .prog-chip.annulée { color: var(--danger); background: rgba(220,38,38,0.08); text-decoration: line-through; }
+  .prog-add-hint {
+    font-size: 10px; color: var(--dim); text-align: center;
+    padding-top: 4px; display: none; pointer-events: none;
+  }
+  .prog-day-cell:hover .prog-add-hint { display: block; }
+  .prog-empty-state {
+    grid-column: 1 / -1; padding: 40px 20px; text-align: center;
+    font-size: 13px; color: var(--muted);
+  }
 </style>
 </head>
 <body>
@@ -506,6 +677,10 @@ async function hashPin(pin) {
     <div class="nav-link active" onclick="showScreen('clients',this)">
       <span class="nav-icon">👥</span> Mes clientes
       <span class="nav-badge" id="badge-clients">—</span>
+    </div>
+    <div class="nav-section-label">Planning</div>
+    <div class="nav-link" onclick="showScreen('prog',this)">
+      <span class="nav-icon">📅</span> Programmation
     </div>
     <div class="nav-section-label">Contenu</div>
     <div class="nav-link" onclick="showScreen('biblio-exos',this)">
@@ -612,24 +787,37 @@ async function hashPin(pin) {
           <button class="btn btn-accent btn-sm" onclick="toggleAddForm('metrics-add-form')">+ Ajouter</button>
         </div>
         <div class="add-form" id="metrics-add-form">
-          <div class="add-form-title">Nouvelle métrique</div>
+          <div class="add-form-title">Assigner une métrique</div>
           <div class="form-row">
-            <input class="form-input" placeholder="Nom de la métrique" style="flex:2">
-            <input class="form-input" placeholder="Unité (cm, kg…)">
-            <select class="form-select">
-              <option>Chaque semaine</option><option>Chaque jour</option><option>Chaque mois</option>
-            </select>
+            <div style="flex:2">
+              <label class="form-label">Nom *</label>
+              <input class="form-input" id="cm-nom" placeholder="ex : Tour de hanches">
+            </div>
+            <div>
+              <label class="form-label">Unité</label>
+              <input class="form-input" id="cm-unite" placeholder="cm, kg…">
+            </div>
           </div>
           <div class="form-row">
-            <button class="btn btn-accent" onclick="addMetric()">Ajouter</button>
+            <div style="flex:1">
+              <label class="form-label">Fréquence</label>
+              <select class="form-select" id="cm-freq">
+                <option value="Quotidien">Chaque jour</option>
+                <option value="Hebdomadaire">Chaque semaine</option>
+                <option value="Mensuel">Chaque mois</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-accent" onclick="addMetric()">Assigner</button>
             <button class="btn btn-ghost" onclick="toggleAddForm('metrics-add-form')">Annuler</button>
           </div>
         </div>
         <div class="metrics-manage" id="coach-metrics-list">
-          <div class="metric-manage-row"><div class="metric-manage-icon">⚖️</div><div class="metric-manage-info"><div class="metric-manage-name">Poids</div><div class="metric-manage-unit">kg · Hebdomadaire</div></div><div class="metric-manage-val">62.4 <span>kg</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">📏</div><div class="metric-manage-info"><div class="metric-manage-name">Tour de taille</div><div class="metric-manage-unit">cm · Mensuel</div></div><div class="metric-manage-val">71 <span>cm</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">⚡</div><div class="metric-manage-info"><div class="metric-manage-name">Énergie subjective</div><div class="metric-manage-unit">/10 · Quotidien</div></div><div class="metric-manage-val">7 <span>/10</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">😴</div><div class="metric-manage-info"><div class="metric-manage-name">Heures de sommeil</div><div class="metric-manage-unit">h · Quotidien</div></div><div class="metric-manage-val">7.5 <span>h</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">⚖️</div><div class="metric-manage-info"><div class="metric-manage-name">Poids</div><div class="metric-manage-unit">kg · Hebdomadaire</div></div><div class="metric-manage-val">62.4 <span>kg</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Poids','kg')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">📏</div><div class="metric-manage-info"><div class="metric-manage-name">Tour de taille</div><div class="metric-manage-unit">cm · Mensuel</div></div><div class="metric-manage-val">71 <span>cm</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Tour de taille','cm')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">⚡</div><div class="metric-manage-info"><div class="metric-manage-name">Énergie subjective</div><div class="metric-manage-unit">/10 · Quotidien</div></div><div class="metric-manage-val">7 <span>/10</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Énergie subjective','/10')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">😴</div><div class="metric-manage-info"><div class="metric-manage-name">Heures de sommeil</div><div class="metric-manage-unit">h · Quotidien</div></div><div class="metric-manage-val">7.5 <span>h</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Heures de sommeil','h')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
         </div>
       </div>
 
@@ -640,22 +828,32 @@ async function hashPin(pin) {
           <button class="btn btn-accent btn-sm" onclick="toggleAddForm('habits-add-form')">+ Ajouter</button>
         </div>
         <div class="add-form" id="habits-add-form">
-          <div class="add-form-title">Nouvelle habitude</div>
+          <div class="add-form-title">Assigner une habitude</div>
           <div class="form-row">
-            <input class="form-input" placeholder="Nom de l'habitude" style="flex:2">
-            <select class="form-select">
-              <option>Oui / Non</option><option>Note 1→4</option><option>Valeur numérique</option>
-            </select>
+            <div style="flex:2">
+              <label class="form-label">Nom *</label>
+              <input class="form-input" id="ch-nom" placeholder="ex : Méditation, Hydratation…">
+            </div>
           </div>
           <div class="form-row">
-            <button class="btn btn-accent" onclick="addHabit()">Ajouter</button>
+            <div style="flex:1">
+              <label class="form-label">Type de suivi</label>
+              <select class="form-select" id="ch-type">
+                <option value="oui-non">Oui / Non</option>
+                <option value="note">Note 1→4</option>
+                <option value="valeur">Valeur numérique</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-accent" onclick="addHabit()">Assigner</button>
             <button class="btn btn-ghost" onclick="toggleAddForm('habits-add-form')">Annuler</button>
           </div>
         </div>
         <div class="metrics-manage" id="coach-habits-list">
-          <div class="metric-manage-row"><div class="metric-manage-icon">😴</div><div class="metric-manage-info"><div class="metric-manage-name">Qualité du sommeil</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Moy. <span style="font-size:15px;color:var(--accent)">2.8</span><span>/4</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">🧘</div><div class="metric-manage-info"><div class="metric-manage-name">Niveau de stress</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Moy. <span style="font-size:15px;color:var(--warning)">2.1</span><span>/4</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">🚶</div><div class="metric-manage-info"><div class="metric-manage-name">Marche active</div><div class="metric-manage-unit">Oui / Non · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Sem. <span style="font-size:15px;color:var(--accent)">4</span><span>/7</span></div><button class="btn btn-ghost btn-sm">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">😴</div><div class="metric-manage-info"><div class="metric-manage-name">Qualité du sommeil</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Moy. <span style="font-size:15px;color:var(--accent)">2.8</span><span>/4</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Qualité du sommeil','/4')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">🧘</div><div class="metric-manage-info"><div class="metric-manage-name">Niveau de stress</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Moy. <span style="font-size:15px;color:var(--warning)">2.1</span><span>/4</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Niveau de stress','/4')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div class="metric-manage-row"><div class="metric-manage-icon">🚶</div><div class="metric-manage-info"><div class="metric-manage-name">Marche active</div><div class="metric-manage-unit">Oui / Non · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Sem. <span style="font-size:15px;color:var(--accent)">4</span><span>/7</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Marche active','✓')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
         </div>
       </div>
 
@@ -766,12 +964,30 @@ async function hashPin(pin) {
         <button class="btn btn-accent btn-sm" onclick="toggleAddForm('new-metric-form')">+ Créer</button>
       </div>
       <div class="add-form" id="new-metric-form">
-        <div class="add-form-title">Nouvelle métrique</div>
+        <div class="add-form-title">Créer une métrique</div>
         <div class="form-row">
-          <input class="form-input" placeholder="Nom (ex: Tour de hanches)" style="flex:2">
-          <input class="form-input" placeholder="Unité (cm, kg…)">
-          <select class="form-select"><option>Valeur numérique</option><option>Note 1→10</option><option>Oui / Non</option></select>
-          <button class="btn btn-accent" onclick="toast('Métrique créée');toggleAddForm('new-metric-form')">Créer</button>
+          <div style="flex:2">
+            <label class="form-label">Nom *</label>
+            <input class="form-input" id="nm-nom" placeholder="ex : Tour de hanches">
+          </div>
+          <div>
+            <label class="form-label">Unité</label>
+            <input class="form-input" id="nm-unite" placeholder="cm, kg…">
+          </div>
+        </div>
+        <div class="form-row">
+          <div style="flex:1">
+            <label class="form-label">Type</label>
+            <select class="form-select" id="nm-type">
+              <option value="valeur">Valeur numérique</option>
+              <option value="note10">Note 1→10</option>
+              <option value="oui-non">Oui / Non</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-accent" onclick="saveNewMetric()">Créer</button>
+          <button class="btn btn-ghost" onclick="toggleAddForm('new-metric-form')">Annuler</button>
         </div>
       </div>
       <div class="lib-metrics-list">
@@ -807,10 +1023,168 @@ async function hashPin(pin) {
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════
+         SCREEN : PROGRAMMATION 4 SEMAINES
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-prog">
+      <div class="prog-topbar">
+        <div class="prog-nav-group">
+          <button class="prog-nav-btn" onclick="shiftProg(-1)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Sem. préc.
+          </button>
+          <div class="prog-period-label" id="prog-period-label">—</div>
+          <button class="prog-nav-btn" onclick="shiftProg(1)">
+            Sem. suiv.
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <select class="prog-client-select" id="prog-client-select" onchange="onProgClientChange()">
+          <option value="">— Sélectionner une cliente —</option>
+        </select>
+      </div>
+
+      <div class="prog-grid-wrap">
+        <div class="prog-grid" id="prog-grid">
+          <div class="prog-empty-state">Sélectionne une cliente pour voir sa programmation.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:var(--rs);font-size:11px;color:var(--muted);">
+        <strong style="color:var(--text)">SQL requis</strong> — si tu ne vois pas les séances, exécute dans Supabase → SQL Editor :
+        <pre class="sql-block" style="margin-top:6px;">CREATE TABLE IF NOT EXISTS seance_exercices (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  seance_id   UUID REFERENCES seances(id) ON DELETE CASCADE,
+  exercice_id UUID REFERENCES exercices(id) ON DELETE SET NULL,
+  nom_exo     TEXT NOT NULL,
+  ordre       INTEGER DEFAULT 0,
+  series      INTEGER DEFAULT 3,
+  reps        TEXT DEFAULT '10',
+  charge      TEXT,
+  rir         INTEGER DEFAULT 2,
+  repos_serie INTEGER DEFAULT 90,
+  repos_cote  INTEGER,
+  unilateral  BOOLEAN DEFAULT false,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE seance_exercices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all anon on seance_exercices"
+  ON seance_exercices FOR ALL TO anon USING (true) WITH CHECK (true);</pre>
+      </div>
+    </div>
+
   </div><!-- end .content -->
 </div><!-- end .main -->
 </div><!-- end .layout -->
 
+
+<!-- ═══════════════ MODAL : EXERCICE PICKER (séance) ═══════════════ -->
+<div class="modal-overlay" id="modal-exo-picker">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Ajouter un exercice</div>
+      <button class="modal-close" onclick="document.getElementById('modal-exo-picker').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input class="exo-picker-search" id="picker-search" placeholder="Rechercher un exercice…" oninput="filterPickerList()">
+      <div class="exo-picker-list" id="picker-list"></div>
+      <div class="exo-params-form" id="exo-params-form">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;" id="picker-selected-name">—</div>
+        <div class="params-grid">
+          <div class="param-block">
+            <label>Séries</label>
+            <input type="number" id="p-series" value="3" min="1" max="10">
+          </div>
+          <div class="param-block">
+            <label>Reps</label>
+            <input type="text" id="p-reps" value="10" placeholder="10-12">
+          </div>
+          <div class="param-block">
+            <label>RIR</label>
+            <input type="number" id="p-rir" value="2" min="0" max="5">
+          </div>
+          <div class="param-block">
+            <label>Repos (s)</label>
+            <input type="number" id="p-repos" value="90" step="15">
+          </div>
+        </div>
+        <div class="uni-toggle-row">
+          <input type="checkbox" id="p-uni" onchange="toggleUniExtra()">
+          <label for="p-uni">Exercice unilatéral (G/D séparés)</label>
+        </div>
+        <div class="uni-extra" id="uni-extra">
+          <div class="param-block">
+            <label>Repos côté (s)</label>
+            <input type="number" id="p-repos-cote" value="40" step="5">
+          </div>
+          <div class="param-block">
+            <label>Repos série (s)</label>
+            <input type="number" id="p-repos-serie-uni" value="60" step="15">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Charge prévue (optionnel)</label>
+          <input class="form-input" id="p-charge" placeholder="ex : 40 kg, BW, élastique…">
+        </div>
+      </div>
+      <div id="picker-error" style="display:none;font-size:12px;color:var(--danger);padding:7px 0;"></div>
+      <div style="display:flex;gap:7px;margin-top:12px;">
+        <button class="btn btn-accent" id="btn-save-picker" onclick="savePickerExo()" style="flex:1">Ajouter à la séance</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-exo-picker').classList.remove('open')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : HISTORIQUE MÉTRIQUE ═══════════════ -->
+<div class="modal-overlay" id="modal-metric-history">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title" id="mh-title">Historique</div>
+      <button class="modal-close" onclick="document.getElementById('modal-metric-history').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="history-list" id="mh-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : AJOUTER SÉANCE DEPUIS PROG ═══════════════ -->
+<div class="modal-overlay" id="modal-prog-seance">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Nouvelle séance</div>
+      <button class="modal-close" onclick="document.getElementById('modal-prog-seance').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label class="form-label">Titre *</label>
+          <input class="form-input" id="ps-titre" placeholder="ex : Séance Push A">
+        </div>
+        <div>
+          <label class="form-label">Date</label>
+          <input class="form-input" id="ps-date" type="date">
+        </div>
+        <div>
+          <label class="form-label">Cliente</label>
+          <select class="form-select" id="ps-client"></select>
+        </div>
+        <div>
+          <label class="form-label">Statut</label>
+          <select class="form-select" id="ps-statut">
+            <option value="planifiée">Planifiée</option>
+            <option value="validée">Validée</option>
+            <option value="annulée">Annulée</option>
+          </select>
+        </div>
+        <div id="ps-error" style="display:none;font-size:12px;color:var(--danger);background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:var(--rs);padding:10px;"></div>
+        <button class="btn btn-accent" id="btn-save-ps" onclick="saveProgSeance()">Créer →</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════ MODAL : EXERCICE ═══════════════ -->
 <div class="modal-overlay" id="modal-exo">
@@ -974,15 +1348,17 @@ function showScreen(id, navEl) {
     navEl.classList.add('active');
   }
   const titles = {
-    clients:        'Mes clientes',
+    clients:         'Mes clientes',
     'client-detail': currentClientData?.prenom || '',
-    'biblio-exos':  'Exercices',
+    'biblio-exos':   'Exercices',
     'biblio-metrics':'Métriques',
     'biblio-habits': 'Habitudes',
+    prog:            'Programmation',
   };
   document.getElementById('topbar-title').textContent = titles[id] || '';
   if (id === 'biblio-exos') loadExercices();
   if (id === 'clients')     loadClients();
+  if (id === 'prog')        initProgScreen();
 }
 
 function backToClients() {
@@ -1078,24 +1454,21 @@ function openClientFromDB(client, colorIdx) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  SÉANCES
+//  SÉANCES + EXERCICES DANS SÉANCES
 // ═══════════════════════════════════════════════════════════
 async function loadSeances(clientId) {
   const list = document.getElementById('seances-list');
   list.innerHTML = '<div class="loading-text" style="padding:28px 0">Chargement des séances…</div>';
 
   const { data, error } = await db
-    .from('seances')
-    .select('*')
+    .from('seances').select('*')
     .eq('client_id', clientId)
     .order('date', { ascending: false });
 
   if (error) {
-    // Table probablement inexistante → afficher le SQL
     list.innerHTML = `
       <div style="padding:16px 0;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-          <span style="font-size:16px;">ℹ️</span>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
           Exécute ce SQL dans <strong>Supabase → SQL Editor</strong> pour activer les séances :
         </div>
         <pre class="sql-block">CREATE TABLE IF NOT EXISTS seances (
@@ -1132,21 +1505,175 @@ CREATE POLICY "Allow all anon on seances"
     annulée:   'background:rgba(220,38,38,0.08);color:var(--danger)',
   };
 
-  list.innerHTML = `<div style="display:flex;flex-direction:column;gap:7px;">` +
-    seances.map(s => {
-      const st   = statutStyle[s.statut] || statutStyle.planifiée;
-      const d    = new Date(s.date + 'T12:00:00');
-      const dateStr = d.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
-      return `
-        <div style="background:var(--surface);border-radius:var(--r);padding:12px 14px;border:1px solid var(--border);display:flex;align-items:center;gap:14px;">
-          <div style="width:70px;font-size:10px;font-weight:600;color:var(--muted);flex:0 0 auto;line-height:1.4;">${dateStr}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.titre}</div>
-            ${s.notes ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.notes}</div>` : ''}
-          </div>
-          <span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;flex:0 0 auto;${st}">${s.statut}</span>
-        </div>`;
-    }).join('') + `</div>`;
+  list.innerHTML = seances.map(s => {
+    const st = statutStyle[s.statut] || statutStyle.planifiée;
+    const d  = new Date(s.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+    return `
+      <div class="seance-card" id="seance-${s.id}">
+        <div class="seance-card-top" onclick="toggleSeanceDetail('${s.id}')">
+          <div class="seance-card-date">${dateStr}</div>
+          <div class="seance-card-name">${s.titre}</div>
+          <span class="seance-card-badge" style="${st}">${s.statut}</span>
+          <svg class="seance-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="seance-exo-panel" id="exo-panel-${s.id}">
+          <div id="exo-list-${s.id}" class="seance-exo-empty">Chargement…</div>
+          <button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Ajouter un exercice
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleSeanceDetail(seanceId) {
+  const card = document.getElementById('seance-' + seanceId);
+  const isExpanded = card.classList.contains('expanded');
+  // Collapse all first
+  document.querySelectorAll('.seance-card.expanded').forEach(c => c.classList.remove('expanded'));
+  if (!isExpanded) {
+    card.classList.add('expanded');
+    await loadSeanceExercices(seanceId);
+  }
+}
+
+async function loadSeanceExercices(seanceId) {
+  const container = document.getElementById('exo-list-' + seanceId);
+  container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
+
+  const { data, error } = await db
+    .from('seance_exercices').select('*')
+    .eq('seance_id', seanceId)
+    .order('ordre', { ascending: true });
+
+  if (error) {
+    // Table pas encore créée
+    container.innerHTML = `<div class="seance-exo-empty" style="color:var(--warning);">Table <code>seance_exercices</code> introuvable — exécute le SQL ci-dessous.</div>`;
+    return;
+  }
+
+  const exos = data || [];
+  if (exos.length === 0) {
+    container.innerHTML = '<div class="seance-exo-empty">Aucun exercice — ajoutes-en un ci-dessous.</div>';
+    return;
+  }
+
+  container.innerHTML = exos.map((e, i) => {
+    let params = `${e.series}×${e.reps}`;
+    if (e.rir !== null && e.rir !== undefined) params += ` · RIR ${e.rir}`;
+    if (e.charge)    params += ` · ${e.charge}`;
+    if (e.repos_serie) params += ` · Repos ${Math.floor(e.repos_serie/60)}'${e.repos_serie%60 ? String(e.repos_serie%60).padStart(2,'0') : ''}`;
+    if (e.unilateral) params += ' · Uni';
+    return `
+      <div class="seance-exo-row">
+        <div class="seance-exo-num">${i+1}</div>
+        <div class="seance-exo-info">
+          <div class="seance-exo-name">${e.nom_exo}</div>
+          <div class="seance-exo-params">${params}</div>
+        </div>
+        <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
+      </div>`;
+  }).join('');
+}
+
+async function deleteSeanceExo(exoId, seanceId) {
+  if (!confirm('Retirer cet exercice de la séance ?')) return;
+  await db.from('seance_exercices').delete().eq('id', exoId);
+  await loadSeanceExercices(seanceId);
+}
+
+// ─── EXO PICKER ──────────────────────────────────────────────
+let pickerSeanceId   = null;
+let pickerSelectedId = null;
+let pickerSelectedNom= null;
+
+function openExoPicker(seanceId) {
+  pickerSeanceId    = seanceId;
+  pickerSelectedId  = null;
+  pickerSelectedNom = null;
+  document.getElementById('picker-search').value = '';
+  document.getElementById('exo-params-form').classList.remove('open');
+  document.getElementById('picker-error').style.display = 'none';
+  document.getElementById('p-uni').checked = false;
+  document.getElementById('uni-extra').classList.remove('open');
+  renderPickerList('');
+  document.getElementById('modal-exo-picker').classList.add('open');
+}
+
+function renderPickerList(query) {
+  const list = document.getElementById('picker-list');
+  const q = query.toLowerCase();
+  const filtered = allExercices.filter(e =>
+    e.nom.toLowerCase().includes(q) || (e.groupe_musculaire||'').toLowerCase().includes(q)
+  );
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--dim);text-align:center;">Aucun résultat</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(e => `
+    <div class="exo-picker-item" data-id="${e.id}" data-nom="${e.nom.replace(/"/g,'&quot;')}" onclick="selectPickerExo(this)">
+      <span>${e.nom}</span>
+      <span class="ep-muscle">${e.groupe_musculaire||''}</span>
+    </div>`).join('');
+}
+
+function filterPickerList() {
+  renderPickerList(document.getElementById('picker-search').value);
+}
+
+function selectPickerExo(el) {
+  document.querySelectorAll('.exo-picker-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  pickerSelectedId  = el.dataset.id;
+  pickerSelectedNom = el.dataset.nom;
+  document.getElementById('picker-selected-name').textContent = pickerSelectedNom;
+  document.getElementById('exo-params-form').classList.add('open');
+}
+
+function toggleUniExtra() {
+  const c = document.getElementById('p-uni').checked;
+  document.getElementById('uni-extra').classList.toggle('open', c);
+}
+
+async function savePickerExo() {
+  const errEl = document.getElementById('picker-error');
+  errEl.style.display = 'none';
+  if (!pickerSeanceId || !pickerSelectedNom) {
+    errEl.style.display = 'block'; errEl.textContent = 'Sélectionne un exercice d\'abord.'; return;
+  }
+  // Get next ordre
+  const { data: existing } = await db.from('seance_exercices').select('ordre').eq('seance_id', pickerSeanceId).order('ordre', {ascending:false}).limit(1);
+  const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
+
+  const uni = document.getElementById('p-uni').checked;
+  const payload = {
+    seance_id:   pickerSeanceId,
+    exercice_id: pickerSelectedId || null,
+    nom_exo:     pickerSelectedNom,
+    ordre:       nextOrdre,
+    series:      parseInt(document.getElementById('p-series').value) || 3,
+    reps:        document.getElementById('p-reps').value || '10',
+    rir:         parseInt(document.getElementById('p-rir').value) ?? 2,
+    repos_serie: parseInt(document.getElementById('p-repos').value) || 90,
+    charge:      document.getElementById('p-charge').value.trim() || null,
+    unilateral:  uni,
+    repos_cote:  uni ? (parseInt(document.getElementById('p-repos-cote').value)||40) : null,
+  };
+
+  const btn = document.getElementById('btn-save-picker');
+  btn.disabled = true; btn.textContent = 'Ajout…';
+
+  const { error } = await db.from('seance_exercices').insert(payload);
+  btn.disabled = false; btn.textContent = 'Ajouter à la séance';
+
+  if (error) {
+    errEl.style.display = 'block'; errEl.textContent = 'Erreur : ' + error.message; return;
+  }
+  document.getElementById('modal-exo-picker').classList.remove('open');
+  toast('Exercice ajouté ✓');
+  await loadSeanceExercices(pickerSeanceId);
 }
 
 function openAddSeance() {
@@ -1366,13 +1893,71 @@ function toggleAddForm(id) {
 }
 
 function addMetric() {
-  toast('Métrique ajoutée');
+  const nom  = (document.getElementById('cm-nom')?.value||'').trim();
+  const unit = (document.getElementById('cm-unite')?.value||'').trim();
+  const freq = document.getElementById('cm-freq')?.value || 'Hebdomadaire';
+  if (!nom) { toast('Saisis un nom de métrique'); return; }
+  const list = document.getElementById('coach-metrics-list');
+  const row = document.createElement('div');
+  row.className = 'metric-manage-row';
+  row.innerHTML = `<div class="metric-manage-icon">📊</div>
+    <div class="metric-manage-info">
+      <div class="metric-manage-name">${nom}</div>
+      <div class="metric-manage-unit">${unit||'—'} · ${freq}</div>
+    </div>
+    <div class="metric-manage-val">— <span>${unit}</span></div>
+    <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${nom}','${unit}')">Historique</button>
+    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>`;
+  list.appendChild(row);
+  if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
+  if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
   document.getElementById('metrics-add-form').classList.remove('open');
+  toast('Métrique assignée ✓');
 }
+
 function addHabit() {
-  toast('Habitude ajoutée');
+  const nom  = (document.getElementById('ch-nom')?.value||'').trim();
+  const type = document.getElementById('ch-type')?.value || 'oui-non';
+  if (!nom) { toast('Saisis un nom d\'habitude'); return; }
+  const typeLabel = { 'oui-non':'Oui / Non', 'note':'Note 1→4', 'valeur':'Valeur numérique' };
+  const list = document.getElementById('coach-habits-list');
+  const row = document.createElement('div');
+  row.className = 'metric-manage-row';
+  row.innerHTML = `<div class="metric-manage-icon">🌿</div>
+    <div class="metric-manage-info">
+      <div class="metric-manage-name">${nom}</div>
+      <div class="metric-manage-unit">${typeLabel[type]||type} · Quotidien</div>
+    </div>
+    <div class="metric-manage-val">—</div>
+    <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${nom}','')">Historique</button>
+    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>`;
+  list.appendChild(row);
+  if (document.getElementById('ch-nom')) document.getElementById('ch-nom').value = '';
   document.getElementById('habits-add-form').classList.remove('open');
+  toast('Habitude assignée ✓');
 }
+
+function saveNewMetric() {
+  const nom  = (document.getElementById('nm-nom')?.value||'').trim();
+  const unit = (document.getElementById('nm-unite')?.value||'').trim();
+  if (!nom) { toast('Saisis un nom'); return; }
+  // Add to lib list
+  const list = document.querySelector('#screen-biblio-metrics .lib-metrics-list');
+  if (!list) { toast('Erreur interne'); return; }
+  const row = document.createElement('div');
+  row.className = 'lib-metric-row';
+  row.innerHTML = `<div class="lib-metric-icon">📊</div>
+    <div class="lib-metric-info"><div class="lib-metric-name">${nom}</div><div class="lib-metric-unit">${unit}</div></div>
+    <div class="assign-pills"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button>
+    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button>`;
+  list.appendChild(row);
+  if (document.getElementById('nm-nom')) document.getElementById('nm-nom').value = '';
+  if (document.getElementById('nm-unite')) document.getElementById('nm-unite').value = '';
+  document.getElementById('new-metric-form').classList.remove('open');
+  toast('Métrique créée ✓');
+}
+
 function removeMetric(btn) {
   if (confirm('Retirer ?')) {
     btn.closest('.metric-manage-row, .lib-metric-row').remove();
@@ -1385,6 +1970,238 @@ function toast(msg) {
   el.className = 'toast'; el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2200);
+}
+
+// ─── HISTORIQUE MÉTRIQUES ────────────────────────────────────
+const DEMO_HISTORY = {
+  'Poids':              [{d:'15/05',v:'62.6',unit:'kg',delta:'-0.2',dir:'down'},{d:'08/05',v:'62.8',unit:'kg',delta:'-0.3',dir:'down'},{d:'01/05',v:'63.1',unit:'kg',delta:'+0.1',dir:'up'},{d:'24/04',v:'63.0',unit:'kg',delta:'—',dir:'eq'},{d:'17/04',v:'63.0',unit:'kg',delta:'—',dir:'eq'}],
+  'Tour de taille':     [{d:'15/05',v:'71.2',unit:'cm',delta:'-0.8',dir:'down'},{d:'01/05',v:'72.0',unit:'cm',delta:'-0.5',dir:'down'},{d:'01/04',v:'72.5',unit:'cm',delta:'-0.5',dir:'down'},{d:'01/03',v:'73.0',unit:'cm',delta:'—',dir:'eq'}],
+  'Énergie subjective': [{d:'22/05',v:'7',unit:'/10',delta:'+1',dir:'up'},{d:'15/05',v:'6',unit:'/10',delta:'—',dir:'eq'},{d:'08/05',v:'6',unit:'/10',delta:'+1',dir:'up'},{d:'01/05',v:'5',unit:'/10',delta:'-1',dir:'down'}],
+  'Heures de sommeil':  [{d:'21/05',v:'7.5',unit:'h',delta:'—',dir:'eq'},{d:'20/05',v:'7.5',unit:'h',delta:'+1',dir:'up'},{d:'19/05',v:'6.5',unit:'h',delta:'-1',dir:'down'},{d:'18/05',v:'7.5',unit:'h',delta:'+0.5',dir:'up'}],
+  'Qualité du sommeil': [{d:'22/05',v:'1',unit:'/4',delta:'-1',dir:'down'},{d:'21/05',v:'2',unit:'/4',delta:'+1',dir:'up'},{d:'20/05',v:'1',unit:'/4',delta:'-1',dir:'down'},{d:'19/05',v:'2',unit:'/4',delta:'—',dir:'eq'}],
+  'Niveau de stress':   [{d:'22/05',v:'2',unit:'/4',delta:'—',dir:'eq'},{d:'21/05',v:'2',unit:'/4',delta:'+1',dir:'down'},{d:'20/05',v:'1',unit:'/4',delta:'-1',dir:'up'},{d:'19/05',v:'2',unit:'/4',delta:'—',dir:'eq'}],
+  'Marche active':      [{d:'22/05',v:'✗',unit:'',delta:'',dir:'eq'},{d:'21/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'20/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'19/05',v:'✓',unit:'',delta:'',dir:'eq'}],
+};
+function showMetricHistory(nom, unit) {
+  document.getElementById('mh-title').textContent = 'Historique — ' + nom;
+  const rows = DEMO_HISTORY[nom] || [];
+  const list = document.getElementById('mh-list');
+  if (rows.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée pour cette métrique.</div>';
+  } else {
+    list.innerHTML = rows.map(r => `
+      <div class="history-row">
+        <div class="history-date">${r.d}</div>
+        <div class="history-val">${r.v} <span style="font-size:11px;color:var(--muted);font-weight:500;">${r.unit}</span></div>
+        <div class="history-delta ${r.dir}">${r.delta ? (r.dir==='up'?'▲ ':'▼ ')+r.delta : '—'}</div>
+      </div>`).join('');
+  }
+  document.getElementById('modal-metric-history').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PROGRAMMATION 4 SEMAINES
+// ═══════════════════════════════════════════════════════════
+let progOffset     = 0;   // décalage en semaines depuis aujourd'hui
+let progClients    = [];
+let progClientId   = null;
+let progSeancesAll = [];
+let progClickDate  = null;
+
+async function initProgScreen() {
+  // Charger la liste des clientes pour le select
+  const sel = document.getElementById('prog-client-select');
+  if (progClients.length === 0) {
+    const { data } = await db.from('clients').select('id,prenom').order('prenom');
+    progClients = data || [];
+    sel.innerHTML = '<option value="">— Sélectionner une cliente —</option>' +
+      progClients.map(c => `<option value="${c.id}">${c.prenom}</option>`).join('');
+    // Pré-sélectionner la cliente courante si disponible
+    if (currentClientId) { sel.value = currentClientId; progClientId = currentClientId; }
+  }
+  if (progClientId) await loadProgSeances();
+  renderProgGrid();
+}
+
+async function onProgClientChange() {
+  progClientId = document.getElementById('prog-client-select').value || null;
+  progSeancesAll = [];
+  if (progClientId) await loadProgSeances();
+  renderProgGrid();
+}
+
+async function loadProgSeances() {
+  if (!progClientId) return;
+  // Charger un intervalle large (±8 semaines autour du bloc actuel)
+  const today = new Date();
+  const start = new Date(today); start.setDate(start.getDate() - 7 + progOffset * 7);
+  const end   = new Date(start); end.setDate(end.getDate() + 6 * 7);
+  const startStr = start.toISOString().slice(0,10);
+  const endStr   = end.toISOString().slice(0,10);
+
+  const { data } = await db.from('seances').select('id,titre,date,statut')
+    .eq('client_id', progClientId)
+    .gte('date', startStr).lte('date', endStr)
+    .order('date');
+  progSeancesAll = data || [];
+  renderProgGrid();
+}
+
+function shiftProg(dir) {
+  progOffset += dir;
+  loadProgSeances();
+}
+
+function getWeekStart(weekOffset) {
+  // Lundi de la semaine courante + weekOffset semaines
+  const today = new Date();
+  const dow = (today.getDay() + 6) % 7; // 0=lundi
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - dow + weekOffset * 7 + progOffset * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function renderProgGrid() {
+  const grid = document.getElementById('prog-grid');
+  if (!progClientId) {
+    grid.innerHTML = '<div class="prog-empty-state">Sélectionne une cliente pour voir sa programmation.</div>';
+    return;
+  }
+
+  const JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Update period label
+  const w0 = getWeekStart(0);
+  const w3end = new Date(w0); w3end.setDate(w0.getDate() + 27);
+  document.getElementById('prog-period-label').textContent =
+    w0.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) + ' – ' +
+    w3end.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+
+  // Build seances map: date string → [seances]
+  const seanceMap = {};
+  progSeancesAll.forEach(s => {
+    if (!seanceMap[s.date]) seanceMap[s.date] = [];
+    seanceMap[s.date].push(s);
+  });
+
+  // Header
+  let html = `<div class="prog-grid-th">Semaine</div>` +
+    JOURS.map(j => `<div class="prog-grid-th">${j}</div>`).join('');
+
+  // 4 semaines
+  for (let w = 0; w < 4; w++) {
+    const wStart = getWeekStart(w);
+    const wEnd   = new Date(wStart); wEnd.setDate(wStart.getDate() + 6);
+    const rangeStr = wStart.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) +
+                   ' – ' + wEnd.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+
+    // Count sessions this week
+    const wSeances = [];
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(wStart); dt.setDate(wStart.getDate() + d);
+      const key = dt.toISOString().slice(0,10);
+      (seanceMap[key]||[]).forEach(s => wSeances.push(s));
+    }
+
+    html += `<div class="prog-week-cell">
+      <div>
+        <div class="prog-week-num">Sem. ${w+1}</div>
+        <div class="prog-week-range">${rangeStr}</div>
+      </div>
+      <button class="prog-dup-btn" onclick="duplicateWeek(${w})" title="Dupliquer vers la semaine suivante">Dupliquer →</button>
+    </div>`;
+
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(wStart); dt.setDate(wStart.getDate() + d);
+      const key = dt.toISOString().slice(0,10);
+      const dayNum = dt.getDate();
+      const isToday = dt.getTime() === today.getTime();
+      const daySeances = seanceMap[key] || [];
+      const chips = daySeances.map(s =>
+        `<span class="prog-chip ${s.statut}" title="${s.titre}">${s.titre}</span>`
+      ).join('');
+      html += `<div class="prog-day-cell${isToday?' today-col':''}" onclick="openProgAddSeance('${key}')">
+        <div class="prog-day-num${isToday?' today-num':''}">${dayNum}</div>
+        ${chips}
+        <div class="prog-add-hint">+</div>
+      </div>`;
+    }
+  }
+
+  grid.innerHTML = html;
+}
+
+async function duplicateWeek(weekIndex) {
+  if (!progClientId) return;
+  const wStart = getWeekStart(weekIndex);
+  const wEnd   = new Date(wStart); wEnd.setDate(wStart.getDate() + 6);
+  const startStr = wStart.toISOString().slice(0,10);
+  const endStr   = wEnd.toISOString().slice(0,10);
+
+  // Fetch sessions of this week
+  const { data: weekSeances, error } = await db.from('seances').select('*')
+    .eq('client_id', progClientId)
+    .gte('date', startStr).lte('date', endStr);
+
+  if (error || !weekSeances || weekSeances.length === 0) {
+    toast('Aucune séance dans cette semaine à dupliquer'); return;
+  }
+
+  // Clone to next week
+  const inserts = weekSeances.map(s => {
+    const origDate = new Date(s.date + 'T12:00:00');
+    const newDate  = new Date(origDate);
+    newDate.setDate(origDate.getDate() + 7);
+    return {
+      client_id: progClientId,
+      titre:     s.titre,
+      date:      newDate.toISOString().slice(0,10),
+      statut:    'planifiée',
+      notes:     s.notes || null,
+    };
+  });
+
+  const { error: insErr } = await db.from('seances').insert(inserts);
+  if (insErr) { toast('Erreur : ' + insErr.message); return; }
+
+  toast(`✓ ${inserts.length} séance(s) dupliquée(s) vers la semaine suivante`);
+  await loadProgSeances();
+}
+
+function openProgAddSeance(dateStr) {
+  // Ouvrir le modal séance depuis la vue prog
+  document.getElementById('ps-date').value = dateStr;
+  document.getElementById('ps-titre').value = '';
+  document.getElementById('ps-statut').value = 'planifiée';
+  document.getElementById('ps-error').style.display = 'none';
+  // Peupler le select client
+  const sel = document.getElementById('ps-client');
+  sel.innerHTML = progClients.map(c =>
+    `<option value="${c.id}"${c.id===progClientId?' selected':''}>${c.prenom}</option>`
+  ).join('');
+  document.getElementById('modal-prog-seance').classList.add('open');
+}
+
+async function saveProgSeance() {
+  const titre    = document.getElementById('ps-titre').value.trim();
+  const date     = document.getElementById('ps-date').value;
+  const clientId = document.getElementById('ps-client').value;
+  const statut   = document.getElementById('ps-statut').value;
+  const errEl    = document.getElementById('ps-error');
+  errEl.style.display = 'none';
+  if (!titre || !date || !clientId) {
+    errEl.style.display = 'block'; errEl.textContent = 'Titre, date et cliente sont obligatoires.'; return;
+  }
+  const btn = document.getElementById('btn-save-ps');
+  btn.disabled = true; btn.textContent = 'Création…';
+  const { error } = await db.from('seances').insert({ client_id:clientId, titre, date, statut, notes:null });
+  btn.disabled = false; btn.textContent = 'Créer →';
+  if (error) { errEl.style.display='block'; errEl.textContent='Erreur : '+error.message; return; }
+  document.getElementById('modal-prog-seance').classList.remove('open');
+  toast('Séance créée ✓');
+  await loadProgSeances();
 }
 
 // ═══════════════════════════════════════════════════════════
