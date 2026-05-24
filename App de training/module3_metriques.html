@@ -396,141 +396,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <div class="tab-content active" id="tab-metrics">
   <div class="section-label">Mes métriques</div>
   <div class="metrics-list" id="metrics-list">
-
-    <!-- Poids -->
-    <div class="metric-card">
-      <div class="metric-card-top" onclick="openLog('Poids','kg','62.4')">
-        <div class="ic ic-md icon-primary">
-          <!-- Scale / Balance -->
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v4M6 20h12M7 20l1.5-9h7L17 20"/>
-            <circle cx="12" cy="3" r="1.5"/>
-          </svg>
-        </div>
-        <div class="metric-info">
-          <div class="metric-name">Poids</div>
-          <div class="metric-last">Dernière saisie · 20 mai</div>
-        </div>
-        <div class="metric-current">
-          <div class="metric-val">62.4 <span class="metric-unit">kg</span></div>
-          <div class="metric-delta down">▼ 0.3 ce mois</div>
-        </div>
-      </div>
-      <div class="metric-chart-wrap">
-        <canvas class="metric-chart-canvas" height="90"
-          data-values="63.1,63.0,62.8,62.9,62.7,62.6,62.4"
-          data-dates="24/03,07/04,21/04,01/05,08/05,15/05,20/05"
-          data-color="#7C3AED"></canvas>
-      </div>
-    </div>
-
-    <!-- Tour de taille -->
-    <div class="metric-card">
-      <div class="metric-card-top" onclick="openLog('Tour de taille','cm','71')">
-        <div class="ic ic-md icon-primary">
-          <!-- Ruler / Tape measure -->
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <rect x="2" y="9" width="20" height="6" rx="2"/>
-            <line x1="6"  y1="9" x2="6"  y2="13"/>
-            <line x1="10" y1="9" x2="10" y2="12"/>
-            <line x1="14" y1="9" x2="14" y2="13"/>
-            <line x1="18" y1="9" x2="18" y2="12"/>
-          </svg>
-        </div>
-        <div class="metric-info">
-          <div class="metric-name">Tour de taille</div>
-          <div class="metric-last">Dernière saisie · 15 mai</div>
-        </div>
-        <div class="metric-current">
-          <div class="metric-val">71 <span class="metric-unit">cm</span></div>
-          <div class="metric-delta down">▼ 2 cm ce mois</div>
-        </div>
-      </div>
-      <div class="metric-chart-wrap">
-        <canvas class="metric-chart-canvas" height="90"
-          data-values="73,72.5,72.2,72,71.5,71.2,71"
-          data-dates="24/03,07/04,21/04,01/05,08/05,15/05,20/05"
-          data-color="#7C3AED"></canvas>
-      </div>
-    </div>
-
-    <!-- Énergie -->
-    <div class="metric-card">
-      <div class="metric-card-top" onclick="openLog('Énergie subjective','/10','7')">
-        <div class="ic ic-md icon-primary">
-          <!-- Lightning bolt -->
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-        </div>
-        <div class="metric-info">
-          <div class="metric-name">Énergie subjective</div>
-          <div class="metric-last">Dernière saisie · aujourd'hui</div>
-        </div>
-        <div class="metric-current">
-          <div class="metric-val">7 <span class="metric-unit">/10</span></div>
-          <div class="metric-delta up">▲ +1 ce mois</div>
-        </div>
-      </div>
-      <div class="metric-chart-wrap">
-        <canvas class="metric-chart-canvas" height="90"
-          data-values="5,6,5,7,6,8,7"
-          data-dates="24/03,07/04,21/04,01/05,08/05,15/05,22/05"
-          data-color="#7C3AED"></canvas>
-      </div>
-    </div>
-
-    <!-- Sommeil -->
-    <div class="metric-card">
-      <div class="metric-card-top" onclick="openLog('Heures de sommeil','h','7.5')">
-        <div class="ic ic-md icon-primary">
-          <!-- Moon crescent -->
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </div>
-        <div class="metric-info">
-          <div class="metric-name">Heures de sommeil</div>
-          <div class="metric-last">Dernière saisie · hier</div>
-        </div>
-        <div class="metric-current">
-          <div class="metric-val">7.5 <span class="metric-unit">h</span></div>
-          <div class="metric-delta neutral">→ stable</div>
-        </div>
-      </div>
-      <div class="metric-chart-wrap">
-        <canvas class="metric-chart-canvas" height="90"
-          data-values="6.5,7,7.5,6,7.5,8,7.5"
-          data-dates="24/03,07/04,21/04,01/05,08/05,15/05,21/05"
-          data-color="#7C3AED"></canvas>
-      </div>
-    </div>
-
-    <!-- Pas quotidiens -->
-    <div class="metric-card">
-      <div class="metric-card-top" onclick="openLog('Pas quotidiens','pas','8420')">
-        <div class="ic ic-md icon-primary">
-          <!-- Activity / pulse line -->
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div class="metric-info">
-          <div class="metric-name">Pas quotidiens</div>
-          <div class="metric-last">Dernière saisie · hier</div>
-        </div>
-        <div class="metric-current">
-          <div class="metric-val">8 420 <span class="metric-unit">pas</span></div>
-          <div class="metric-delta up">▲ +1 200 ce mois</div>
-        </div>
-      </div>
-      <div class="metric-chart-wrap">
-        <canvas class="metric-chart-canvas" height="90"
-          data-values="6000,7200,6800,8000,7500,9200,8420"
-          data-dates="24/03,07/04,21/04,01/05,08/05,15/05,21/05"
-          data-color="#7C3AED"></canvas>
-      </div>
-    </div>
+    <div id="metrics-loading" style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>
 
   </div>
   <div class="pb-nav"></div>
@@ -853,6 +719,91 @@ if (SESSION) {
   if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
 }
 
+// ─── ID de métrique ouvert (pour saveLog) ─────────────────
+let currentMetriqueId = null;
+let currentMetriqueUnit = '';
+
+// ─── CHARGEMENT MÉTRIQUES SUPABASE ────────────────────────
+async function loadMetrics() {
+  if (!SESSION) return;
+  const { data: metriques, error } = await db
+    .from('client_metriques')
+    .select('*')
+    .eq('client_id', SESSION.client_id)
+    .order('created_at', { ascending: true });
+
+  const container = document.getElementById('metrics-list');
+  const loading   = document.getElementById('metrics-loading');
+
+  if (error || !metriques || metriques.length === 0) {
+    if (loading) loading.textContent = 'Aucune métrique assignée par ton coach.';
+    return;
+  }
+  if (loading) loading.remove();
+
+  for (const m of metriques) {
+    const { data: valeurs } = await db
+      .from('metrique_valeurs')
+      .select('valeur, date')
+      .eq('metrique_id', m.id)
+      .order('date', { ascending: true })
+      .limit(10);
+
+    container.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
+  }
+  requestAnimationFrame(() => drawAllMetricCharts());
+}
+
+function renderMetricCard(m, valeurs) {
+  const last = valeurs.length > 0 ? valeurs[valeurs.length - 1] : null;
+  const lastVal = last ? last.valeur : '—';
+  const lastDate = last
+    ? new Date(last.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    : 'Aucune saisie';
+
+  // Delta vs valeur précédente
+  let deltaHtml = '';
+  if (valeurs.length >= 2) {
+    const diff = valeurs[valeurs.length - 1].valeur - valeurs[valeurs.length - 2].valeur;
+    const sign = diff > 0 ? '▲ +' : '▼ ';
+    const cls  = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'neutral');
+    const absD = Math.abs(diff);
+    const rounded = Math.abs(diff) < 10 ? absD.toFixed(1) : Math.round(absD);
+    deltaHtml = `<div class="metric-delta ${cls}">${sign}${rounded} ${m.unite||''}</div>`;
+  }
+
+  // Données chart
+  const vals  = valeurs.map(v => v.valeur).join(',');
+  const dates = valeurs.map(v => {
+    const d = new Date(v.date + 'T12:00:00');
+    return ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2);
+  }).join(',');
+  const chartHtml = valeurs.length >= 2
+    ? `<div class="metric-chart-wrap"><canvas class="metric-chart-canvas" height="90" data-values="${vals}" data-dates="${dates}" data-color="#6D28D9"></canvas></div>`
+    : '';
+
+  const valDisplay = lastVal !== '—' ? `${lastVal} <span class="metric-unit">${m.unite||''}</span>` : '<span class="metric-unit">—</span>';
+
+  return `<div class="metric-card">
+    <div class="metric-card-top" onclick="openLog('${m.id}','${m.nom}','${m.unite||''}','${lastVal}')">
+      <div class="ic ic-md icon-primary">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <div class="metric-info">
+        <div class="metric-name">${m.nom}</div>
+        <div class="metric-last">Dernière saisie · ${lastDate}</div>
+      </div>
+      <div class="metric-current">
+        <div class="metric-val">${valDisplay}</div>
+        ${deltaHtml}
+      </div>
+    </div>
+    ${chartHtml}
+  </div>`;
+}
+
 // ─── TABS ─────────────────────────────────────────────────────
 function switchTab(btn, id) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1099,18 +1050,40 @@ function saveDailyLog() {
   toast(`Saisie enregistrée${temp ? ' · ' + temp + '°C' : ''}`);
 }
 
-function openLog(name, unit, lastVal) {
+function openLog(metriqueId, name, unit, lastVal) {
+  currentMetriqueId   = metriqueId;
+  currentMetriqueUnit = unit;
   document.getElementById('log-title').textContent = name;
-  document.getElementById('log-sub').textContent = 'Dernière valeur : ' + lastVal + ' ' + unit;
+  document.getElementById('log-sub').textContent = lastVal !== '—'
+    ? 'Dernière valeur : ' + lastVal + ' ' + unit
+    : 'Aucune valeur enregistrée';
   document.getElementById('log-unit').textContent = unit;
   document.getElementById('log-input').value = '';
   document.getElementById('modal-log').classList.add('open');
+  setTimeout(() => document.getElementById('log-input').focus(), 150);
 }
-function closeLog() { document.getElementById('modal-log').classList.remove('open'); }
-function saveLog() {
-  const v = document.getElementById('log-input').value;
-  if (!v) { alert('Entre une valeur.'); return; }
-  closeLog(); toast('Valeur enregistrée');
+function closeLog() {
+  document.getElementById('modal-log').classList.remove('open');
+  currentMetriqueId = null;
+}
+async function saveLog() {
+  const v = parseFloat(document.getElementById('log-input').value);
+  if (isNaN(v)) { alert('Entre une valeur numérique.'); return; }
+  if (!currentMetriqueId) { closeLog(); return; }
+
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await db.from('metrique_valeurs').upsert({
+    metrique_id: currentMetriqueId,
+    valeur: v,
+    date: today,
+  }, { onConflict: 'metrique_id,date' });
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+  closeLog();
+  toast('Valeur enregistrée ✓');
+  // Recharger les métriques pour mettre à jour les cartes
+  document.getElementById('metrics-list').innerHTML = '<div id="metrics-loading" style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>';
+  await loadMetrics();
 }
 
 function openCycleLog() {
@@ -1162,7 +1135,7 @@ window.addEventListener('load', () => {
   const avg = updateCycleStats();
   drawCycleRing(8, avg);
   buildWeekGrid();
-  requestAnimationFrame(() => drawAllMetricCharts());
+  loadMetrics();
 });
 window.addEventListener('resize', () => {
   drawAllMetricCharts();

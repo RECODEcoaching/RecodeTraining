@@ -411,62 +411,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
   </div>
 
-  <div class="sessions-list">
-
-    <div class="session-card done" data-days="Mar" onclick="openSession('A')">
-      <div class="session-meta">
-        <div class="session-day">Mardi 20 mai</div>
-        <div class="session-status done">✓ Validée</div>
-      </div>
-      <div class="session-name">Séance A — Push</div>
-      <div class="session-info">
-        <div class="session-tag">55 min</div>
-        <div class="session-dot">·</div>
-        <div class="session-tag">6 exercices</div>
-      </div>
-      <div class="session-muscles">
-        <span class="muscle-tag">Pectoraux</span>
-        <span class="muscle-tag">Épaules</span>
-        <span class="muscle-tag">Triceps</span>
-      </div>
-    </div>
-
-    <div class="session-card" data-days="Jeu" onclick="openSession('B')">
-      <div class="session-meta">
-        <div class="session-day">Jeudi 22 mai · Aujourd'hui</div>
-        <div class="session-status">À faire</div>
-      </div>
-      <div class="session-name">Séance B — Pull</div>
-      <div class="session-info">
-        <div class="session-tag">60 min</div>
-        <div class="session-dot">·</div>
-        <div class="session-tag">5 exercices</div>
-      </div>
-      <div class="session-muscles">
-        <span class="muscle-tag">Dos</span>
-        <span class="muscle-tag">Biceps</span>
-        <span class="muscle-tag">Trapèzes</span>
-      </div>
-    </div>
-
-    <div class="session-card" data-days="Sam" onclick="openSession('C')">
-      <div class="session-meta">
-        <div class="session-day">Samedi 24 mai</div>
-        <div class="session-status">À faire</div>
-      </div>
-      <div class="session-name">Séance C — Lower</div>
-      <div class="session-info">
-        <div class="session-tag">65 min</div>
-        <div class="session-dot">·</div>
-        <div class="session-tag">6 exercices</div>
-      </div>
-      <div class="session-muscles">
-        <span class="muscle-tag">Quadriceps</span>
-        <span class="muscle-tag">Fessiers</span>
-        <span class="muscle-tag">Ischio</span>
-      </div>
-    </div>
-
+  <div class="sessions-list" id="sessions-list">
+    <div style="text-align:center;padding:48px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>
   </div>
   <div class="pb-nav"></div>
 </div>
@@ -479,262 +425,24 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Semaine
     </div>
-    <div class="session-title">Séance B — Pull</div>
+    <div class="session-title" id="session-title-text">Séance</div>
     <div class="session-chips">
-      <span class="chip accent">Jeudi 22 mai</span>
+      <span class="chip accent" id="session-date-chip">—</span>
     </div>
     <div class="session-progress">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-      <div class="progress-label" id="progress-label">0 / 5 exercices</div>
+      <div class="progress-label" id="progress-label">0 / 0 exercices</div>
     </div>
   </div>
 
-  <!-- Échauffement -->
-  <div class="section-label">Échauffement</div>
-  <div class="warmup-card" onclick="openVideoModal('Échauffement général', 'Mobilisation des épaules, activation du dos et du core. Réaliser 2 tours du circuit complet avant de commencer la séance.')">
-    <div class="warmup-thumb">
-      <div class="play-btn">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      </div>
-    </div>
-    <div class="warmup-info">
-      <div class="warmup-name">Échauffement Pull</div>
-      <div class="warmup-detail">Vidéo · 3 min · 2 séries</div>
-    </div>
-  </div>
-
-  <!-- Exercices -->
+  <!-- Exercices (chargés dynamiquement) -->
   <div class="section-label">Exercices</div>
-  <div class="exo-list">
-
-    <!-- Exo 1 -->
-    <div class="exo-card">
-      <div class="exo-header" onclick="toggleExo(this)">
-        <div class="exo-num">1</div>
-        <div class="exo-info">
-          <div class="exo-name">Tractions pronation</div>
-          <div class="exo-params">4 × 6–8 reps · RIR 2 · Repos 2'30</div>
-        </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tractions pronation', 'Prise légèrement plus large que les épaules. Tirez les coudes vers les hanches, rétraction des scapulas en haut du mouvement. Descente contrôlée en 3 secondes.')">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="exo-expand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-      <div class="series-body" id="series-1">
-        <div class="series-header-row">
-          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
-        </div>
-        <div class="series-row">
-          <div class="serie-num">1</div>
-          <input class="serie-input prescribed" value="6–8" readonly>
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">2</div>
-          <input class="serie-input prescribed" value="6–8" readonly>
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">3</div>
-          <input class="serie-input prescribed" value="6–8" readonly>
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">4</div>
-          <input class="serie-input prescribed" value="6–8" readonly>
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
-      </div>
-    </div>
-
-    <!-- Exo 2 -->
-    <div class="exo-card">
-      <div class="exo-header" onclick="toggleExo(this)">
-        <div class="exo-num">2</div>
-        <div class="exo-info">
-          <div class="exo-name">Rowing barre pronation</div>
-          <div class="exo-params">4 × 8–10 reps · RIR 2 · Repos 2'</div>
-        </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Rowing barre pronation', 'Légère flexion de buste à 45°. Tirer la barre vers le nombril en gardant les coudes proches du corps. Contraction maximale en haut.')">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="exo-expand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-      <div class="series-body">
-        <div class="series-header-row">
-          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
-        </div>
-        <div class="series-row">
-          <div class="serie-num">1</div>
-          <input class="serie-input prescribed" value="8–10" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">2</div>
-          <input class="serie-input prescribed" value="8–10" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">3</div>
-          <input class="serie-input prescribed" value="8–10" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">4</div>
-          <input class="serie-input prescribed" value="8–10" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
-      </div>
-    </div>
-
-    <!-- Exo 3 -->
-    <div class="exo-card">
-      <div class="exo-header" onclick="toggleExo(this)">
-        <div class="exo-num">3</div>
-        <div class="exo-info">
-          <div class="exo-name">Tirage horizontal câble</div>
-          <div class="exo-params">3 × 10–12 reps · RIR 1 · Repos 1'30</div>
-        </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Tirage horizontal câble', 'Assis au câble, dos droit. Tirer la poignée vers le sternum, coudes à 45°. Etirer complètement le dos en position basse.')">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="exo-expand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-      <div class="series-body">
-        <div class="series-header-row">
-          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
-        </div>
-        <div class="series-row">
-          <div class="serie-num">1</div>
-          <input class="serie-input prescribed" value="10–12" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">2</div>
-          <input class="serie-input prescribed" value="10–12" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">3</div>
-          <input class="serie-input prescribed" value="10–12" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="exo-comment">
-          <div class="exo-comment-label">Coach</div>
-          Pense à vraiment étirer ton dos en position basse avant de tirer. Qualité > quantité !
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter ton commentaire…"></textarea>
-      </div>
-    </div>
-
-    <!-- Exo 4 — UNILATÉRAL -->
-    <div class="exo-card" data-unilateral="true" data-rest-side="40" data-rest-series="60">
-      <div class="exo-header" onclick="toggleExo(this)">
-        <div class="exo-num">4</div>
-        <div class="exo-info">
-          <div class="exo-name">Curl haltères alternés <span class="uni-badge">Uni</span></div>
-          <div class="exo-params">3 × 10 reps/bras · RIR 2 · Côté 40'' · Série 1'</div>
-        </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Curl haltères alternés', 'Debout ou assise, coudes fixes contre le buste. Supination en haut du mouvement. Descente contrôlée.')">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="exo-expand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-      <div class="series-body">
-        <div class="series-header-row uni">
-          <div>#</div><div>Prévu</div><div>G</div><div>D</div><div>Charge</div>
-        </div>
-        <div class="series-row uni">
-          <div class="serie-num">1</div>
-          <input class="serie-input prescribed" value="10" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
-          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
-        </div>
-        <div class="series-row uni">
-          <div class="serie-num">2</div>
-          <input class="serie-input prescribed" value="10" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
-          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
-        </div>
-        <div class="series-row uni">
-          <div class="serie-num">3</div>
-          <input class="serie-input prescribed" value="10" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
-          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
-          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
-      </div>
-    </div>
-
-    <!-- Exo 5 -->
-    <div class="exo-card">
-      <div class="exo-header" onclick="toggleExo(this)">
-        <div class="exo-num">5</div>
-        <div class="exo-info">
-          <div class="exo-name">Face pull à la corde</div>
-          <div class="exo-params">3 × 15 reps · RIR 1 · Repos 1'</div>
-        </div>
-        <div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('Face pull à la corde', 'Câble haut, tirer la corde vers le visage en ouvrant les coudes. Position finale : bras en croix, mains derrière la tête.')">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="exo-expand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-      <div class="series-body">
-        <div class="series-header-row">
-          <div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div>
-        </div>
-        <div class="series-row">
-          <div class="serie-num">1</div>
-          <input class="serie-input prescribed" value="15" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">2</div>
-          <input class="serie-input prescribed" value="15" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <div class="series-row">
-          <div class="serie-num">3</div>
-          <input class="serie-input prescribed" value="15" readonly>
-          <input class="serie-input" type="number" placeholder="—">
-          <input class="serie-input" type="number" placeholder="—">
-        </div>
-        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
-      </div>
-    </div>
-
-  </div><!-- end exo-list -->
+  <div class="exo-list" id="exo-list">
+    <div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>
+  </div>
 
   <div class="validate-section">
-    <button class="btn-validate" onclick="validateSession()">
+    <button class="btn-validate" id="validate-btn" onclick="validateSession()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       Valider la séance
     </button>
@@ -774,7 +482,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
   </div>
   <div class="success-title">Séance validée</div>
-  <div class="success-sub">Bien joué ! Séance B enregistrée.<br>Tes perfs ont été sauvegardées.</div>
+  <div class="success-sub">Bien joué ! La séance a été enregistrée.</div>
   <button class="btn-secondary" onclick="closeSuccess()">Retour à la semaine</button>
 </div>
 
@@ -812,48 +520,260 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 </div>
 
 <script>
-  // ── Auth ──────────────────────────────────────────────────
+  // ── Auth & state ─────────────────────────────────────────
   const SESSION = requireAuth();
   let weekOffset = 0;
+  let currentSeanceId = null;
 
-  function updateWeekLabel() {
+  // ── Helpers semaine ──────────────────────────────────────
+  function getWeekRange(offset) {
     const now = new Date();
     const day = now.getDay();
     const diffLun = (day === 0 ? -6 : 1 - day);
     const lundi = new Date(now);
-    lundi.setDate(now.getDate() + diffLun + weekOffset * 7);
-    const dimanche = new Date(lundi); dimanche.setDate(lundi.getDate() + 6);
+    lundi.setDate(now.getDate() + diffLun + offset * 7);
+    const dimanche = new Date(lundi);
+    dimanche.setDate(lundi.getDate() + 6);
+    const fmt = d => d.toISOString().split('T')[0];
+    return { lundi: fmt(lundi), dimanche: fmt(dimanche), lundiDate: lundi, dimancheDate: dimanche };
+  }
+
+  function updateWeekLabel() {
+    const { lundiDate, dimancheDate } = getWeekRange(weekOffset);
     const fmtShort = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     const sub = document.getElementById('week-sub');
-    if (sub) sub.textContent = fmtShort(lundi) + ' — ' + fmtShort(dimanche);
+    if (sub) sub.textContent = fmtShort(lundiDate) + ' — ' + fmtShort(dimancheDate);
   }
 
   function shiftWeek(dir) {
     weekOffset += dir;
     updateWeekLabel();
+    loadWeekSessions();
   }
 
-  if (SESSION) {
-    const av = document.querySelector('.avatar');
-    if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
-    const greet = document.getElementById('week-greeting');
-    if (greet) greet.textContent = 'Bonjour ' + SESSION.prenom;
-    updateWeekLabel();
-  } else {
-    updateWeekLabel();
+  function formatRepos(secs) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    if (s === 0) return m + "'";
+    return m + "'" + String(s).padStart(2, '0');
   }
 
+  // ── Chargement séances Supabase ──────────────────────────
+  async function loadWeekSessions() {
+    if (!SESSION) return;
+    const list = document.getElementById('sessions-list');
+    list.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>';
+
+    const { lundi, dimanche } = getWeekRange(weekOffset);
+    const { data: seances, error } = await db
+      .from('seances')
+      .select('*')
+      .eq('client_id', SESSION.client_id)
+      .gte('date', lundi)
+      .lte('date', dimanche)
+      .order('date', { ascending: true });
+
+    if (error) {
+      list.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--danger);font-size:14px">Erreur de chargement</div>';
+      return;
+    }
+
+    if (!seances || seances.length === 0) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:48px 20px">
+          <div style="font-size:32px;margin-bottom:12px">🗓️</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Aucune séance cette semaine</div>
+          <div style="font-size:13px;color:var(--text-muted)">Le coach n'a pas encore planifié de séance.</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = seances.map(s => renderSessionCard(s)).join('');
+  }
+
+  function renderSessionCard(s) {
+    const dateObj = new Date(s.date + 'T12:00:00');
+    const today   = new Date().toISOString().split('T')[0];
+    const isToday = s.date === today;
+    const isDone  = s.statut === 'validée';
+    const isRest  = s.statut === 'repos';
+
+    const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+    const dayLabel = capitalDate + (isToday ? ' · Aujourd\'hui' : '');
+
+    const statusLabel = isDone ? '✓ Validée' : isRest ? 'Repos' : 'À faire';
+    const statusClass = isDone ? 'done' : isRest ? 'rest' : '';
+    const cardClass   = isDone ? 'session-card done' : (isRest ? 'session-card rest-card' : 'session-card');
+
+    return `<div class="${cardClass}" onclick="openSession('${s.id}')">
+      <div class="session-meta">
+        <div class="session-day">${dayLabel}</div>
+        <div class="session-status ${statusClass}">${statusLabel}</div>
+      </div>
+      <div class="session-name">${s.titre}</div>
+      <div class="session-info" id="card-info-${s.id}">
+        <div class="session-tag">—</div>
+      </div>
+    </div>`;
+  }
+
+  // ── Ouverture d'une séance ───────────────────────────────
+  async function openSession(seanceId) {
+    currentSeanceId = seanceId;
+    showScreen('screen-session');
+
+    // Reset
+    document.getElementById('session-title-text').textContent = '…';
+    document.getElementById('session-date-chip').textContent = '…';
+    document.getElementById('exo-list').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>';
+    document.getElementById('progress-label').textContent = '0 / 0 exercices';
+    document.getElementById('progress-fill').style.width = '0%';
+
+    // Charger la séance
+    const { data: seance } = await db.from('seances').select('*').eq('id', seanceId).single();
+    if (!seance) return;
+
+    const dateObj = new Date(seance.date + 'T12:00:00');
+    const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    document.getElementById('session-title-text').textContent = seance.titre;
+    document.getElementById('session-date-chip').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+    // Charger les exercices
+    const { data: exos } = await db
+      .from('seance_exercices')
+      .select('*')
+      .eq('seance_id', seanceId)
+      .order('ordre', { ascending: true });
+
+    const exoList = document.getElementById('exo-list');
+    if (!exos || exos.length === 0) {
+      exoList.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:14px">Aucun exercice dans cette séance.</div>';
+      document.getElementById('progress-label').textContent = '0 / 0 exercices';
+    } else {
+      exoList.innerHTML = exos.map((exo, i) => renderExoCard(exo, i)).join('');
+      document.getElementById('progress-label').textContent = '0 / ' + exos.length + ' exercices';
+      // Mettre à jour le compteur sur la card semaine
+      const cardInfo = document.getElementById('card-info-' + seanceId);
+      if (cardInfo) cardInfo.innerHTML = `<div class="session-tag">${exos.length} exercice${exos.length > 1 ? 's' : ''}</div>`;
+      setTimeout(() => {
+        const firstHeader = exoList.querySelector('.exo-header');
+        if (firstHeader) toggleExo(firstHeader);
+        updateProgress();
+      }, 50);
+    }
+
+    // État du bouton valider
+    const btn = document.getElementById('validate-btn');
+    if (seance.statut === 'validée') {
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Séance déjà validée';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+    } else {
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
+  }
+
+  // ── Rendu d'un exercice ──────────────────────────────────
+  function renderExoCard(exo, index) {
+    const reposSerie = exo.repos_serie || 90;
+    const reposCote  = exo.repos_cote  || 45;
+    const reposStr   = formatRepos(reposSerie);
+
+    if (exo.unilateral) {
+      const params = `${exo.series} × ${exo.reps} reps/bras · RIR ${exo.rir} · Côté ${reposCote}'' · Série ${reposStr}`;
+      let rows = '';
+      for (let i = 1; i <= (exo.series || 3); i++) {
+        rows += `<div class="series-row uni">
+          <div class="serie-num">${i}</div>
+          <input class="serie-input prescribed" value="${exo.reps}" readonly>
+          <input class="serie-input side-g" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input side-d" type="number" placeholder="—" oninput="checkSide(this)">
+          <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
+        </div>`;
+      }
+      return `<div class="exo-card" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}">
+        <div class="exo-header" onclick="toggleExo(this)">
+          <div class="exo-num">${index + 1}</div>
+          <div class="exo-info">
+            <div class="exo-name">${exo.nom_exo} <span class="uni-badge">Uni</span></div>
+            <div class="exo-params">${params}</div>
+          </div>
+          <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="series-body">
+          <div class="series-header-row uni"><div>#</div><div>Prévu</div><div>G</div><div>D</div><div>Charge</div></div>
+          ${rows}
+          ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
+          <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
+        </div>
+      </div>`;
+    }
+
+    // Bilatéral
+    const params = `${exo.series} × ${exo.reps} reps · RIR ${exo.rir} · Repos ${reposStr}`;
+    let rows = '';
+    for (let i = 1; i <= (exo.series || 3); i++) {
+      rows += `<div class="series-row">
+        <div class="serie-num">${i}</div>
+        <input class="serie-input prescribed" value="${exo.reps}" readonly>
+        <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+        <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
+      </div>`;
+    }
+    return `<div class="exo-card" data-rest-series="${reposSerie}">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">${index + 1}</div>
+        <div class="exo-info">
+          <div class="exo-name">${exo.nom_exo}</div>
+          <div class="exo-params">${params}</div>
+        </div>
+        <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="series-body">
+        <div class="series-header-row"><div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div></div>
+        ${rows}
+        ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
+        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
+      </div>
+    </div>`;
+  }
+
+  // ── Valider la séance ────────────────────────────────────
+  async function validateSession() {
+    if (!currentSeanceId) return;
+    const btn = document.getElementById('validate-btn');
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    const { error } = await db.from('seances').update({ statut: 'validée' }).eq('id', currentSeanceId);
+    if (error) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      alert('Erreur lors de la validation. Réessaie.');
+      return;
+    }
+    document.getElementById('success-overlay').classList.add('open');
+  }
+
+  async function closeSuccess() {
+    document.getElementById('success-overlay').classList.remove('open');
+    showScreen('screen-week');
+    await loadWeekSessions();
+  }
+
+  // ── UI helpers ───────────────────────────────────────────
   function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
   }
 
-  function openSession(id) { showScreen('screen-session'); }
   function goBack() { showScreen('screen-week'); }
 
   function toggleExo(header) {
-    const body = header.nextElementSibling;
+    const body  = header.nextElementSibling;
     const arrow = header.querySelector('.exo-expand');
     const isOpen = body.classList.contains('open');
     document.querySelectorAll('.series-body').forEach(b => b.classList.remove('open'));
@@ -863,23 +783,11 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
   function openVideoModal(title, desc) {
     document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-desc').textContent = desc;
+    document.getElementById('modal-desc').textContent  = desc;
     document.getElementById('modal-video').classList.add('open');
   }
 
   function closeModal() { document.getElementById('modal-video').classList.remove('open'); }
-
-  function validateSession() { document.getElementById('success-overlay').classList.add('open'); }
-
-  function closeSuccess() {
-    document.getElementById('success-overlay').classList.remove('open');
-    showScreen('screen-week');
-    document.querySelectorAll('.session-card[data-days="Jeu"]').forEach(c => {
-      c.classList.add('done');
-      c.querySelector('.session-status').textContent = '✓ Validée';
-      c.querySelector('.session-status').classList.add('done');
-    });
-  }
 
   // ── Progress bar ──────────────────────────────────────────
   function updateProgress() {
@@ -890,9 +798,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       const inputs = card.querySelectorAll('.serie-input:not(.prescribed)');
       if (inputs.length && Array.from(inputs).some(i => i.value.trim() !== '')) done++;
     });
-    const fill = document.getElementById('progress-fill');
+    const fill  = document.getElementById('progress-fill');
     const label = document.getElementById('progress-label');
-    if (fill) fill.style.width = (done / total * 100) + '%';
+    if (fill)  fill.style.width = (total > 0 ? done / total * 100 : 0) + '%';
     if (label) label.textContent = done + ' / ' + total + ' exercices';
   }
 
@@ -919,7 +827,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   function renderCountdown() {
     const m = Math.floor(restSecs / 60);
     const s = restSecs % 60;
-    document.getElementById('rest-countdown').textContent = m + ':' + String(s).padStart(2,'0');
+    document.getElementById('rest-countdown').textContent = m + ':' + String(s).padStart(2, '0');
   }
 
   function stopRest() {
@@ -928,22 +836,13 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   }
 
   function parseRest(card, type) {
-    // type = 'side' | 'series'
     if (type === 'side') return parseInt(card.dataset.restSide) || 45;
-    const s = parseInt(card.dataset.restSeries) || 0;
-    if (s) return s;
-    // fallback : lire depuis exo-params "Repos X'XX"
-    const p = card.querySelector('.exo-params');
-    if (!p) return 90;
-    const m = p.textContent.match(/Repos\s+(\d+)'(\d+)?/);
-    if (m) return parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
-    return 90;
+    return parseInt(card.dataset.restSeries) || 90;
   }
 
-  // Exercice bilatéral standard
+  // Exercice bilatéral
   function checkDone(input) {
-    if (input.value) input.classList.add('done');
-    else input.classList.remove('done');
+    if (input.value) input.classList.add('done'); else input.classList.remove('done');
     const row = input.closest('.series-row');
     if (row) {
       const rowInputs = row.querySelectorAll('.serie-input:not(.prescribed)');
@@ -954,24 +853,17 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     updateProgress();
   }
 
-  // Exercice unilatéral — côté G puis côté D
+  // Exercice unilatéral
   function checkSide(input) {
-    if (input.value) input.classList.add('done');
-    else input.classList.remove('done');
+    if (input.value) input.classList.add('done'); else input.classList.remove('done');
     const card = input.closest('.exo-card');
     const row  = input.closest('.series-row');
-
     if (input.classList.contains('side-g') && input.value.trim() !== '') {
-      // Côté G validé → mini repos entre les deux côtés
       startRest(parseRest(card, 'side'), 'Repos côté');
     } else if (input.classList.contains('side-d') && input.value.trim() !== '') {
-      // Côté D validé → vérifier si charge aussi remplie
       const charge = row.querySelector('.serie-input:not(.prescribed):not(.side-g):not(.side-d)');
-      if (!charge || charge.value.trim() !== '') {
-        startRest(parseRest(card, 'series'), 'Repos série');
-      }
+      if (!charge || charge.value.trim() !== '') startRest(parseRest(card, 'series'), 'Repos série');
     } else if (!input.classList.contains('side-g') && !input.classList.contains('side-d')) {
-      // C'est la charge pour un exo uni
       const sideD = row.querySelector('.side-d');
       if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '') {
         startRest(parseRest(card, 'series'), 'Repos série');
@@ -983,26 +875,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   // ── Swipe semaine ─────────────────────────────────────────
   let swipeX = 0, swipeY = 0;
   const weekScreen = document.getElementById('screen-week');
-  weekScreen.addEventListener('touchstart', e => {
-    swipeX = e.touches[0].clientX;
-    swipeY = e.touches[0].clientY;
-  }, { passive: true });
+  weekScreen.addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; swipeY = e.touches[0].clientY; }, { passive: true });
   weekScreen.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - swipeX;
     const dy = e.changedTouches[0].clientY - swipeY;
     if (Math.abs(dx) > 55 && Math.abs(dy) < 70) shiftWeek(dx < 0 ? 1 : -1);
   }, { passive: true });
 
-  function switchNav(item, tab) {
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    item.classList.add('active');
+  // ── Init ─────────────────────────────────────────────────
+  if (SESSION) {
+    const av = document.querySelector('.avatar');
+    if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
+    const greet = document.getElementById('week-greeting');
+    if (greet) greet.textContent = 'Bonjour ' + SESSION.prenom;
   }
-
-  setTimeout(() => {
-    const firstHeader = document.querySelector('.exo-header');
-    if (firstHeader) toggleExo(firstHeader);
-    updateProgress();
-  }, 100);
+  updateWeekLabel();
+  loadWeekSessions();
 </script>
 </body>
 </html>

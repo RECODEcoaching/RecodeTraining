@@ -661,6 +661,15 @@ async function hashPin(pin) {
     grid-column: 1 / -1; padding: 40px 20px; text-align: center;
     font-size: 13px; color: var(--muted);
   }
+
+  /* ─── METRIC LIB PICKER PILLS ────────────────────────────── */
+  .cm-lib-pill {
+    font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 20px;
+    border: 1px solid var(--border-md); background: var(--surface2); color: var(--muted);
+    cursor: pointer; transition: var(--t); display: inline-flex; align-items: center; gap: 4px;
+  }
+  .cm-lib-pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .cm-lib-pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -788,9 +797,12 @@ async function hashPin(pin) {
         </div>
         <div class="add-form" id="metrics-add-form">
           <div class="add-form-title">Assigner une métrique</div>
+          <label class="form-label" style="display:block;margin-bottom:5px;">Depuis la bibliothèque</label>
+          <div id="cm-lib-picker" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--dim);margin-bottom:6px;margin-top:2px;">ou créer une métrique spécifique</div>
           <div class="form-row">
             <div style="flex:2">
-              <label class="form-label">Nom *</label>
+              <label class="form-label">Nom</label>
               <input class="form-input" id="cm-nom" placeholder="ex : Tour de hanches">
             </div>
             <div>
@@ -814,10 +826,7 @@ async function hashPin(pin) {
           </div>
         </div>
         <div class="metrics-manage" id="coach-metrics-list">
-          <div class="metric-manage-row"><div class="metric-manage-icon">⚖️</div><div class="metric-manage-info"><div class="metric-manage-name">Poids</div><div class="metric-manage-unit">kg · Hebdomadaire</div></div><div class="metric-manage-val">62.4 <span>kg</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Poids','kg')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">📏</div><div class="metric-manage-info"><div class="metric-manage-name">Tour de taille</div><div class="metric-manage-unit">cm · Mensuel</div></div><div class="metric-manage-val">71 <span>cm</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Tour de taille','cm')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">⚡</div><div class="metric-manage-info"><div class="metric-manage-name">Énergie subjective</div><div class="metric-manage-unit">/10 · Quotidien</div></div><div class="metric-manage-val">7 <span>/10</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Énergie subjective','/10')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">😴</div><div class="metric-manage-info"><div class="metric-manage-name">Heures de sommeil</div><div class="metric-manage-unit">h · Quotidien</div></div><div class="metric-manage-val">7.5 <span>h</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Heures de sommeil','h')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div id="coach-metrics-empty" style="padding:18px 0;font-size:12px;color:var(--dim);text-align:center;">Aucune métrique assignée</div>
         </div>
       </div>
 
@@ -851,9 +860,7 @@ async function hashPin(pin) {
           </div>
         </div>
         <div class="metrics-manage" id="coach-habits-list">
-          <div class="metric-manage-row"><div class="metric-manage-icon">😴</div><div class="metric-manage-info"><div class="metric-manage-name">Qualité du sommeil</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Moy. <span style="font-size:15px;color:var(--accent)">2.8</span><span>/4</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Qualité du sommeil','/4')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">🧘</div><div class="metric-manage-info"><div class="metric-manage-name">Niveau de stress</div><div class="metric-manage-unit">Note 1→4 · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Moy. <span style="font-size:15px;color:var(--warning)">2.1</span><span>/4</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Niveau de stress','/4')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
-          <div class="metric-manage-row"><div class="metric-manage-icon">🚶</div><div class="metric-manage-info"><div class="metric-manage-name">Marche active</div><div class="metric-manage-unit">Oui / Non · Quotidien</div></div><div class="metric-manage-val" style="font-size:13px">Sem. <span style="font-size:15px;color:var(--accent)">4</span><span>/7</span></div><button class="btn btn-ghost btn-sm" onclick="showMetricHistory('Marche active','✓')">Historique</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button></div>
+          <div id="coach-habits-empty" style="padding:18px 0;font-size:12px;color:var(--dim);text-align:center;">Aucune habitude assignée</div>
         </div>
       </div>
 
@@ -990,12 +997,12 @@ async function hashPin(pin) {
           <button class="btn btn-ghost" onclick="toggleAddForm('new-metric-form')">Annuler</button>
         </div>
       </div>
-      <div class="lib-metrics-list">
-        <div class="lib-metric-row"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">+3</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">Camille R.</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/10</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+      <div class="lib-metrics-list" id="lib-metrics-list">
+        <div class="lib-metric-row"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Poids','kg',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Tour de taille','cm',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/10 · Note</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Énergie subjective','/10',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Heures de sommeil','h',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Pas quotidiens','pas',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
       </div>
     </div>
 
@@ -1078,6 +1085,42 @@ CREATE POLICY "Allow all anon on seance_exercices"
 </div><!-- end .main -->
 </div><!-- end .layout -->
 
+
+<!-- ═══════════════ MODAL : DÉTAIL SÉANCE (depuis prog) ═══════════════ -->
+<div class="modal-overlay" id="modal-prog-detail">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-header-title" id="psd-titre">—</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="psd-meta">—</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('modal-prog-detail').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body" style="padding-top:10px;">
+      <div id="psd-exo-list" style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:12px;">
+        <div style="padding:14px;font-size:12px;color:var(--dim);">Chargement…</div>
+      </div>
+      <div style="display:flex;gap:7px;">
+        <button class="btn btn-accent btn-sm" id="psd-add-exo-btn" onclick="">+ Exercice</button>
+        <button class="btn btn-danger btn-sm" id="psd-delete-btn" onclick="">Supprimer</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="document.getElementById('modal-prog-detail').classList.remove('open')">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : GÉRER MÉTRIQUE ═══════════════ -->
+<div class="modal-overlay" id="modal-gerer-metric">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title" id="gm-title">Gérer la métrique</div>
+      <button class="modal-close" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="gm-body" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════ MODAL : EXERCICE PICKER (séance) ═══════════════ -->
 <div class="modal-overlay" id="modal-exo-picker">
@@ -1450,6 +1493,8 @@ function openClientFromDB(client, colorIdx) {
 
   showScreen('client-detail', null);
   loadSeances(client.id);
+  loadClientMetrics(client.id);
+  loadClientHabits(client.id);
   drawCoachPerfs();
 }
 
@@ -1523,6 +1568,10 @@ CREATE POLICY "Allow all anon on seances"
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Ajouter un exercice
           </button>
+          <div style="padding:8px 14px 10px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center;">
+            ${s.notes ? `<span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.notes}</span>` : '<span style="flex:1"></span>'}
+            <button class="btn btn-danger btn-sm" onclick="deleteSeance('${s.id}')">Supprimer la séance</button>
+          </div>
         </div>
       </div>`;
   }).join('');
@@ -1578,6 +1627,18 @@ async function loadSeanceExercices(seanceId) {
   }).join('');
 }
 
+async function deleteSeance(seanceId) {
+  if (!confirm('Supprimer définitivement cette séance et tous ses exercices ?')) return;
+  // Supprimer exercices liés d'abord
+  await db.from('seance_exercices').delete().eq('seance_id', seanceId);
+  const { error } = await db.from('seances').delete().eq('id', seanceId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Séance supprimée');
+  await loadSeances(currentClientId);
+  // Mettre à jour la prog si visible
+  if (progClientId === currentClientId) await loadProgSeances();
+}
+
 async function deleteSeanceExo(exoId, seanceId) {
   if (!confirm('Retirer cet exercice de la séance ?')) return;
   await db.from('seance_exercices').delete().eq('id', exoId);
@@ -1589,7 +1650,7 @@ let pickerSeanceId   = null;
 let pickerSelectedId = null;
 let pickerSelectedNom= null;
 
-function openExoPicker(seanceId) {
+async function openExoPicker(seanceId) {
   pickerSeanceId    = seanceId;
   pickerSelectedId  = null;
   pickerSelectedNom = null;
@@ -1598,8 +1659,14 @@ function openExoPicker(seanceId) {
   document.getElementById('picker-error').style.display = 'none';
   document.getElementById('p-uni').checked = false;
   document.getElementById('uni-extra').classList.remove('open');
-  renderPickerList('');
   document.getElementById('modal-exo-picker').classList.add('open');
+  // Charger les exercices si pas encore fait
+  if (allExercices.length === 0) {
+    document.getElementById('picker-list').innerHTML =
+      '<div style="padding:12px;font-size:12px;color:var(--dim);text-align:center;">Chargement…</div>';
+    await loadExercices();
+  }
+  renderPickerList('');
 }
 
 function renderPickerList(query) {
@@ -1888,53 +1955,203 @@ function switchClientTab(btn, id) {
   if (id === 'perfs') drawCoachPerfs();
 }
 
+// Bibliothèque de métriques et habitudes (source de vérité côté JS)
+const LIB_METRICS = [
+  { icon:'⚖️', nom:'Poids',              unite:'kg',   freq:'Hebdomadaire' },
+  { icon:'📏', nom:'Tour de taille',      unite:'cm',   freq:'Mensuel' },
+  { icon:'⚡', nom:'Énergie subjective',  unite:'/10',  freq:'Quotidien' },
+  { icon:'😴', nom:'Heures de sommeil',   unite:'h',    freq:'Quotidien' },
+  { icon:'👟', nom:'Pas quotidiens',      unite:'pas',  freq:'Quotidien' },
+];
+const LIB_HABITS = [
+  { icon:'😴', nom:'Qualité du sommeil',  type:'note' },
+  { icon:'🧘', nom:'Niveau de stress',    type:'note' },
+  { icon:'🚶', nom:'Marche active',       type:'oui-non' },
+];
+let selectedLibMetric = null;
+
 function toggleAddForm(id) {
-  document.getElementById(id).classList.toggle('open');
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  // Peupler le picker si c'est le form métriques client
+  if (id === 'metrics-add-form' && el.classList.contains('open')) {
+    buildMetricLibPicker();
+  }
 }
 
-function addMetric() {
+function buildMetricLibPicker() {
+  // Récupérer les métriques existantes dans la bibliothèque (depuis le DOM)
+  const libRows = document.querySelectorAll('#lib-metrics-list .lib-metric-row');
+  const libMetrics = [];
+  libRows.forEach(r => {
+    const nom   = r.querySelector('.lib-metric-name')?.textContent || '';
+    const unite = r.querySelector('.lib-metric-unit')?.textContent.split('·')[0].trim() || '';
+    const icon  = r.querySelector('.lib-metric-icon')?.textContent || '📊';
+    libMetrics.push({ icon, nom, unite, freq:'Quotidien' });
+  });
+  // Fusionner avec LIB_METRICS pour les fréquences
+  LIB_METRICS.forEach(lm => {
+    const existing = libMetrics.find(m => m.nom === lm.nom);
+    if (existing) existing.freq = lm.freq;
+  });
+
+  selectedLibMetric = null;
+  const container = document.getElementById('cm-lib-picker');
+  container.innerHTML = libMetrics.map(m =>
+    `<span class="cm-lib-pill" data-nom="${m.nom}" data-unite="${m.unite}" data-freq="${m.freq||'Quotidien'}" onclick="selectLibMetricPill(this)">
+      ${m.icon} ${m.nom}
+    </span>`
+  ).join('');
+  // Reset custom fields
+  if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
+  if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
+}
+
+function selectLibMetricPill(el) {
+  document.querySelectorAll('.cm-lib-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedLibMetric = { nom: el.dataset.nom, unite: el.dataset.unite, freq: el.dataset.freq };
+  // Autofill les champs custom
+  if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = selectedLibMetric.nom;
+  if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = selectedLibMetric.unite;
+  const freqSel = document.getElementById('cm-freq');
+  if (freqSel) freqSel.value = selectedLibMetric.freq;
+}
+
+async function addMetric() {
   const nom  = (document.getElementById('cm-nom')?.value||'').trim();
   const unit = (document.getElementById('cm-unite')?.value||'').trim();
   const freq = document.getElementById('cm-freq')?.value || 'Hebdomadaire';
-  if (!nom) { toast('Saisis un nom de métrique'); return; }
-  const list = document.getElementById('coach-metrics-list');
-  const row = document.createElement('div');
-  row.className = 'metric-manage-row';
-  row.innerHTML = `<div class="metric-manage-icon">📊</div>
-    <div class="metric-manage-info">
-      <div class="metric-manage-name">${nom}</div>
-      <div class="metric-manage-unit">${unit||'—'} · ${freq}</div>
-    </div>
-    <div class="metric-manage-val">— <span>${unit}</span></div>
-    <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${nom}','${unit}')">Historique</button>
-    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>`;
-  list.appendChild(row);
+  if (!nom) { toast('Sélectionne une métrique ou saisis un nom'); return; }
+  if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
+
+  const libEntry = LIB_METRICS.find(m => m.nom === nom);
+  const icon = libEntry?.icon || '📊';
+
+  const { data, error } = await db.from('client_metriques').insert({
+    client_id: currentClientId, nom, unite: unit||null, icone: icon, frequence: freq
+  }).select().single();
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+
   if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
   if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
+  selectedLibMetric = null;
   document.getElementById('metrics-add-form').classList.remove('open');
   toast('Métrique assignée ✓');
+  await loadClientMetrics(currentClientId);
 }
 
-function addHabit() {
+async function addHabit() {
   const nom  = (document.getElementById('ch-nom')?.value||'').trim();
   const type = document.getElementById('ch-type')?.value || 'oui-non';
   if (!nom) { toast('Saisis un nom d\'habitude'); return; }
-  const typeLabel = { 'oui-non':'Oui / Non', 'note':'Note 1→4', 'valeur':'Valeur numérique' };
-  const list = document.getElementById('coach-habits-list');
-  const row = document.createElement('div');
-  row.className = 'metric-manage-row';
-  row.innerHTML = `<div class="metric-manage-icon">🌿</div>
-    <div class="metric-manage-info">
-      <div class="metric-manage-name">${nom}</div>
-      <div class="metric-manage-unit">${typeLabel[type]||type} · Quotidien</div>
-    </div>
-    <div class="metric-manage-val">—</div>
-    <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${nom}','')">Historique</button>
-    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Retirer</button>`;
-  list.appendChild(row);
+  if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
+
+  const { error } = await db.from('client_habitudes').insert({
+    client_id: currentClientId, nom, type
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
   if (document.getElementById('ch-nom')) document.getElementById('ch-nom').value = '';
   document.getElementById('habits-add-form').classList.remove('open');
   toast('Habitude assignée ✓');
+  await loadClientHabits(currentClientId);
+}
+
+// Charger les métriques d'une cliente depuis Supabase
+async function loadClientMetrics(clientId) {
+  const list    = document.getElementById('coach-metrics-list');
+  const emptyEl = document.getElementById('coach-metrics-empty');
+  if (!list) return;
+
+  const { data: metriques } = await db
+    .from('client_metriques')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true });
+
+  list.querySelectorAll('.metric-manage-row').forEach(r => r.remove());
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  if (!metriques || metriques.length === 0) {
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+
+  metriques.forEach(m => {
+    // Charger la dernière valeur
+    db.from('metrique_valeurs').select('valeur,date').eq('metrique_id', m.id)
+      .order('date', { ascending: false }).limit(1)
+      .then(({ data: vals }) => {
+        const lastVal  = vals && vals[0] ? vals[0].valeur : '—';
+        const lastDate = vals && vals[0]
+          ? new Date(vals[0].date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+          : '—';
+        const row = document.createElement('div');
+        row.className = 'metric-manage-row';
+        row.dataset.metriqueId = m.id;
+        row.innerHTML = `<div class="metric-manage-icon">${m.icone||'📊'}</div>
+          <div class="metric-manage-info">
+            <div class="metric-manage-name">${m.nom}</div>
+            <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence}</div>
+          </div>
+          <div class="metric-manage-val">${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small></div>
+          <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
+          <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
+        list.appendChild(row);
+      });
+  });
+}
+
+// Charger les habitudes d'une cliente
+async function loadClientHabits(clientId) {
+  const list    = document.getElementById('coach-habits-list');
+  const emptyEl2 = document.getElementById('coach-habits-empty');
+  if (!list) return;
+
+  const { data: habitudes } = await db
+    .from('client_habitudes')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true });
+
+  list.querySelectorAll('.metric-manage-row').forEach(r => r.remove());
+  if (emptyEl2) emptyEl2.style.display = 'none';
+
+  if (!habitudes || habitudes.length === 0) {
+    if (emptyEl2) emptyEl2.style.display = '';
+    return;
+  }
+
+  const typeLabel = { 'oui-non':'Oui / Non', 'note':'Note 1→4', 'valeur':'Valeur numérique' };
+  habitudes.forEach(h => {
+    const row = document.createElement('div');
+    row.className = 'metric-manage-row';
+    row.dataset.habitudeId = h.id;
+    row.innerHTML = `<div class="metric-manage-icon">${h.icone||'🌿'}</div>
+      <div class="metric-manage-info">
+        <div class="metric-manage-name">${h.nom}</div>
+        <div class="metric-manage-unit">${typeLabel[h.type]||h.type} · Quotidien</div>
+      </div>
+      <div class="metric-manage-val">—</div>
+      <button class="btn btn-danger btn-sm" onclick="removeHabitDB('${h.id}',this)">Retirer</button>`;
+    list.appendChild(row);
+  });
+}
+
+async function removeMetricDB(id, btn) {
+  if (!confirm('Retirer cette métrique et toutes ses valeurs ?')) return;
+  await db.from('client_metriques').delete().eq('id', id);
+  btn.closest('.metric-manage-row').remove();
+  toast('Métrique retirée');
+}
+
+async function removeHabitDB(id, btn) {
+  if (!confirm('Retirer cette habitude ?')) return;
+  await db.from('client_habitudes').delete().eq('id', id);
+  btn.closest('.metric-manage-row').remove();
+  toast('Habitude retirée');
 }
 
 function saveNewMetric() {
@@ -1982,21 +2199,40 @@ const DEMO_HISTORY = {
   'Niveau de stress':   [{d:'22/05',v:'2',unit:'/4',delta:'—',dir:'eq'},{d:'21/05',v:'2',unit:'/4',delta:'+1',dir:'down'},{d:'20/05',v:'1',unit:'/4',delta:'-1',dir:'up'},{d:'19/05',v:'2',unit:'/4',delta:'—',dir:'eq'}],
   'Marche active':      [{d:'22/05',v:'✗',unit:'',delta:'',dir:'eq'},{d:'21/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'20/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'19/05',v:'✓',unit:'',delta:'',dir:'eq'}],
 };
-function showMetricHistory(nom, unit) {
+async function showMetricHistory(metriqueId, nom, unit) {
   document.getElementById('mh-title').textContent = 'Historique — ' + nom;
-  const rows = DEMO_HISTORY[nom] || [];
   const list = document.getElementById('mh-list');
-  if (rows.length === 0) {
-    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée pour cette métrique.</div>';
-  } else {
-    list.innerHTML = rows.map(r => `
-      <div class="history-row">
-        <div class="history-date">${r.d}</div>
-        <div class="history-val">${r.v} <span style="font-size:11px;color:var(--muted);font-weight:500;">${r.unit}</span></div>
-        <div class="history-delta ${r.dir}">${r.delta ? (r.dir==='up'?'▲ ':'▼ ')+r.delta : '—'}</div>
-      </div>`).join('');
-  }
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Chargement…</div>';
   document.getElementById('modal-metric-history').classList.add('open');
+
+  const { data: valeurs } = await db
+    .from('metrique_valeurs')
+    .select('valeur, date')
+    .eq('metrique_id', metriqueId)
+    .order('date', { ascending: false })
+    .limit(10);
+
+  if (!valeurs || valeurs.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée.</div>';
+    return;
+  }
+
+  list.innerHTML = valeurs.map((v, i) => {
+    const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    let delta = '—', dir = 'eq';
+    if (i < valeurs.length - 1) {
+      const diff = v.valeur - valeurs[i + 1].valeur;
+      if (diff !== 0) {
+        dir   = diff > 0 ? 'up' : 'down';
+        delta = (diff > 0 ? '▲ +' : '▼ ') + Math.abs(diff).toFixed(1);
+      }
+    }
+    return `<div class="history-row">
+      <div class="history-date">${dateStr}</div>
+      <div class="history-val">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
+      <div class="history-delta ${dir}">${delta}</div>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2120,7 +2356,9 @@ function renderProgGrid() {
       const isToday = dt.getTime() === today.getTime();
       const daySeances = seanceMap[key] || [];
       const chips = daySeances.map(s =>
-        `<span class="prog-chip ${s.statut}" title="${s.titre}">${s.titre}</span>`
+        `<span class="prog-chip ${s.statut}" title="${s.titre}"
+          onclick="event.stopPropagation();openProgSeanceDetail('${s.id}','${s.titre.replace(/'/g,"\\'")}','${s.date}','${s.statut}')"
+         >${s.titre}</span>`
       ).join('');
       html += `<div class="prog-day-cell${isToday?' today-col':''}" onclick="openProgAddSeance('${key}')">
         <div class="prog-day-num${isToday?' today-num':''}">${dayNum}</div>
@@ -2182,6 +2420,94 @@ function openProgAddSeance(dateStr) {
     `<option value="${c.id}"${c.id===progClientId?' selected':''}>${c.prenom}</option>`
   ).join('');
   document.getElementById('modal-prog-seance').classList.add('open');
+}
+
+// ─── DÉTAIL SÉANCE DEPUIS PROG ──────────────────────────────
+let progDetailSeanceId = null;
+
+async function openProgSeanceDetail(seanceId, titre, date, statut) {
+  progDetailSeanceId = seanceId;
+  const d = new Date(date + 'T12:00:00');
+  const dateStr = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('psd-titre').textContent = titre;
+  document.getElementById('psd-meta').textContent  = dateStr + ' · ' + statut;
+
+  // Wire up buttons
+  document.getElementById('psd-add-exo-btn').onclick = () => {
+    document.getElementById('modal-prog-detail').classList.remove('open');
+    openExoPicker(seanceId);
+  };
+  document.getElementById('psd-delete-btn').onclick = async () => {
+    if (!confirm('Supprimer cette séance ?')) return;
+    document.getElementById('modal-prog-detail').classList.remove('open');
+    await db.from('seance_exercices').delete().eq('seance_id', seanceId);
+    await db.from('seances').delete().eq('id', seanceId);
+    toast('Séance supprimée');
+    await loadProgSeances();
+    if (currentClientId) await loadSeances(currentClientId);
+  };
+
+  document.getElementById('modal-prog-detail').classList.add('open');
+  await loadProgDetailExos(seanceId);
+}
+
+async function loadProgDetailExos(seanceId) {
+  const container = document.getElementById('psd-exo-list');
+  container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Chargement…</div>';
+
+  const { data, error } = await db
+    .from('seance_exercices').select('*')
+    .eq('seance_id', seanceId)
+    .order('ordre', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Aucun exercice pour le moment.</div>';
+    return;
+  }
+
+  container.innerHTML = data.map((e, i) => {
+    let params = `${e.series}×${e.reps}`;
+    if (e.rir !== null && e.rir !== undefined) params += ` · RIR ${e.rir}`;
+    if (e.charge) params += ` · ${e.charge}`;
+    if (e.unilateral) params += ' · Uni';
+    return `
+      <div style="display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <div style="width:22px;height:22px;border-radius:6px;background:transparent;color:var(--text-dim);border:1px solid var(--border);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${i+1}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;">${e.nom_exo}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${params}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── GÉRER MÉTRIQUE ─────────────────────────────────────────
+function openMetricGerer(nom, unite, assignees) {
+  document.getElementById('gm-title').textContent = 'Gérer — ' + nom;
+  document.getElementById('gm-body').innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Assignée à</div>
+      ${assignees.length > 0
+        ? assignees.map(a => `<span style="display:inline-block;font-size:12px;padding:3px 9px;background:var(--accent-bg);color:var(--accent);border-radius:20px;margin:2px;font-weight:600;">${a}</span>`).join('')
+        : '<span style="font-size:12px;color:var(--dim);">Aucune cliente</span>'}
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Détails</div>
+      <div style="font-size:13px;font-weight:600;">${nom} <span style="font-weight:400;color:var(--muted);">(${unite})</span></div>
+    </div>
+    <div style="display:flex;gap:7px;margin-top:14px;">
+      <button class="btn btn-danger btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open');removeMetricFromLib('${nom}')">Supprimer de la bibliothèque</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">Fermer</button>
+    </div>`;
+  document.getElementById('modal-gerer-metric').classList.add('open');
+}
+
+function removeMetricFromLib(nom) {
+  const rows = document.querySelectorAll('#screen-biblio-metrics .lib-metric-row');
+  rows.forEach(r => {
+    if (r.querySelector('.lib-metric-name')?.textContent === nom) r.remove();
+  });
+  toast('Métrique supprimée de la bibliothèque');
 }
 
 async function saveProgSeance() {
