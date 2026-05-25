@@ -800,11 +800,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
   function toEmbedUrl(url) {
     if (!url) return null;
-    // YouTube watch
+    // YouTube watch / shorts / youtu.be
     const ytWatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
     if (ytWatch) return 'https://www.youtube.com/embed/' + ytWatch[1] + '?rel=0&modestbranding=1';
-    // Déjà un embed
+    // Déjà un embed YouTube
     if (url.includes('youtube.com/embed/')) return url;
+    // Vimeo — formats : vimeo.com/123456789 ou player.vimeo.com/video/123456789
+    const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vimeo) return 'https://player.vimeo.com/video/' + vimeo[1] + '?badge=0&autopause=0';
+    // Déjà un embed Vimeo
+    if (url.includes('player.vimeo.com/video/')) return url;
     return null; // URL non supportée pour iframe
   }
 
