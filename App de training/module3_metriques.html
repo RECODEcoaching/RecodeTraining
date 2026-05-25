@@ -407,90 +407,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="section-label">Cette semaine</div>
   <div class="habits-week" id="habits-week-grid"></div>
   <div class="section-label" id="habits-day-label">Habitudes du jour</div>
-  <div class="habits-list">
-
-    <!-- Sommeil -->
-    <div class="habit-card">
-      <div class="habit-card-top">
-        <div class="ic ic-md icon-secondary">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </div>
-        <div class="habit-info">
-          <div class="habit-name">Qualité du sommeil</div>
-          <div class="habit-target">Objectif · 7h+, qualité bonne</div>
-        </div>
-        <div class="habit-streak">
-          <div class="streak-val">5</div>
-          <div class="streak-label">jours</div>
-        </div>
-      </div>
-      <div class="habit-rating-row">
-        <div class="rating-btn selected red" onclick="selectRating(this,'sommeil',1)"><div class="r-dot"></div><span>Mauvais</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'sommeil',2)"><div class="r-dot"></div><span>Moyen</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'sommeil',3)"><div class="r-dot"></div><span>Bon</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'sommeil',4)"><div class="r-dot"></div><span>Très bon</span></div>
-      </div>
-    </div>
-
-    <!-- Stress -->
-    <div class="habit-card">
-      <div class="habit-card-top">
-        <div class="ic ic-md icon-secondary">
-          <!-- Heartbeat / pulse — stress monitoring -->
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-        </div>
-        <div class="habit-info">
-          <div class="habit-name">Niveau de stress</div>
-          <div class="habit-target">Objectif · score ≤ 2</div>
-        </div>
-        <div class="habit-streak">
-          <div class="streak-val">—</div>
-          <div class="streak-label">série</div>
-        </div>
-      </div>
-      <div class="habit-rating-row">
-        <div class="rating-btn" onclick="selectRating(this,'stress',1)"><div class="r-dot"></div><span>Calme</span></div>
-        <div class="rating-btn selected yellow" onclick="selectRating(this,'stress',2)"><div class="r-dot"></div><span>Moyen</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'stress',3)"><div class="r-dot"></div><span>Stressé</span></div>
-        <div class="rating-btn" onclick="selectRating(this,'stress',4)"><div class="r-dot"></div><span>Épuisé</span></div>
-      </div>
-    </div>
-
-    <!-- Marche -->
-    <div class="habit-card">
-      <div class="habit-card-top">
-        <div class="ic ic-md icon-secondary">
-          <!-- Footsteps / walking -->
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="5" r="2"/>
-            <path d="M7 22l2-7 3 3 3-7 2 4"/>
-            <line x1="5" y1="22" x2="19" y2="22"/>
-          </svg>
-        </div>
-        <div class="habit-info">
-          <div class="habit-name">Marche active</div>
-          <div class="habit-target">Objectif · 8 000 pas/jour</div>
-        </div>
-        <div class="habit-streak">
-          <div class="streak-val">7</div>
-          <div class="streak-label">jours</div>
-        </div>
-      </div>
-      <div class="habit-check-row">
-        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">L</div></div>
-        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">M</div></div>
-        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">Me</div></div>
-        <div class="check-day done"  onclick="toggleCheck(this)"><div class="cd-check">✓</div><div class="cd-day">J</div></div>
-        <div class="check-day today" onclick="toggleCheck(this)"><div class="cd-check">·</div><div class="cd-day">Auj.</div></div>
-        <div class="check-day"       onclick="toggleCheck(this)"><div class="cd-check"></div><div class="cd-day">V</div></div>
-        <div class="check-day"       onclick="toggleCheck(this)"><div class="cd-check"></div><div class="cd-day">S</div></div>
-      </div>
-    </div>
-
+  <div class="habits-list" id="habits-list">
+    <div style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>
   </div>
   <div class="pb-nav"></div>
 </div>
@@ -966,64 +884,180 @@ function updateCycleStats() {
   return avg || 28;
 }
 
-// ─── WEEK GRID ────────────────────────────────────────────────
-const WEEK_DAYS  = ['L','M','Me','J','V','S','D'];
-const WEEK_NUMS  = [19,20,21,22,23,24,25];
-const WEEK_NAMES = ['Lundi 19','Mardi 20','Mercredi 21','Jeudi 22','Vendredi 23','Samedi 24','Dimanche 25'];
-const TODAY_IDX  = 3;
-
-const HABITS_DATA = {
-  0: { sommeil:3, stress:1, marche:true  },
-  1: { sommeil:2, stress:2, marche:true  },
-  2: { sommeil:4, stress:1, marche:true  },
-  3: { sommeil:1, stress:2, marche:true  },
-  4: { sommeil:null, stress:null, marche:null },
-  5: { sommeil:null, stress:null, marche:null },
-  6: { sommeil:null, stress:null, marche:null },
-};
-const DAY_SCORES = [0.8, 0.6, 0.9, 1.0, null, null, null];
-let selectedDayIdx = TODAY_IDX;
+// ─── WEEK GRID (dates réelles) ────────────────────────────────
+const WEEK_DAYS_LABELS = ['L','M','Me','J','V','S','D'];
+let selectedDayIdx = 0;
+let currentWeekDates = []; // tableau de chaînes 'YYYY-MM-DD'
 
 function buildWeekGrid() {
+  const now = new Date();
+  const day = now.getDay();
+  const diffLun = (day === 0 ? -6 : 1 - day);
+  const lundi = new Date(now);
+  lundi.setDate(now.getDate() + diffLun);
+
+  currentWeekDates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(lundi);
+    d.setDate(lundi.getDate() + i);
+    currentWeekDates.push(d.toISOString().split('T')[0]);
+  }
+
+  const todayStr = now.toISOString().split('T')[0];
+  selectedDayIdx = currentWeekDates.indexOf(todayStr);
+  if (selectedDayIdx < 0) selectedDayIdx = 0;
+
   const grid = document.getElementById('habits-week-grid');
-  grid.innerHTML = WEEK_DAYS.map((d,i) => `
-    <div class="habit-day-col ${i===selectedDayIdx?'selected':''}" onclick="selectDay(${i})">
-      <div class="habit-day-name">${d}</div>
-      <div class="habit-day-num ${i===TODAY_IDX?'today':''}">${WEEK_NUMS[i]}</div>
-      <div class="habit-day-score"><div class="habit-day-score-fill" style="width:${DAY_SCORES[i]!=null?DAY_SCORES[i]*100:0}%"></div></div>
-    </div>`).join('');
+  grid.innerHTML = currentWeekDates.map((dateStr, i) => {
+    const d   = new Date(dateStr + 'T12:00:00');
+    const num = d.getDate();
+    const isToday = dateStr === todayStr;
+    return `<div class="habit-day-col ${i===selectedDayIdx?'selected':''}" onclick="selectDay(${i})">
+      <div class="habit-day-name">${WEEK_DAYS_LABELS[i]}</div>
+      <div class="habit-day-num ${isToday?'today':''}">${num}</div>
+      <div class="habit-day-score"><div class="habit-day-score-fill" style="width:0%"></div></div>
+    </div>`;
+  }).join('');
+
+  updateDayLabel();
+}
+
+function updateDayLabel() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const dateStr  = currentWeekDates[selectedDayIdx];
+  const label    = document.getElementById('habits-day-label');
+  if (!label || !dateStr) return;
+  if (dateStr === todayStr) {
+    label.textContent = 'Habitudes du jour';
+  } else {
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayName = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    label.textContent = 'Habitudes · ' + dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  }
 }
 
 function selectDay(idx) {
   selectedDayIdx = idx;
+  // Mettre à jour la sélection visuelle
+  document.querySelectorAll('.habit-day-col').forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+  });
+  updateDayLabel();
+  loadHabitsForDay(currentWeekDates[idx]);
+}
+
+// ─── CHARGEMENT HABITUDES SUPABASE ────────────────────────────
+let allHabitudes = []; // cache pour éviter de recharger à chaque changement de jour
+
+async function loadHabits() {
+  if (!SESSION) return;
+  const list = document.getElementById('habits-list');
+
+  const { data: habitudes, error } = await db
+    .from('client_habitudes')
+    .select('*')
+    .eq('client_id', SESSION.client_id)
+    .order('created_at', { ascending: true });
+
+  if (error || !habitudes || habitudes.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Aucune habitude assignée</div>
+      <div style="font-size:13px;color:var(--text-muted)">Ton coach n'a pas encore assigné d'habitudes.</div>
+    </div>`;
+    return;
+  }
+
+  allHabitudes = habitudes;
   buildWeekGrid();
-  const isToday = idx === TODAY_IDX;
-  const isFuture = idx > TODAY_IDX;
-  const label = document.getElementById('habits-day-label');
-  label.textContent = isToday ? "Habitudes du jour"
-    : isFuture ? `Habitudes · ${WEEK_NAMES[idx]} (à venir)`
-    : `Habitudes · ${WEEK_NAMES[idx]}`;
+  const todayStr = new Date().toISOString().split('T')[0];
+  await loadHabitsForDay(todayStr);
+}
 
-  const d = HABITS_DATA[idx] || {};
+async function loadHabitsForDay(dateStr) {
+  if (!allHabitudes.length) return;
+  const list = document.getElementById('habits-list');
 
-  document.querySelectorAll('.habit-rating-row')[0].querySelectorAll('.rating-btn').forEach((b,i) => {
-    b.classList.remove('selected','red','orange','yellow');
-    if (d.sommeil === i+1) { b.classList.add('selected'); if(i===0) b.classList.add('red'); if(i===1) b.classList.add('orange'); }
-  });
-  document.querySelectorAll('.habit-rating-row')[1].querySelectorAll('.rating-btn').forEach((b,i) => {
-    b.classList.remove('selected','red','orange','yellow');
-    if (d.stress === i+1) { b.classList.add('selected'); if(i===2) b.classList.add('orange'); if(i===1) b.classList.add('yellow'); }
-  });
+  // Charger les valeurs du jour pour toutes les habitudes
+  const ids = allHabitudes.map(h => h.id);
+  const { data: valeurs } = await db
+    .from('habitude_valeurs')
+    .select('*')
+    .in('habitude_id', ids)
+    .eq('date', dateStr);
 
-  document.querySelectorAll('.check-day').forEach((c, i) => {
-    const doneState = HABITS_DATA[i] && HABITS_DATA[i].marche;
-    c.classList.remove('done','today');
-    if (i < TODAY_IDX && doneState) c.classList.add('done');
-    if (i === TODAY_IDX) c.classList.add('today');
-    c.style.outline = (i === idx) ? '2px solid var(--accent)' : '';
-    const ck = c.querySelector('.cd-check');
-    if (ck) ck.textContent = c.classList.contains('done') ? '✓' : c.classList.contains('today') ? '·' : '';
-  });
+  const valeursMap = {};
+  (valeurs || []).forEach(v => { valeursMap[v.habitude_id] = v.valeur; });
+
+  list.innerHTML = allHabitudes.map(h => renderHabitCard(h, valeursMap[h.id] || null, dateStr)).join('');
+}
+
+function renderHabitCard(h, currentVal, dateStr) {
+  const nom  = h.nom;
+  const type = h.type || 'oui-non';
+
+  let inputHtml = '';
+  if (type === 'note') {
+    const labels = ['Mauvais','Moyen','Bon','Très bon'];
+    const colors = ['red','orange','',''];
+    inputHtml = `<div class="habit-rating-row">
+      ${labels.map((l, i) => {
+        const val = String(i + 1);
+        const isSelected = currentVal === val;
+        const colorCls   = isSelected && colors[i] ? ' ' + colors[i] : '';
+        return `<div class="rating-btn${isSelected?' selected'+colorCls:''}" onclick="saveHabitVal('${h.id}','${val}','${dateStr}',this,'note')"><div class="r-dot"></div><span>${l}</span></div>`;
+      }).join('')}
+    </div>`;
+  } else if (type === 'oui-non') {
+    const isDone = currentVal === 'oui';
+    inputHtml = `<div class="habit-check-row" style="justify-content:flex-start;gap:12px;padding:0 4px">
+      <button onclick="saveHabitVal('${h.id}','oui','${dateStr}',this,'oui-btn')"
+        style="flex:1;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;
+               background:${isDone?'var(--accent)':'var(--surface2)'};color:${isDone?'#fff':'var(--text-muted)'}">
+        ✓ Fait
+      </button>
+      <button onclick="saveHabitVal('${h.id}','non','${dateStr}',this,'non-btn')"
+        style="flex:1;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;
+               background:${currentVal==='non'?'rgba(220,38,38,0.1)':'var(--surface2)'};color:${currentVal==='non'?'var(--danger)':'var(--text-muted)'}">
+        ✕ Non fait
+      </button>
+    </div>`;
+  } else {
+    // valeur numérique
+    inputHtml = `<div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+      <input type="number" placeholder="Valeur…" value="${currentVal||''}"
+        style="flex:1;background:var(--surface2);border:none;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--text)"
+        onchange="saveHabitVal('${h.id}',this.value,'${dateStr}',this,'num')">
+    </div>`;
+  }
+
+  return `<div class="habit-card" data-habitude-id="${h.id}">
+    <div class="habit-card-top">
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/>
+        </svg>
+      </div>
+      <div class="habit-info">
+        <div class="habit-name">${nom}</div>
+        <div class="habit-target">${type === 'note' ? 'Note de 1 à 4' : type === 'oui-non' ? 'Oui / Non' : 'Valeur numérique'}</div>
+      </div>
+    </div>
+    ${inputHtml}
+  </div>`;
+}
+
+async function saveHabitVal(habitudeId, valeur, dateStr, el, uiType) {
+  const { error } = await db.from('habitude_valeurs').upsert({
+    habitude_id: habitudeId,
+    valeur: String(valeur),
+    date: dateStr,
+  }, { onConflict: 'habitude_id,date' });
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  toast('Enregistré ✓');
+  // Rafraîchir la carte pour refléter le nouvel état
+  await loadHabitsForDay(dateStr);
 }
 
 // ─── INTERACTIONS ─────────────────────────────────────────────
@@ -1134,8 +1168,8 @@ function toast(msg) {
 window.addEventListener('load', () => {
   const avg = updateCycleStats();
   drawCycleRing(8, avg);
-  buildWeekGrid();
   loadMetrics();
+  loadHabits();
 });
 window.addEventListener('resize', () => {
   drawAllMetricCharts();

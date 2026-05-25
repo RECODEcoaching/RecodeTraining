@@ -465,7 +465,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <!-- MODAL VIDÉO -->
 <div class="modal-overlay" id="modal-video">
   <div class="modal-box">
-    <div class="modal-video">
+    <div class="modal-video" id="modal-video-zone">
       <svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
     </div>
     <div class="modal-content">
@@ -642,7 +642,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     // Charger les exercices
     const { data: exos } = await db
       .from('seance_exercices')
-      .select('*')
+      .select('*, exercices(url_video, consignes)')
       .eq('seance_id', seanceId)
       .order('ordre', { ascending: true });
 
@@ -683,7 +683,14 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     const reposStr   = formatRepos(reposSerie);
 
     if (exo.unilateral) {
-      const params = `${exo.series} × ${exo.reps} reps/bras · RIR ${exo.rir} · Côté ${reposCote}'' · Série ${reposStr}`;
+      const params      = `${exo.series} × ${exo.reps} reps/bras · RIR ${exo.rir} · Côté ${reposCote}'' · Série ${reposStr}`;
+      const videoUrl    = exo.exercices?.url_video || null;
+      const consignes   = exo.exercices?.consignes || exo.notes || null;
+      const videoBtnUni = videoUrl
+        ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${exo.nom_exo.replace(/'/g,"\\'")}', '${(consignes||'').replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+           </div>`
+        : '';
       let rows = '';
       for (let i = 1; i <= (exo.series || 3); i++) {
         rows += `<div class="series-row uni">
@@ -701,6 +708,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
             <div class="exo-name">${exo.nom_exo} <span class="uni-badge">Uni</span></div>
             <div class="exo-params">${params}</div>
           </div>
+          ${videoBtnUni}
           <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
         <div class="series-body">
@@ -714,6 +722,14 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
     // Bilatéral
     const params = `${exo.series} × ${exo.reps} reps · RIR ${exo.rir} · Repos ${reposStr}`;
+    const videoUrl    = exo.exercices?.url_video || null;
+    const consignes   = exo.exercices?.consignes || exo.notes || null;
+    const videoBtnHtml = videoUrl
+      ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${exo.nom_exo.replace(/'/g,"\\'")}', '${(consignes||'').replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+         </div>`
+      : '';
+
     let rows = '';
     for (let i = 1; i <= (exo.series || 3); i++) {
       rows += `<div class="series-row">
@@ -730,6 +746,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="exo-name">${exo.nom_exo}</div>
           <div class="exo-params">${params}</div>
         </div>
+        ${videoBtnHtml}
         <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
       <div class="series-body">
@@ -781,13 +798,41 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     if (!isOpen) { body.classList.add('open'); arrow.classList.add('open'); }
   }
 
-  function openVideoModal(title, desc) {
+  function toEmbedUrl(url) {
+    if (!url) return null;
+    // YouTube watch
+    const ytWatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+    if (ytWatch) return 'https://www.youtube.com/embed/' + ytWatch[1] + '?rel=0&modestbranding=1';
+    // Déjà un embed
+    if (url.includes('youtube.com/embed/')) return url;
+    return null; // URL non supportée pour iframe
+  }
+
+  function openVideoModal(title, desc, url) {
     document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-desc').textContent  = desc;
+    document.getElementById('modal-desc').textContent  = desc || '';
+    const zone = document.getElementById('modal-video-zone');
+    const embedUrl = toEmbedUrl(url);
+    if (embedUrl) {
+      zone.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media"></iframe>`;
+    } else if (url) {
+      // Lien direct (pas YouTube) : bouton pour ouvrir
+      zone.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:10px;color:rgba(255,255,255,0.8);text-decoration:none;padding:20px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span style="font-size:12px">Ouvrir la vidéo</span>
+      </a>`;
+    } else {
+      zone.innerHTML = `<svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    }
     document.getElementById('modal-video').classList.add('open');
   }
 
-  function closeModal() { document.getElementById('modal-video').classList.remove('open'); }
+  function closeModal() {
+    document.getElementById('modal-video').classList.remove('open');
+    // Stopper la vidéo en vidant l'iframe
+    const zone = document.getElementById('modal-video-zone');
+    zone.innerHTML = `<svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+  }
 
   // ── Progress bar ──────────────────────────────────────────
   function updateProgress() {
