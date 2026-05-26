@@ -427,37 +427,69 @@ const GROUP_MAP = {
 async function loadPerfsExos() {
   if (!SESSION) return;
   const list = document.getElementById('exo-list');
+  list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;line-height:1.6;color:#166534;">🔍 DEBUG — client_id : ${SESSION.client_id}<br>Chargement séances…</div>`;
 
   // 1. Récupérer toutes les séances du client
-  const { data: seances } = await db.from('seances').select('id').eq('client_id', SESSION.client_id);
+  const { data: seances, error: seancesErr } = await db.from('seances').select('id').eq('client_id', SESSION.client_id);
+
+  if (seancesErr) {
+    list.innerHTML = `<div style="padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur séances : ${seancesErr.message}</div>`;
+    return;
+  }
   if (!seances || seances.length === 0) {
-    list.innerHTML = `<div style="text-align:center;padding:40px 20px">
-      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Aucune séance enregistrée</div>
-      <div style="font-size:13px;color:var(--text-muted)">Les exercices apparaîtront ici après ta première séance.</div>
-    </div>`; return;
+    list.innerHTML = `<div style="padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">⚠️ 0 séance trouvée pour client_id=${SESSION.client_id}<br>→ Vérifie que le coach a bien créé une séance pour ce client dans Supabase.</div>`;
+    return;
   }
 
   const seanceIds = seances.map(s => s.id);
+  list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;color:#166534;">✅ ${seances.length} séance(s) trouvée(s)<br>Chargement exercices…</div>`;
 
-  // 2. Récupérer tous les exercices de ces séances
-  const { data: rows } = await db.from('seance_exercices')
-    .select('nom_exo, charge_kg, series, reps, seance_id, exercices(groupe_musculaire)')
+  // 2. Récupérer tous les exercices de ces séances (sans join — plus fiable)
+  const { data: rows, error: rowsErr } = await db.from('seance_exercices')
+    .select('nom_exo, charge_kg, charge, seance_id, exercice_id')
     .in('seance_id', seanceIds);
 
-  if (!rows || rows.length === 0) {
-    list.innerHTML = `<div style="text-align:center;padding:40px 20px">
-      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Aucun exercice enregistré</div>
-      <div style="font-size:13px;color:var(--text-muted)">Ils apparaîtront ici après une séance complétée.</div>
-    </div>`; return;
+  if (rowsErr) {
+    list.innerHTML = `<div style="padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur seance_exercices : ${rowsErr.message}</div>`;
+    return;
   }
 
-  // 3. Grouper par nom_exo
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div style="padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">⚠️ 0 exercice trouvé dans seance_exercices pour ${seanceIds.length} séance(s)<br>IDs séances : ${seanceIds.slice(0,3).join(', ')}${seanceIds.length>3?'…':''}<br>→ Le coach doit ajouter des exercices dans ces séances.</div>`;
+    return;
+  }
+
+  list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;color:#166534;">✅ ${rows.length} exercice(s) trouvé(s)<br>${[...new Set(rows.map(r=>r.nom_exo))].slice(0,5).join(', ')}${rows.length>5?'…':''}</div>`;
+
+  // 3. Récupérer les groupes musculaires séparément (optionnel — ignore les erreurs)
+  const exerciceIds = [...new Set(rows.map(r => r.exercice_id).filter(Boolean))];
+  const groupeMap = {};
+  if (exerciceIds.length) {
+    try {
+      const { data: exos } = await db.from('exercices')
+        .select('id, groupe_musculaire').in('id', exerciceIds);
+      (exos || []).forEach(e => { groupeMap[e.id] = e.groupe_musculaire || ''; });
+    } catch(e) { /* ignore */ }
+  }
+
+  // 4. Grouper par nom_exo
   const grouped = {};
   rows.forEach(r => {
     const nom = r.nom_exo || 'Exercice';
-    if (!grouped[nom]) grouped[nom] = { nom, groupe: r.exercices?.groupe_musculaire || '', charges: [], seancesSet: new Set() };
+    if (!grouped[nom]) grouped[nom] = {
+      nom,
+      groupe: groupeMap[r.exercice_id] || '',
+      charges: [],
+      seancesSet: new Set()
+    };
     grouped[nom].seancesSet.add(r.seance_id);
-    if (r.charge_kg && r.charge_kg > 0) grouped[nom].charges.push(r.charge_kg);
+    // Priorité : charge_kg (numérique), sinon parseFloat(charge)
+    if (r.charge_kg && r.charge_kg > 0) {
+      grouped[nom].charges.push(r.charge_kg);
+    } else if (r.charge) {
+      const c = parseFloat(r.charge);
+      if (c > 0) grouped[nom].charges.push(c);
+    }
   });
 
   allPerfsExos = Object.values(grouped).map(e => ({
