@@ -2381,6 +2381,7 @@ async function loadClientHabits(clientId) {
         <div class="metric-manage-unit">${typeLabel[h.type]||h.type} · Quotidien</div>
       </div>
       <div class="metric-manage-val">—</div>
+      <button class="btn btn-ghost btn-sm" onclick="showHabitHistory('${h.id}','${h.nom}','${h.type}')">Gérer</button>
       <button class="btn btn-danger btn-sm" onclick="removeHabitDB('${h.id}',this)">Retirer</button>`;
     list.appendChild(row);
   });
@@ -2477,6 +2478,46 @@ async function showMetricHistory(metriqueId, nom, unit) {
       <div class="history-date">${dateStr}</div>
       <div class="history-val">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
       <div class="history-delta ${dir}">${delta}</div>
+    </div>`;
+  }).join('');
+}
+
+async function showHabitHistory(habitudeId, nom, type) {
+  document.getElementById('mh-title').textContent = 'Gérer — ' + nom;
+  const list = document.getElementById('mh-list');
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Chargement…</div>';
+  document.getElementById('modal-metric-history').classList.add('open');
+
+  const { data: valeurs } = await db
+    .from('habitude_valeurs')
+    .select('valeur, date')
+    .eq('habitude_id', habitudeId)
+    .order('date', { ascending: false })
+    .limit(20);
+
+  if (!valeurs || valeurs.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée pour cette habitude.</div>';
+    return;
+  }
+
+  list.innerHTML = valeurs.map(v => {
+    const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' });
+    let display = v.valeur;
+    if (type === 'oui-non') {
+      display = v.valeur == 1 || v.valeur === 'oui' || v.valeur === true
+        ? '<span style="color:var(--success);font-weight:600;">✓ Oui</span>'
+        : '<span style="color:var(--danger);font-weight:600;">✗ Non</span>';
+    } else if (type === 'note') {
+      const n = parseInt(v.valeur);
+      const stars = ['','★','★★','★★★','★★★★'][n] || v.valeur;
+      display = `<span style="color:var(--accent);font-weight:600;">${stars}</span> <span style="font-size:11px;color:var(--muted)">${n}/4</span>`;
+    } else {
+      display = `<span style="font-weight:600;">${v.valeur}</span>`;
+    }
+    return `<div class="history-row">
+      <div class="history-date">${dateStr}</div>
+      <div class="history-val">${display}</div>
+      <div class="history-delta eq"></div>
     </div>`;
   }).join('');
 }
