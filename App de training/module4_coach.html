@@ -1725,19 +1725,35 @@ async function loadSeanceExercices(seanceId) {
   }
 
   container.innerHTML = exos.map((e, i) => {
-    let params = `${e.series}×${e.reps}`;
-    if (e.rir !== null && e.rir !== undefined) params += ` · RIR ${e.rir}`;
-    if (e.charge)    params += ` · ${e.charge}`;
-    if (e.repos_serie) params += ` · Repos ${Math.floor(e.repos_serie/60)}'${e.repos_serie%60 ? String(e.repos_serie%60).padStart(2,'0') : ''}`;
-    if (e.unilateral) params += ' · Uni';
+    // Paramètres programmés
+    let planned = `${e.series}×${e.reps}`;
+    if (e.charge_kg)  planned += ` · ${e.charge_kg} kg`;
+    else if (e.charge) planned += ` · ${e.charge}`;
+    if (e.rir !== null && e.rir !== undefined) planned += ` · RIR ${e.rir}`;
+    if (e.repos_serie) planned += ` · Repos ${Math.floor(e.repos_serie/60)}'${e.repos_serie%60 ? String(e.repos_serie%60).padStart(2,'0') : ''}`;
+    if (e.unilateral) planned += ' · Uni';
+
+    // Réalisé (si la cliente a saisi)
+    const hasRealisé = e.charge_reelle || e.reps_reelles || e.notes_client;
+    const realiséHtml = hasRealisé ? `
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--success);background:rgba(22,163,74,0.08);border-radius:20px;padding:1px 7px">Réalisé</span>
+        ${e.charge_reelle ? `<span style="font-size:11px;font-weight:700;color:var(--success)">${e.charge_reelle} kg</span>` : ''}
+        ${e.reps_reelles  ? `<span style="font-size:11px;color:var(--success)">${e.reps_reelles} reps</span>` : ''}
+        ${e.notes_client  ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${e.notes_client}</span>` : ''}
+      </div>` : '';
+
     return `
-      <div class="seance-exo-row">
-        <div class="seance-exo-num">${i+1}</div>
-        <div class="seance-exo-info">
-          <div class="seance-exo-name">${e.nom_exo}</div>
-          <div class="seance-exo-params">${params}</div>
+      <div class="seance-exo-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
+        <div style="display:flex;width:100%;align-items:center;gap:8px">
+          <div class="seance-exo-num">${i+1}</div>
+          <div class="seance-exo-info" style="flex:1">
+            <div class="seance-exo-name">${e.nom_exo}</div>
+            <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
+            ${realiséHtml}
+          </div>
+          <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
         </div>
-        <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
       </div>`;
   }).join('');
 }
@@ -2751,26 +2767,89 @@ async function saveProgSeance() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  PERF CHARTS (démo)
+//  PERF CHARTS (Supabase)
 // ═══════════════════════════════════════════════════════════
-function drawCoachPerfs() {
+async function drawCoachPerfs() {
+  if (!currentClientId) return;
   const grid = document.getElementById('coach-perfs-grid');
-  const exos = [
-    { name:'Tractions pronation', vals:[0,2.5,2.5,5,7.5,7.5,10], dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'BW+10 kg', color:'#6D28D9' },
-    { name:'Rowing barre',        vals:[36,38,40,44,44,50,52],    dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'52 kg',    color:'#16A34A' },
-    { name:'Développé couché',    vals:[30,32.5,35,37.5,40,45,47.5], dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'47.5 kg', color:'#F97316' },
-    { name:'Squat barre',         vals:[40,45,50,55,60,65,70],    dates:['06/03','20/03','03/04','17/04','01/05','15/05','22/05'], pr:'70 kg',    color:'#A855F7' },
-  ];
-  grid.innerHTML = exos.map((e,i) => `
+  grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:13px;text-align:center;">Chargement…</div>';
+
+  // 1. Séances du client (triées chronologiquement)
+  const { data: seances } = await db.from('seances')
+    .select('id, date').eq('client_id', currentClientId)
+    .order('date', { ascending: true });
+
+  if (!seances || !seances.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:13px;text-align:center;">Aucune séance enregistrée.</div>';
+    return;
+  }
+
+  const seanceIds = seances.map(s => s.id);
+  const dateMap   = {};
+  seances.forEach(s => { dateMap[s.id] = s.date; });
+
+  // 2. Données de performance (charge réelle en priorité, sinon charge planifiée)
+  const { data: rows } = await db.from('seance_exercices')
+    .select('nom_exo, charge_reelle, charge_kg, seance_id')
+    .in('seance_id', seanceIds);
+
+  if (!rows || !rows.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:13px;text-align:center;">Aucune donnée de charge disponible.</div>';
+    return;
+  }
+
+  // 3. Grouper par exercice
+  const grouped = {};
+  rows.forEach(r => {
+    const charge = r.charge_reelle ?? r.charge_kg;
+    if (!charge || charge <= 0) return;
+    const nom = r.nom_exo;
+    if (!grouped[nom]) grouped[nom] = [];
+    grouped[nom].push({ date: dateMap[r.seance_id], charge });
+  });
+
+  if (!Object.keys(grouped).length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:13px;text-align:center;">Aucune charge saisie pour le moment.</div>';
+    return;
+  }
+
+  const COLORS = ['#6D28D9','#16A34A','#F97316','#A855F7','#0891B2','#DC2626','#D97706','#059669'];
+  const exos = Object.entries(grouped).map(([name, pts], i) => {
+    const sorted = pts.filter(p => p.date).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const vals   = sorted.map(p => p.charge);
+    const dates  = sorted.map(p => {
+      const d = new Date(p.date + 'T12:00:00');
+      return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+    });
+    const pr = Math.max(...vals);
+    const first = vals[0], last = vals[vals.length-1];
+    const prog = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+    return { name, vals, dates, pr: pr + ' kg', prog: (prog >= 0 ? '+' : '') + prog + '%', color: COLORS[i % COLORS.length] };
+  }).filter(e => e.vals.length > 0);
+
+  grid.innerHTML = exos.map((e, i) => `
     <div class="perf-card">
       <div class="perf-card-name">${e.name}</div>
       <canvas class="perf-card-canvas" id="pfc-${i}" height="80"></canvas>
-      <div class="perf-pr">PR actuel <strong>${e.pr}</strong></div>
+      <div class="perf-pr" style="display:flex;justify-content:space-between;align-items:center">
+        <span>PR actuel <strong>${e.pr}</strong></span>
+        <span style="font-size:11px;font-weight:700;color:var(--success)">${e.prog}</span>
+      </div>
     </div>`).join('');
+
   requestAnimationFrame(() => {
-    exos.forEach((e,i) => {
+    exos.forEach((e, i) => {
       const c = document.getElementById('pfc-' + i);
-      if (c) drawMiniLineChart(c, e.vals, e.dates, e.color, 80);
+      if (c && e.vals.length >= 2) drawMiniLineChart(c, e.vals, e.dates, e.color, 80);
+      else if (c && e.vals.length === 1) {
+        // Un seul point — afficher juste le chiffre
+        const ctx = c.getContext('2d');
+        c.width = (c.offsetWidth || 200) * (window.devicePixelRatio || 1);
+        c.height = 80 * (window.devicePixelRatio || 1);
+        ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+        ctx.fillStyle = '#9CA3AF'; ctx.font = '12px Inter,sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('1 séance enregistrée', (c.offsetWidth||200)/2, 44);
+      }
     });
   });
 }

@@ -701,7 +701,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <input class="serie-input" type="number" placeholder="—" oninput="checkSide(this)">
         </div>`;
       }
-      return `<div class="exo-card" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}">
+      return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}">
         <div class="exo-header" onclick="toggleExo(this)">
           <div class="exo-num">${index + 1}</div>
           <div class="exo-info">
@@ -715,7 +715,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="series-header-row uni"><div>#</div><div>Prévu</div><div>G</div><div>D</div><div>Charge</div></div>
           ${rows}
           ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
-          <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
+          <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)"></textarea>
         </div>
       </div>`;
     }
@@ -739,7 +739,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <input class="serie-input" type="number" placeholder="—" oninput="checkDone(this)">
       </div>`;
     }
-    return `<div class="exo-card" data-rest-series="${reposSerie}">
+    return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}">
       <div class="exo-header" onclick="toggleExo(this)">
         <div class="exo-num">${index + 1}</div>
         <div class="exo-info">
@@ -753,21 +753,58 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <div class="series-header-row"><div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div></div>
         ${rows}
         ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
-        <textarea class="exo-comment-input" rows="2" placeholder="Ajouter un commentaire…"></textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)"></textarea>
       </div>
     </div>`;
   }
 
-  // ── Valider la séance ────────────────────────────────────
+  // ── Valider la séance — collecte les perfs avant de valider ────
   async function validateSession() {
     if (!currentSeanceId) return;
     const btn = document.getElementById('validate-btn');
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
+    btn.disabled = true; btn.style.opacity = '0.6';
+    btn.textContent = 'Enregistrement…';
+
+    // 1. Sauvegarder les données saisies par exercice
+    const exoCards = document.querySelectorAll('.exo-card[data-exo-id]');
+    const savePromises = [];
+    exoCards.forEach(card => {
+      const exoId = card.dataset.exoId;
+      if (!exoId) return;
+
+      // Max charge saisie dans les inputs de la colonne charge (3e input de chaque série-row)
+      const chargeInputs = card.querySelectorAll('.series-row input[type="number"]:last-child');
+      const charges = [...chargeInputs].map(i => parseFloat(i.value)).filter(v => !isNaN(v) && v > 0);
+      const chargeReelle = charges.length ? Math.max(...charges) : null;
+
+      // Reps max saisies (2e input de chaque série-row = "Réalisées")
+      const repsInputs = card.querySelectorAll('.series-row input[type="number"]:nth-child(3)');
+      const reps = [...repsInputs].map(i => parseFloat(i.value)).filter(v => !isNaN(v) && v > 0);
+      const repsReelles = reps.length ? Math.max(...reps) : null;
+
+      // Commentaire client
+      const commentInput = card.querySelector('.exo-comment-input');
+      const notesClient = commentInput?.value?.trim() || null;
+
+      if (chargeReelle !== null || repsReelles !== null || notesClient) {
+        const update = {};
+        if (chargeReelle !== null) update.charge_reelle = chargeReelle;
+        if (repsReelles  !== null) update.reps_reelles  = repsReelles;
+        if (notesClient)           update.notes_client  = notesClient;
+        savePromises.push(
+          db.from('seance_exercices').update(update).eq('id', exoId)
+        );
+      }
+    });
+
+    // Sauvegarder en parallèle (on ignore les erreurs de colonne manquante)
+    await Promise.allSettled(savePromises);
+
+    // 2. Valider la séance
     const { error } = await db.from('seances').update({ statut: 'validée' }).eq('id', currentSeanceId);
     if (error) {
-      btn.disabled = false;
-      btn.style.opacity = '1';
+      btn.disabled = false; btn.style.opacity = '1';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
       alert('Erreur lors de la validation. Réessaie.');
       return;
     }
