@@ -2464,7 +2464,7 @@ async function loadBiblioHabits() {
   if (!list) return;
   list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Chargement…</div>';
 
-  const { data, error } = await db.from('habitudes').select('*').order('nom', { ascending: true });
+  const { data, error } = await db.from('habitudes').select('id, nom, type').order('nom', { ascending: true });
 
   if (error) {
     list.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px;">Erreur : ${error.message}</div>`;
@@ -2476,9 +2476,10 @@ async function loadBiblioHabits() {
   }
 
   const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
+  const typeEmoji = { 'oui-non': '✅', 'note': '⭐', 'valeur': '📊' };
   list.innerHTML = data.map(h => `
     <div class="lib-metric-row">
-      <div class="lib-metric-icon">${h.icone || '🌿'}</div>
+      <div class="lib-metric-icon">${typeEmoji[h.type] || '🌿'}</div>
       <div class="lib-metric-info">
         <div class="lib-metric-name">${h.nom}</div>
         <div class="lib-metric-unit">${typeLabel[h.type] || h.type}</div>
@@ -2495,11 +2496,7 @@ async function saveNewHabitLib() {
   const type  = document.getElementById('nh-type')?.value || 'oui-non';
   if (!nom) { toast('Saisis un nom pour l\'habitude'); return; }
 
-  // Essai avec icone, fallback sans si colonne absente du cache
-  let { error } = await db.from('habitudes').insert({ nom, icone, type });
-  if (error && error.message && error.message.includes('icone')) {
-    ({ error } = await db.from('habitudes').insert({ nom, type }));
-  }
+  const { error } = await db.from('habitudes').insert({ nom, type });
   if (error) { toast('Erreur : ' + error.message); return; }
 
   document.getElementById('nh-nom').value = '';
