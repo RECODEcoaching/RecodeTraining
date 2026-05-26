@@ -805,9 +805,14 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     if (ytWatch) return 'https://www.youtube.com/embed/' + ytWatch[1] + '?rel=0&modestbranding=1';
     // Déjà un embed YouTube
     if (url.includes('youtube.com/embed/')) return url;
-    // Vimeo — formats : vimeo.com/123456789 ou player.vimeo.com/video/123456789
-    const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    if (vimeo) return 'https://player.vimeo.com/video/' + vimeo[1] + '?badge=0&autopause=0';
+    // Vimeo — formats : vimeo.com/123456789 ou vimeo.com/123456789/hashprivé
+    const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+    if (vimeo) {
+      const videoId = vimeo[1];
+      const hash    = vimeo[2]; // présent pour les vidéos non répertoriées
+      const base    = 'https://player.vimeo.com/video/' + videoId + '?badge=0&autopause=0';
+      return hash ? base + '&h=' + hash : base;
+    }
     // Déjà un embed Vimeo
     if (url.includes('player.vimeo.com/video/')) return url;
     return null; // URL non supportée pour iframe
