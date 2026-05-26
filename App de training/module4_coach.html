@@ -1008,10 +1008,10 @@ async function hashPin(pin) {
       </div>
       <div class="add-form" id="new-habit-form">
         <div class="add-form-title">Nouvelle habitude</div>
-        <div class="form-row">
-          <input class="form-input" id="nh-nom" placeholder="Nom (ex: Méditation…)" style="flex:2">
-          <input class="form-input" id="nh-icone" placeholder="Emoji" style="width:60px;flex:none">
-          <select class="form-select" id="nh-type">
+        <input class="form-input" id="nh-nom" placeholder="Nom de l'habitude (ex: Méditation, Sommeil…)" style="width:100%;margin-bottom:8px;">
+        <div class="form-row" style="margin-bottom:0">
+          <input class="form-input" id="nh-icone" placeholder="🌿 Emoji" style="width:80px;flex:none">
+          <select class="form-select" id="nh-type" style="flex:1">
             <option value="oui-non">Oui / Non</option>
             <option value="note">Note 1→4</option>
             <option value="valeur">Valeur numérique</option>
