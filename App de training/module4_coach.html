@@ -1866,7 +1866,14 @@ async function savePickerExo() {
   const btn = document.getElementById('btn-save-picker');
   btn.disabled = true; btn.textContent = 'Ajout…';
 
-  const { error } = await db.from('seance_exercices').insert(payload);
+  let { error } = await db.from('seance_exercices').insert(payload);
+
+  // Si charge_kg n'existe pas encore → réessayer sans ce champ
+  if (error && error.message && error.message.includes('charge_kg')) {
+    const { charge_kg, ...payloadSansChargeKg } = payload;
+    ({ error } = await db.from('seance_exercices').insert(payloadSansChargeKg));
+  }
+
   btn.disabled = false; btn.textContent = 'Ajouter à la séance';
 
   if (error) {
@@ -2794,9 +2801,17 @@ async function drawCoachPerfs() {
   seances.forEach(s => { dateMap[s.id] = s.date; });
 
   // 2. Données de performance
-  const { data: rows, error: rowsErr } = await db.from('seance_exercices')
+  // Essai avec charge_kg, fallback sans si la colonne n'existe pas encore
+  let rows, rowsErr;
+  ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
     .select('nom_exo, charge_kg, charge, seance_id')
-    .in('seance_id', seanceIds);
+    .in('seance_id', seanceIds));
+
+  if (rowsErr && rowsErr.message && rowsErr.message.includes('charge_kg')) {
+    ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
+      .select('nom_exo, charge, seance_id')
+      .in('seance_id', seanceIds));
+  }
 
   if (rowsErr) {
     grid.innerHTML = `<div style="grid-column:1/-1;padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur seance_exercices : ${rowsErr.message}</div>`;

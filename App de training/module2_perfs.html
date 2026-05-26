@@ -444,10 +444,19 @@ async function loadPerfsExos() {
   const seanceIds = seances.map(s => s.id);
   list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;color:#166534;">✅ ${seances.length} séance(s) trouvée(s)<br>Chargement exercices…</div>`;
 
-  // 2. Récupérer tous les exercices de ces séances (sans join — plus fiable)
-  const { data: rows, error: rowsErr } = await db.from('seance_exercices')
+  // 2. Récupérer tous les exercices de ces séances
+  // Essai avec charge_kg, fallback sans si la colonne n'existe pas encore
+  let rows, rowsErr;
+  ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
     .select('nom_exo, charge_kg, charge, seance_id, exercice_id')
-    .in('seance_id', seanceIds);
+    .in('seance_id', seanceIds));
+
+  if (rowsErr && rowsErr.message && rowsErr.message.includes('charge_kg')) {
+    // Colonne charge_kg pas encore créée → requête sans
+    ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
+      .select('nom_exo, charge, seance_id, exercice_id')
+      .in('seance_id', seanceIds));
+  }
 
   if (rowsErr) {
     list.innerHTML = `<div style="padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur seance_exercices : ${rowsErr.message}</div>`;
