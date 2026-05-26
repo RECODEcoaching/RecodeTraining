@@ -1009,16 +1009,18 @@ async function hashPin(pin) {
       <div class="add-form" id="new-habit-form">
         <div class="add-form-title">Nouvelle habitude</div>
         <div class="form-row">
-          <input class="form-input" placeholder="Nom (ex: Méditation…)" style="flex:2">
-          <input class="form-input" placeholder="Emoji">
-          <select class="form-select"><option>Oui / Non</option><option>Note 1→4</option><option>Valeur numérique</option></select>
-          <button class="btn btn-accent" onclick="toast('Habitude créée');toggleAddForm('new-habit-form')">Créer</button>
+          <input class="form-input" id="nh-nom" placeholder="Nom (ex: Méditation…)" style="flex:2">
+          <input class="form-input" id="nh-icone" placeholder="Emoji" style="width:60px;flex:none">
+          <select class="form-select" id="nh-type">
+            <option value="oui-non">Oui / Non</option>
+            <option value="note">Note 1→4</option>
+            <option value="valeur">Valeur numérique</option>
+          </select>
+          <button class="btn btn-accent" onclick="saveNewHabitLib()">Créer</button>
         </div>
       </div>
-      <div class="lib-metrics-list">
-        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Qualité du sommeil</div><div class="lib-metric-unit">Note 1→4</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">🧘</div><div class="lib-metric-info"><div class="lib-metric-name">Niveau de stress</div><div class="lib-metric-unit">Note 1→4</div></div><div class="assign-pills"><span class="assign-pill">Toutes</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">🚶</div><div class="lib-metric-info"><div class="lib-metric-name">Marche active</div><div class="lib-metric-unit">Oui / Non</div></div><div class="assign-pills"><span class="assign-pill">Sofia M.</span><span class="assign-pill">Léa B.</span></div><button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+      <div class="lib-metrics-list" id="habit-lib-list">
+        <div style="padding:20px;color:var(--muted);font-size:13px;">Chargement…</div>
       </div>
     </div>
 
@@ -1420,9 +1422,10 @@ function showScreen(id, navEl) {
     prog:            'Programmation',
   };
   document.getElementById('topbar-title').textContent = titles[id] || '';
-  if (id === 'biblio-exos') loadExercices();
-  if (id === 'clients')     loadClients();
-  if (id === 'prog')        initProgScreen();
+  if (id === 'biblio-exos')    loadExercices();
+  if (id === 'biblio-habits')  loadBiblioHabits();
+  if (id === 'clients')        loadClients();
+  if (id === 'prog')           initProgScreen();
 }
 
 function backToClients() {
@@ -2067,17 +2070,16 @@ function renderExoGrid(groupe) {
     const tagList = e.tags
       ? e.tags.split(',').map(t => `<span class="tag" style="font-size:9px;padding:1px 6px">${t.trim()}</span>`).join('')
       : '';
+    const safeNom = e.nom.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     const videoBtn = hasVideo(e.url_video)
-      ? `<button onclick="event.stopPropagation();openExoVideo('${e.nom.replace(/'/g,"\\'")}','${e.url_video}')"
-           style="position:absolute;top:6px;right:6px;background:rgba(109,40,217,0.12);border:none;border-radius:6px;padding:4px 6px;cursor:pointer;display:flex;align-items:center;gap:3px;color:var(--accent)">
-           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-           <span style="font-size:9px;font-weight:700">Vidéo</span>
+      ? `<button onclick="event.stopPropagation();openExoVideo('${safeNom}','${e.url_video}')"
+           style="background:rgba(109,40,217,0.12);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-size:9px;font-weight:700">
+           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>Vidéo
          </button>`
       : '';
     return `
       <div class="exo-lib-card" style="position:relative;">
-        ${videoBtn}
-        <div class="exo-lib-thumb" style="${hasVideo(e.url_video)?'cursor:pointer':''}" ${hasVideo(e.url_video)?`onclick="openExoVideo('${e.nom.replace(/'/g,"\\'")}','${e.url_video}')"`:''}">
+        <div class="exo-lib-thumb" style="${hasVideo(e.url_video)?'cursor:pointer':''}" ${hasVideo(e.url_video)?`onclick="openExoVideo('${safeNom}','${e.url_video}')"`:''}">
           ${hasVideo(e.url_video)
             ? '<div class="exo-lib-play"></div>'
             : '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 12h18"/></svg>'}
@@ -2085,6 +2087,14 @@ function renderExoGrid(groupe) {
         <div class="exo-lib-name">${e.nom}</div>
         <div class="exo-lib-meta">${e.groupe_musculaire || '—'}</div>
         <div class="exo-lib-tags">${tagList}</div>
+        <div style="display:flex;gap:5px;margin-top:8px;align-items:center;">
+          ${videoBtn}
+          <button onclick="event.stopPropagation();deleteExoLib('${e.id}','${safeNom}')"
+            style="margin-left:auto;background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:5px;color:var(--dim);display:inline-flex;align-items:center;"
+            title="Supprimer" onmouseover="this.style.color='var(--danger)';this.style.background='rgba(220,38,38,0.07)'" onmouseout="this.style.color='var(--dim)';this.style.background='none'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
       </div>`;
   }).join('');
 
@@ -2446,6 +2456,96 @@ const DEMO_HISTORY = {
   'Niveau de stress':   [{d:'22/05',v:'2',unit:'/4',delta:'—',dir:'eq'},{d:'21/05',v:'2',unit:'/4',delta:'+1',dir:'down'},{d:'20/05',v:'1',unit:'/4',delta:'-1',dir:'up'},{d:'19/05',v:'2',unit:'/4',delta:'—',dir:'eq'}],
   'Marche active':      [{d:'22/05',v:'✗',unit:'',delta:'',dir:'eq'},{d:'21/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'20/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'19/05',v:'✓',unit:'',delta:'',dir:'eq'}],
 };
+// ═══════════════════════════════════════════════════════════
+//  BIBLIOTHÈQUE HABITUDES
+// ═══════════════════════════════════════════════════════════
+async function loadBiblioHabits() {
+  const list = document.getElementById('habit-lib-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Chargement…</div>';
+
+  const { data, error } = await db.from('habitudes').select('*').order('nom', { ascending: true });
+
+  if (error) {
+    list.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px;">Erreur : ${error.message}</div>`;
+    return;
+  }
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Aucune habitude dans la bibliothèque.<br>Clique sur "+ Créer" pour en ajouter une.</div>';
+    return;
+  }
+
+  const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
+  list.innerHTML = data.map(h => `
+    <div class="lib-metric-row">
+      <div class="lib-metric-icon">${h.icone || '🌿'}</div>
+      <div class="lib-metric-info">
+        <div class="lib-metric-name">${h.nom}</div>
+        <div class="lib-metric-unit">${typeLabel[h.type] || h.type}</div>
+      </div>
+      <div class="assign-pills"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openLibHabitGerer('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Gérer</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteHabitLib('${h.id}','${h.nom.replace(/'/g,"\\'")}',this)">Supprimer</button>
+    </div>`).join('');
+}
+
+async function saveNewHabitLib() {
+  const nom   = (document.getElementById('nh-nom')?.value || '').trim();
+  const icone = (document.getElementById('nh-icone')?.value || '🌿').trim();
+  const type  = document.getElementById('nh-type')?.value || 'oui-non';
+  if (!nom) { toast('Saisis un nom pour l\'habitude'); return; }
+
+  const { error } = await db.from('habitudes').insert({ nom, icone, type });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  document.getElementById('nh-nom').value = '';
+  document.getElementById('nh-icone').value = '';
+  document.getElementById('new-habit-form').classList.remove('open');
+  toast('Habitude créée ✓');
+  await loadBiblioHabits();
+}
+
+function openLibHabitGerer(id, nom, type) {
+  const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
+  document.getElementById('gm-title').textContent = 'Gérer — ' + nom;
+  document.getElementById('gm-body').innerHTML = `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Type</div>
+      <div style="font-size:13px;font-weight:600;">${typeLabel[type] || type}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+      Pour assigner cette habitude à une cliente, ouvre sa fiche → onglet Habitudes → "+ Ajouter".
+    </div>
+    <div style="display:flex;gap:7px;margin-top:14px;">
+      <button class="btn btn-danger btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open');deleteHabitLibById('${id}','${nom.replace(/'/g,"\\'")}')">Supprimer de la bibliothèque</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">Fermer</button>
+    </div>`;
+  document.getElementById('modal-gerer-metric').classList.add('open');
+}
+
+async function deleteHabitLib(id, nom, btn) {
+  if (!confirm(`Supprimer "${nom}" de la bibliothèque ?`)) return;
+  const { error } = await db.from('habitudes').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  btn.closest('.lib-metric-row').remove();
+  toast('Habitude supprimée');
+}
+
+async function deleteHabitLibById(id, nom) {
+  const { error } = await db.from('habitudes').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Habitude supprimée');
+  await loadBiblioHabits();
+}
+
+async function deleteExoLib(id, nom) {
+  if (!confirm(`Supprimer l'exercice "${nom}" de la bibliothèque ?`)) return;
+  const { error } = await db.from('exercices').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Exercice supprimé ✓');
+  await loadExercices();
+}
+
 async function showMetricHistory(metriqueId, nom, unit) {
   document.getElementById('mh-title').textContent = 'Historique — ' + nom;
   const list = document.getElementById('mh-list');
