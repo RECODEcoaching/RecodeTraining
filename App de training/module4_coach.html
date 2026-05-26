@@ -2495,7 +2495,11 @@ async function saveNewHabitLib() {
   const type  = document.getElementById('nh-type')?.value || 'oui-non';
   if (!nom) { toast('Saisis un nom pour l\'habitude'); return; }
 
-  const { error } = await db.from('habitudes').insert({ nom, icone, type });
+  // Essai avec icone, fallback sans si colonne absente du cache
+  let { error } = await db.from('habitudes').insert({ nom, icone, type });
+  if (error && error.message && error.message.includes('icone')) {
+    ({ error } = await db.from('habitudes').insert({ nom, type }));
+  }
   if (error) { toast('Erreur : ' + error.message); return; }
 
   document.getElementById('nh-nom').value = '';
