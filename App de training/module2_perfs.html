@@ -298,107 +298,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   </div>
 
   <div class="exo-list" id="exo-list">
-    <div class="exo-row" data-group="dos" onclick="openDetail('tractions')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5"/><line x1="5" y1="8" x2="5" y2="16"/><line x1="19" y1="8" x2="19" y2="16"/><line x1="5" y1="16" x2="9" y2="16"/><line x1="15" y1="16" x2="19" y2="16"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">Tractions pronation</div>
-        <div class="exo-row-meta">Dos · 12 séances · Technique revue ×1</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">BW+10</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
-
-    <div class="exo-row" data-group="dos" onclick="openDetail('rowing')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M5 12l4-4M5 12l4 4"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">Rowing barre pronation</div>
-        <div class="exo-row-meta">Dos · 10 séances · Technique revue ×2</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">52 kg</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
-
-    <div class="exo-row" data-group="pec" onclick="openDetail('developpecouche')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M6 12l4 4M6 12l4-4"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">Développé couché</div>
-        <div class="exo-row-meta">Pectoraux · 14 séances</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">47.5 kg</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
-
-    <div class="exo-row" data-group="jambes" onclick="openDetail('squat')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6l-4 4v8"/><path d="M12 9l4 4v8"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">Squat barre</div>
-        <div class="exo-row-meta">Jambes · 16 séances · Technique revue ×1</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">70 kg</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
-
-    <div class="exo-row" data-group="jambes" onclick="openDetail('rdl')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M5 8l2 12h10l2-12"/><path d="M9 8V5h6v3"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">RDL haltères</div>
-        <div class="exo-row-meta">Ischio · Fessiers · 10 séances</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">2×25 kg</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
-
-    <div class="exo-row" data-group="epaules" onclick="openDetail('ohp')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">Développé militaire</div>
-        <div class="exo-row-meta">Épaules · 10 séances · Technique revue ×1</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">32.5 kg</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
-
-    <div class="exo-row" data-group="bras" onclick="openDetail('curl')">
-      <div class="ic ic-md icon-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18c0-4 2-7 6-7s6 3 6 7"/><path d="M12 11V3"/></svg>
-      </div>
-      <div class="exo-row-info">
-        <div class="exo-row-name">Curl haltères alternés</div>
-        <div class="exo-row-meta">Biceps · 12 séances</div>
-      </div>
-      <div class="exo-pr">
-        <div class="pr-value">2×14 kg</div>
-        <div class="pr-label">PR actuel</div>
-      </div>
-    </div>
+    <div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:14px;">Chargement…</div>
   </div>
   <div class="pb-nav"></div>
 </div>
-
 <!-- ═══════════════ SCREEN: DÉTAIL EXERCICE ═══════════════ -->
 <div class="screen" id="screen-detail">
   <div class="back-btn" onclick="goBack()">
@@ -504,77 +407,95 @@ if (SESSION) {
   if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
 }
 
-// ─── DATA ────────────────────────────────────────────────────────────
-const EXERCISES = {
-  tractions: {
-    name: 'Tractions pronation',
-    pr: 'BW+10 kg',
-    seances: 12,
-    prog: '+85%',
-    history: [
-      { date: '22 mai 2026', short: '22/05', charge: 10, volume: 192, reps: 8, technique: false, comment: '' },
-      { date: '15 mai 2026', short: '15/05', charge: 10, volume: 180, reps: 8, technique: false, comment: '' },
-      { date: '8 mai 2026',  short: '08/05', charge: 7.5, volume: 156, reps: 7, technique: false, comment: 'Bonne séance' },
-      { date: '1 mai 2026',  short: '01/05', charge: 5, volume: 130, reps: 7, technique: true,  comment: 'Technique revue : rétraction scapulaire corrigée — normal que la charge baisse temporairement' },
-      { date: '24 avr.',     short: '24/04', charge: 8, volume: 158, reps: 8, technique: false, comment: '' },
-      { date: '17 avr.',     short: '17/04', charge: 7.5, volume: 148, reps: 7, technique: false, comment: '' },
-      { date: '10 avr.',     short: '10/04', charge: 7.5, volume: 140, reps: 7, technique: false, comment: '' },
-      { date: '3 avr.',      short: '03/04', charge: 5, volume: 120, reps: 6, technique: false, comment: '' },
-      { date: '27 mars',     short: '27/03', charge: 5, volume: 112, reps: 6, technique: false, comment: '' },
-      { date: '20 mars',     short: '20/03', charge: 2.5, volume: 94, reps: 6, technique: false, comment: '' },
-      { date: '13 mars',     short: '13/03', charge: 2.5, volume: 84, reps: 5, technique: false, comment: '' },
-      { date: '6 mars',      short: '06/03', charge: 0, volume: 64, reps: 5, technique: false, comment: 'Démarrage' },
-    ]
-  },
-  rowing: {
-    name: 'Rowing barre pronation',
-    pr: '52 kg',
-    seances: 10,
-    prog: '+44%',
-    history: [
-      { date: '22 mai 2026', short: '22/05', charge: 52, volume: 1664, reps: 10, technique: false, comment: '' },
-      { date: '15 mai 2026', short: '15/05', charge: 50, volume: 1540, reps: 9, technique: false, comment: '' },
-      { date: '8 mai 2026',  short: '08/05', charge: 46, volume: 1380, reps: 9, technique: true, comment: 'Technique revue : angle de buste trop vertical corrigé. La charge cible reste la même mais l\'amplitude augmente.' },
-      { date: '1 mai 2026',  short: '01/05', charge: 48, volume: 1440, reps: 9, technique: false, comment: '' },
-      { date: '24 avr.',     short: '24/04', charge: 46, volume: 1340, reps: 9, technique: false, comment: '' },
-      { date: '17 avr.',     short: '17/04', charge: 44, volume: 1260, reps: 9, technique: true, comment: 'Technique revue : chemin de barre → vers le nombril et non la poitrine.' },
-      { date: '10 avr.',     short: '10/04', charge: 44, volume: 1188, reps: 8, technique: false, comment: '' },
-      { date: '3 avr.',      short: '03/04', charge: 40, volume: 1080, reps: 8, technique: false, comment: '' },
-      { date: '27 mars',     short: '27/03', charge: 38, volume: 988, reps: 7, technique: false, comment: '' },
-      { date: '20 mars',     short: '20/03', charge: 36, volume: 900, reps: 7, technique: false, comment: 'Démarrage' },
-    ]
-  }
-};
-
-// Fallback data for exercises without detailed data
-const DEFAULT = (name) => ({
-  name,
-  pr: '—',
-  seances: 8,
-  prog: '+30%',
-  history: [
-    { date: '22 mai 2026', short: '22/05', charge: 60, volume: 1800, reps: 8, technique: false, comment: '' },
-    { date: '15 mai 2026', short: '15/05', charge: 57.5, volume: 1680, reps: 8, technique: false, comment: '' },
-    { date: '8 mai 2026',  short: '08/05', charge: 55, volume: 1540, reps: 8, technique: true, comment: 'Technique revue par coach' },
-    { date: '1 mai 2026',  short: '01/05', charge: 57.5, volume: 1540, reps: 7, technique: false, comment: '' },
-    { date: '24 avr.',     short: '24/04', charge: 55, volume: 1440, reps: 7, technique: false, comment: '' },
-    { date: '17 avr.',     short: '17/04', charge: 52.5, volume: 1320, reps: 7, technique: false, comment: '' },
-    { date: '10 avr.',     short: '10/04', charge: 50, volume: 1200, reps: 6, technique: false, comment: '' },
-    { date: '3 avr.',      short: '03/04', charge: 47.5, volume: 1080, reps: 6, technique: false, comment: 'Démarrage' },
-  ]
-});
-
-const NAMES = {
-  developpecouche: 'Développé couché',
-  squat: 'Squat barre',
-  rdl: 'RDL haltères',
-  ohp: 'Développé militaire',
-  curl: 'Curl haltères alternés',
-};
-
-let currentExo = null;
+// ─── DATA SUPABASE ───────────────────────────────────────────────────
+let allPerfsExos  = [];
+let currentExo    = null;
 let currentMetric = 'charge';
-let chart = null;
+let chart         = null;
+
+// Mapping groupe_musculaire → data-group pour les filtres
+const GROUP_MAP = {
+  'Dos':'dos','Pectoraux':'pec','Épaules':'epaules','Jambes':'jambes',
+  'Bras':'bras','Core':'core',
+  // Nouveaux tags muscles
+  'Grands dorsal':'dos','Rhomboïde - trapèze moyen':'dos',
+  'Deltoïde postérieur':'epaules','Deltoïde antérieur':'epaules','Deltoïde moyen':'epaules',
+  'Biceps':'bras','Triceps':'bras','Pec':'pec',
+  'Quad':'jambes','Ischio':'jambes','Fessiers':'jambes','Mollet':'jambes',
+};
+
+async function loadPerfsExos() {
+  if (!SESSION) return;
+  const list = document.getElementById('exo-list');
+
+  // 1. Récupérer toutes les séances du client
+  const { data: seances } = await db.from('seances').select('id').eq('client_id', SESSION.client_id);
+  if (!seances || seances.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Aucune séance enregistrée</div>
+      <div style="font-size:13px;color:var(--text-muted)">Les exercices apparaîtront ici après ta première séance.</div>
+    </div>`; return;
+  }
+
+  const seanceIds = seances.map(s => s.id);
+
+  // 2. Récupérer tous les exercices de ces séances
+  const { data: rows } = await db.from('seance_exercices')
+    .select('nom_exo, charge_kg, series, reps, seance_id, exercices(groupe_musculaire)')
+    .in('seance_id', seanceIds);
+
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Aucun exercice enregistré</div>
+      <div style="font-size:13px;color:var(--text-muted)">Ils apparaîtront ici après une séance complétée.</div>
+    </div>`; return;
+  }
+
+  // 3. Grouper par nom_exo
+  const grouped = {};
+  rows.forEach(r => {
+    const nom = r.nom_exo || 'Exercice';
+    if (!grouped[nom]) grouped[nom] = { nom, groupe: r.exercices?.groupe_musculaire || '', charges: [], seancesSet: new Set() };
+    grouped[nom].seancesSet.add(r.seance_id);
+    if (r.charge_kg && r.charge_kg > 0) grouped[nom].charges.push(r.charge_kg);
+  });
+
+  allPerfsExos = Object.values(grouped).map(e => ({
+    nom: e.nom, groupe: e.groupe,
+    seancesCount: e.seancesSet.size,
+    pr: e.charges.length > 0 ? Math.max(...e.charges) : null,
+  }));
+
+  renderExoList(allPerfsExos);
+}
+
+function renderExoList(exos) {
+  const list = document.getElementById('exo-list');
+  if (!exos.length) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucun exercice trouvé.</div>`;
+    return;
+  }
+  list.innerHTML = exos.map(e => {
+    const groupKey = GROUP_MAP[e.groupe] || 'autre';
+    const prText   = e.pr ? `${e.pr} kg` : '—';
+    return `
+    <div class="exo-row" data-group="${groupKey}" onclick="openDetail('${e.nom.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 6.5h11M6.5 17.5h11M3 12h18"/>
+        </svg>
+      </div>
+      <div class="exo-row-info">
+        <div class="exo-row-name">${e.nom}</div>
+        <div class="exo-row-meta">${e.groupe || '—'} · ${e.seancesCount} séance${e.seancesCount > 1 ? 's' : ''}</div>
+      </div>
+      <div class="exo-pr">
+        <div class="pr-value">${prText}</div>
+        <div class="pr-label">PR actuel</div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────
 function showScreen(id) {
@@ -585,42 +506,91 @@ function showScreen(id) {
 
 function goBack() { showScreen('screen-list'); }
 
-function openDetail(key) {
-  const data = EXERCISES[key] || DEFAULT(NAMES[key] || key);
-  currentExo = data;
+async function openDetail(nomExo) {
   currentMetric = 'charge';
+  document.getElementById('detail-title').textContent = nomExo;
+  document.getElementById('stat-pr').textContent      = '…';
+  document.getElementById('stat-seances').textContent = '…';
+  document.getElementById('stat-prog').textContent    = '…';
+  document.getElementById('history-list').innerHTML   = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>';
+  showScreen('screen-detail');
 
-  document.getElementById('detail-title').textContent = data.name;
-  document.getElementById('stat-pr').textContent = data.pr;
-  document.getElementById('stat-seances').textContent = data.seances;
-  document.getElementById('stat-prog').textContent = data.prog;
+  // Charger les séances
+  const { data: seances } = await db.from('seances').select('id, date').eq('client_id', SESSION.client_id);
+  if (!seances || !seances.length) return;
 
-  // Reset toggles
+  const seanceIds    = seances.map(s => s.id);
+  const dateMap      = {};
+  seances.forEach(s => { dateMap[s.id] = s.date; });
+
+  // Charger l'historique de cet exercice
+  const { data: rows } = await db.from('seance_exercices')
+    .select('charge_kg, reps, series, notes, technique, seance_id')
+    .in('seance_id', seanceIds)
+    .eq('nom_exo', nomExo);
+
+  if (!rows || !rows.length) {
+    document.getElementById('stat-pr').textContent      = '—';
+    document.getElementById('stat-seances').textContent = '0';
+    document.getElementById('stat-prog').textContent    = '—';
+    document.getElementById('history-list').innerHTML   = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Aucune donnée de performance pour cet exercice.</div>`;
+    return;
+  }
+
+  // Construire l'historique trié du plus récent au plus ancien
+  const history = rows.map(r => {
+    const dateStr = dateMap[r.seance_id] || '';
+    const d       = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+    const charge  = r.charge_kg || 0;
+    const reps    = r.reps || 0;
+    const series  = r.series || 1;
+    return {
+      date:      d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
+      short:     d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }),
+      charge, volume: charge * reps * series, reps,
+      technique: r.technique || false,
+      comment:   r.notes || '',
+      _ts:       d.getTime(),
+    };
+  }).sort((a, b) => b._ts - a._ts);
+
+  const charges   = history.map(h => h.charge).filter(c => c > 0);
+  const pr        = charges.length ? Math.max(...charges) : 0;
+  const first     = history[history.length - 1];
+  const last      = history[0];
+  const prog      = first?.charge > 0 ? Math.round(((last.charge - first.charge) / first.charge) * 100) : 0;
+
+  currentExo = { name: nomExo, pr: pr > 0 ? pr + ' kg' : '—', seances: history.length, prog: (prog >= 0 ? '+' : '') + prog + '%', history };
+
+  document.getElementById('stat-pr').textContent      = currentExo.pr;
+  document.getElementById('stat-seances').textContent = history.length;
+  document.getElementById('stat-prog').textContent    = currentExo.prog;
+
   document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.toggle-btn')[0].classList.add('active');
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.period-btn')[0].classList.add('active');
 
-  renderChart(data.history, 'charge');
-  renderHistory(data.history);
-  showScreen('screen-detail');
+  renderChart(history, 'charge');
+  renderHistory(history);
 }
 
 // ─── FILTER ──────────────────────────────────────────────────────────
+const GROUP_REVERSE = { dos:'Dos', pec:'Pectoraux', epaules:'Épaules', jambes:'Jambes', bras:'Bras', core:'Core' };
+
 function filterGroup(chip, group) {
   document.querySelectorAll('.group-chip').forEach(c => c.classList.remove('active'));
   chip.classList.add('active');
-  document.querySelectorAll('.exo-row').forEach(row => {
-    row.style.display = (group === 'all' || row.dataset.group === group) ? '' : 'none';
-  });
+  const filtered = group === 'all'
+    ? allPerfsExos
+    : allPerfsExos.filter(e => (GROUP_MAP[e.groupe] || 'autre') === group);
+  renderExoList(filtered);
 }
 
 function filterExos(val) {
-  const q = val.toLowerCase();
-  document.querySelectorAll('.exo-row').forEach(row => {
-    const name = row.querySelector('.exo-row-name').textContent.toLowerCase();
-    row.style.display = name.includes(q) ? '' : 'none';
-  });
+  const q        = val.toLowerCase();
+  const filtered = allPerfsExos.filter(e => e.nom.toLowerCase().includes(q));
+  renderExoList(filtered);
 }
 
 // ─── METRIC / PERIOD ─────────────────────────────────────────────────
@@ -833,6 +803,8 @@ function renderHistory(history) {
 window.addEventListener('resize', () => {
   if (currentExo) renderChart(currentExo.history, currentMetric);
 });
+
+window.addEventListener('load', () => { loadPerfsExos(); });
 </script>
 </body>
 </html>

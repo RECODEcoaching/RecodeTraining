@@ -913,28 +913,13 @@ async function hashPin(pin) {
 
       <!-- Commentaires -->
       <div class="client-tab-content" id="ctab-comments">
-        <div class="section-title">Échanges</div>
-        <div class="comments-list">
-          <div class="comment-card client">
-            <div class="comment-meta">
-              <span class="comment-author client" id="comment-client-name">Cliente</span>
-              <span class="comment-exo">Développé incliné</span>
-              <span class="comment-date">22 mai</span>
-            </div>
-            <div class="comment-body">Épaule droite légèrement inconfortable sur les dernières reps. Pas douloureux mais à surveiller.</div>
-          </div>
-          <div class="comment-card coach">
-            <div class="comment-meta">
-              <span class="comment-author coach">Kevin G.</span>
-              <span class="comment-date">21 mai</span>
-            </div>
-            <div class="comment-body">Super exécution sur les tractions ! Rétraction scapulaire bien maintenue. On va augmenter la charge la prochaine fois.</div>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div style="display:flex;gap:7px;">
-          <textarea class="form-input" rows="2" placeholder="Écrire un commentaire…" style="flex:1;resize:none;"></textarea>
-          <button class="btn btn-accent" style="align-self:flex-end" onclick="toast('Commentaire envoyé')">Envoyer</button>
+        <div class="section-title">Commentaires clientes</div>
+        <div id="comments-loading" style="padding:20px 0;color:var(--muted);font-size:13px">Chargement…</div>
+        <div class="comments-list" id="comments-list" style="display:none"></div>
+        <div class="divider" style="margin-top:14px"></div>
+        <div style="display:flex;gap:7px;margin-top:12px">
+          <textarea class="form-input" id="coach-comment-input" rows="2" placeholder="Écrire un commentaire coach…" style="flex:1;resize:none;"></textarea>
+          <button class="btn btn-accent" style="align-self:flex-end" onclick="sendCoachComment()">Envoyer</button>
         </div>
       </div>
 
@@ -949,13 +934,20 @@ async function hashPin(pin) {
         <button class="btn btn-accent btn-sm" onclick="openAddExo()">+ Ajouter</button>
       </div>
       <div style="display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap;">
-        <button class="btn btn-ghost btn-sm filtre-groupe" style="border-color:var(--accent);color:var(--accent)" onclick="filtrerExos('Tous',this)">Tous</button>
-        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Dos',this)">Dos</button>
-        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Pectoraux',this)">Pectoraux</button>
-        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Épaules',this)">Épaules</button>
-        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Jambes',this)">Jambes</button>
-        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Bras',this)">Bras</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" style="border-color:var(--accent);color:var(--accent);font-weight:600" onclick="filtrerExos('Tous',this)">Tous</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Grands dorsal',this)">Grands dorsal</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Rhomboïde - trapèze moyen',this)">Rhomboïde</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Deltoïde postérieur',this)">Delt. post.</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Deltoïde antérieur',this)">Delt. ant.</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Deltoïde moyen',this)">Delt. moyen</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Biceps',this)">Biceps</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Triceps',this)">Triceps</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Pec',this)">Pec</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Quad',this)">Quad</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Ischio',this)">Ischio</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Fessiers',this)">Fessiers</button>
         <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Core',this)">Core</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Mollet',this)">Mollet</button>
       </div>
       <div class="library-grid" id="exo-grid">
         <div style="grid-column:1/-1;padding:30px 0" class="loading-text">Chargement…</div>
@@ -1243,15 +1235,12 @@ CREATE POLICY "Allow all anon on seance_exercices"
           <input class="form-input" id="exo-nom" placeholder="ex : Développé couché haltères">
         </div>
         <div>
-          <label class="form-label">Groupe musculaire</label>
-          <select class="form-select" id="exo-groupe">
-            <option>Dos</option><option>Pectoraux</option><option>Épaules</option>
-            <option>Jambes</option><option>Bras</option><option>Core</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Tags (séparés par virgule)</label>
-          <input class="form-input" id="exo-tags" placeholder="ex : Biceps, Trapèzes">
+          <label class="form-label">Muscles ciblés <span style="font-weight:400;color:var(--dim)">(multi-sélection)</span></label>
+          <div id="muscle-tag-picker" style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+            <!-- généré par JS -->
+          </div>
+          <input type="hidden" id="exo-groupe">
+          <input type="hidden" id="exo-tags">
         </div>
         <div>
           <label class="form-label">URL Vimeo (optionnel)</label>
@@ -1262,6 +1251,38 @@ CREATE POLICY "Allow all anon on seance_exercices"
           <textarea class="form-input" id="exo-consignes" rows="3" placeholder="Visibles par la cliente pendant la séance…"></textarea>
         </div>
         <button class="btn btn-accent" id="btn-save-exo" onclick="saveExercice()" style="margin-top:2px">Ajouter à la bibliothèque</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : VIDÉO EXERCICE COACH ═══════════════ -->
+<div class="modal-overlay" id="modal-coach-video" onclick="if(event.target===this)closeCoachVideo()" style="align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:14px;width:640px;max-width:96vw;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.18);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);">
+      <div id="coach-video-title" style="font-size:14px;font-weight:700;color:var(--text)"></div>
+      <button onclick="closeCoachVideo()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div id="coach-video-zone" style="width:100%;aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : SUPPRIMER CLIENTE ═══════════════ -->
+<div class="modal-overlay" id="modal-delete-client">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-header-title">Supprimer la cliente</div>
+      <button class="modal-close" onclick="document.getElementById('modal-delete-client').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Supprimer <strong id="delete-client-name"></strong> ? Cette action supprime toutes ses séances, métriques et habitudes. Elle est <strong>irréversible</strong>.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-delete-client').classList.remove('open')">Annuler</button>
+        <button class="btn btn-sm" id="btn-confirm-delete-client"
+          onclick="deleteClientConfirmed()"
+          style="background:rgba(220,38,38,0.09);color:var(--danger);border:none;font-weight:600;">Supprimer</button>
       </div>
     </div>
   </div>
@@ -1451,18 +1472,26 @@ async function loadClients() {
     const since    = new Date(c.created_at).toLocaleDateString('fr-FR', { month:'short', year:'numeric' });
     const isNew    = c.is_first_login;
     return `
-      <div class="client-card" onclick='openClientFromDB(${JSON.stringify(c)}, ${i})'>
-        <div class="client-card-top">
-          <div class="client-avatar" style="background:${col.bg};color:${col.text}">${initials}</div>
-          <div>
-            <div class="client-name">${c.prenom}</div>
-            <div class="client-since">Depuis ${since}</div>
+      <div class="client-card">
+        <div onclick='openClientFromDB(${JSON.stringify(c)}, ${i})' style="cursor:pointer">
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:${col.bg};color:${col.text}">${initials}</div>
+            <div>
+              <div class="client-name">${c.prenom}</div>
+              <div class="client-since">Depuis ${since}</div>
+            </div>
           </div>
+          <div class="client-tags">
+            <span class="tag ${isNew ? 'orange' : 'green'}">${isNew ? 'Jamais connectée' : 'Connectée'}</span>
+          </div>
+          <div style="font-size:11px;color:var(--dim);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.email}</div>
         </div>
-        <div class="client-tags">
-          <span class="tag ${isNew ? 'orange' : 'green'}">${isNew ? 'Jamais connectée' : 'Connectée'}</span>
-        </div>
-        <div style="font-size:11px;color:var(--dim);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.email}</div>
+        <button onclick="confirmDeleteClient('${c.id}','${c.prenom}')" title="Supprimer cette cliente"
+          style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;color:var(--dim);transition:color 0.15s,background 0.15s;"
+          onmouseover="this.style.color='var(--danger)';this.style.background='rgba(220,38,38,0.07)'"
+          onmouseout="this.style.color='var(--dim)';this.style.background='none'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
       </div>`;
   }).join('');
 }
@@ -1476,7 +1505,6 @@ function openClientFromDB(client, colorIdx) {
 
   document.getElementById('detail-name').textContent = client.prenom;
   document.getElementById('detail-meta').textContent = client.email + ' · Depuis ' + since;
-  document.getElementById('comment-client-name').textContent = client.prenom;
 
   const av = document.getElementById('detail-avatar');
   av.textContent   = initials;
@@ -1495,7 +1523,94 @@ function openClientFromDB(client, colorIdx) {
   loadSeances(client.id);
   loadClientMetrics(client.id);
   loadClientHabits(client.id);
+  loadComments(client.id);
   drawCoachPerfs();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMMENTAIRES
+// ═══════════════════════════════════════════════════════════
+async function loadComments(clientId) {
+  const loading = document.getElementById('comments-loading');
+  const list    = document.getElementById('comments-list');
+  loading.style.display = 'block';
+  list.style.display    = 'none';
+  list.innerHTML        = '';
+
+  // 1. Commentaires training : notes sur les seance_exercices
+  const { data: seances } = await db.from('seances').select('id, date, titre').eq('client_id', clientId);
+  const trainingComments = [];
+  if (seances && seances.length) {
+    const seanceIds  = seances.map(s => s.id);
+    const dateMap    = {}; seances.forEach(s => { dateMap[s.id] = { date: s.date, titre: s.titre }; });
+    const { data: exoRows } = await db.from('seance_exercices')
+      .select('nom_exo, notes, seance_id').in('seance_id', seanceIds).not('notes', 'is', null).neq('notes', '');
+    (exoRows || []).forEach(r => {
+      trainingComments.push({
+        auteur:    'client',
+        categorie: 'Training',
+        reference: r.nom_exo || 'Exercice',
+        contenu:   r.notes,
+        date:      dateMap[r.seance_id]?.date || '',
+      });
+    });
+  }
+
+  // 2. Commentaires coach/client depuis table commentaires (si elle existe)
+  const { data: commentRows } = await db.from('commentaires')
+    .select('*').eq('client_id', clientId).order('date', { ascending: false });
+  const allComments = [
+    ...(commentRows || []).map(c => ({ auteur: c.auteur, categorie: c.categorie, reference: c.reference_nom, contenu: c.contenu, date: c.date })),
+    ...trainingComments,
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  loading.style.display = 'none';
+  list.style.display    = 'flex';
+
+  if (!allComments.length) {
+    list.innerHTML = `<div style="padding:20px 0;color:var(--muted);font-size:13px;text-align:center">Aucun commentaire pour le moment.</div>`;
+    return;
+  }
+
+  const CAT_COLORS = { Training: '#6D28D9', Métrique: '#0891B2', Habitude: '#16A34A', Coach: '#6D28D9' };
+  list.innerHTML = allComments.map(c => {
+    const isCoach  = c.auteur === 'coach';
+    const catColor = CAT_COLORS[c.categorie] || '#6B7280';
+    const dateStr  = c.date ? new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : '';
+    return `
+    <div class="comment-card ${isCoach ? 'coach' : 'client'}">
+      <div class="comment-meta">
+        <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Kevin (coach)' : currentClientData?.prenom || 'Cliente'}</span>
+        ${c.categorie ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:${catColor}1a;color:${catColor};font-weight:600">${c.categorie}</span>` : ''}
+        ${c.reference ? `<span class="comment-exo">${c.reference}</span>` : ''}
+        ${dateStr ? `<span class="comment-date">${dateStr}</span>` : ''}
+      </div>
+      <div class="comment-body">${c.contenu}</div>
+    </div>`;
+  }).join('');
+}
+
+async function sendCoachComment() {
+  const input   = document.getElementById('coach-comment-input');
+  const contenu = input.value.trim();
+  if (!contenu || !currentClientId) return;
+
+  const { error } = await db.from('commentaires').insert({
+    client_id: currentClientId,
+    auteur:    'coach',
+    categorie: 'Coach',
+    reference_nom: null,
+    contenu,
+    date:      new Date().toISOString().split('T')[0],
+  });
+  if (error) {
+    // Table n'existe peut-être pas encore — afficher le SQL
+    toast('Crée la table commentaires d\'abord (voir SQL ci-dessous)');
+    return;
+  }
+  input.value = '';
+  toast('Commentaire envoyé ✓');
+  await loadComments(currentClientId);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1793,20 +1908,57 @@ async function saveSeance() {
 // ═══════════════════════════════════════════════════════════
 //  EXERCICES
 // ═══════════════════════════════════════════════════════════
+const MUSCLE_TAGS = [
+  'Grands dorsal','Rhomboïde - trapèze moyen',
+  'Deltoïde postérieur','Deltoïde antérieur','Deltoïde moyen',
+  'Biceps','Triceps','Pec',
+  'Quad','Ischio','Fessiers','Core','Mollet'
+];
+
+function buildMusclePicker(selectedTags = []) {
+  const picker = document.getElementById('muscle-tag-picker');
+  if (!picker) return;
+  picker.innerHTML = MUSCLE_TAGS.map(m => {
+    const active = selectedTags.includes(m);
+    return `<button type="button"
+      class="muscle-tag-btn${active ? ' active' : ''}"
+      onclick="toggleMuscleTag(this,'${m}')"
+      style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid var(--border-md);
+             cursor:pointer;background:${active?'var(--accent)':'var(--surface)'};
+             color:${active?'#fff':'var(--text-muted)'};transition:0.15s;">${m}</button>`;
+  }).join('');
+  syncMuscleHiddenInputs();
+}
+
+function toggleMuscleTag(btn, tag) {
+  btn.classList.toggle('active');
+  const isActive = btn.classList.contains('active');
+  btn.style.background = isActive ? 'var(--accent)' : 'var(--surface)';
+  btn.style.color      = isActive ? '#fff' : 'var(--text-muted)';
+  syncMuscleHiddenInputs();
+}
+
+function syncMuscleHiddenInputs() {
+  const active = [...document.querySelectorAll('.muscle-tag-btn.active')].map(b => b.textContent.trim());
+  document.getElementById('exo-groupe').value = active[0] || '';      // premier tag = groupe principal
+  document.getElementById('exo-tags').value   = active.join(', ');   // tous les tags
+}
+
 function openAddExo() {
-  ['exo-nom','exo-video','exo-tags','exo-consignes'].forEach(id => {
+  ['exo-nom','exo-video','exo-consignes'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  buildMusclePicker([]);
   document.getElementById('modal-exo').classList.add('open');
 }
 
 async function saveExercice() {
-  const nom              = document.getElementById('exo-nom').value.trim();
-  const url_video        = document.getElementById('exo-video').value.trim();
-  const groupe_musculaire= document.getElementById('exo-groupe').value;
-  const tags             = document.getElementById('exo-tags').value.trim();
-  const consignes        = document.getElementById('exo-consignes').value.trim();
+  const nom               = document.getElementById('exo-nom').value.trim();
+  const url_video         = document.getElementById('exo-video').value.trim();
+  const groupe_musculaire = document.getElementById('exo-groupe').value;
+  const tags              = document.getElementById('exo-tags').value.trim();
+  const consignes         = document.getElementById('exo-consignes').value.trim();
 
   if (!nom) { alert('Le nom de l\'exercice est obligatoire.'); return; }
 
@@ -1843,27 +1995,70 @@ function filtrerExos(groupe, btn) {
   renderExoGrid(groupe);
 }
 
+function toEmbedUrlCoach(url) {
+  if (!url) return null;
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+  if (yt) return 'https://www.youtube.com/embed/' + yt[1] + '?rel=0&modestbranding=1';
+  if (url.includes('youtube.com/embed/')) return url;
+  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+  if (vimeo) {
+    const base = 'https://player.vimeo.com/video/' + vimeo[1] + '?badge=0&autopause=0';
+    return vimeo[2] ? base + '&h=' + vimeo[2] : base;
+  }
+  if (url.includes('player.vimeo.com/video/')) return url;
+  return null;
+}
+
+function openExoVideo(nom, url) {
+  const embedUrl = toEmbedUrlCoach(url);
+  const zone     = document.getElementById('coach-video-zone');
+  document.getElementById('coach-video-title').textContent = nom;
+  if (embedUrl) {
+    zone.innerHTML = `<iframe src="${embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" style="border-radius:8px;"></iframe>`;
+  } else {
+    zone.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px;">Ouvrir la vidéo ↗</a>`;
+  }
+  document.getElementById('modal-coach-video').classList.add('open');
+}
+
+function closeCoachVideo() {
+  document.getElementById('modal-coach-video').classList.remove('open');
+  document.getElementById('coach-video-zone').innerHTML = '';
+}
+
 function renderExoGrid(groupe) {
-  const grid     = document.getElementById('exo-grid');
+  const grid = document.getElementById('exo-grid');
+  // Filtre : "Tous" → tout, sinon cherche dans tags (multi) ET groupe_musculaire
   const filtered = groupe === 'Tous'
     ? allExercices
-    : allExercices.filter(e => e.groupe_musculaire === groupe);
-  const hasVideo = url => url && url.includes('vimeo');
+    : allExercices.filter(e => {
+        const allTags = [e.groupe_musculaire, ...(e.tags ? e.tags.split(',').map(t => t.trim()) : [])];
+        return allTags.some(t => t === groupe);
+      });
+  const hasVideo = url => url && (url.includes('vimeo') || url.includes('youtube') || url.includes('youtu.be'));
 
   const cardsHTML = filtered.map(e => {
-    const tags = e.tags
-      ? e.tags.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('')
+    const tagList = e.tags
+      ? e.tags.split(',').map(t => `<span class="tag" style="font-size:9px;padding:1px 6px">${t.trim()}</span>`).join('')
+      : '';
+    const videoBtn = hasVideo(e.url_video)
+      ? `<button onclick="event.stopPropagation();openExoVideo('${e.nom.replace(/'/g,"\\'")}','${e.url_video}')"
+           style="position:absolute;top:6px;right:6px;background:rgba(109,40,217,0.12);border:none;border-radius:6px;padding:4px 6px;cursor:pointer;display:flex;align-items:center;gap:3px;color:var(--accent)">
+           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+           <span style="font-size:9px;font-weight:700">Vidéo</span>
+         </button>`
       : '';
     return `
-      <div class="exo-lib-card">
-        <div class="exo-lib-thumb">
+      <div class="exo-lib-card" style="position:relative;">
+        ${videoBtn}
+        <div class="exo-lib-thumb" style="${hasVideo(e.url_video)?'cursor:pointer':''}" ${hasVideo(e.url_video)?`onclick="openExoVideo('${e.nom.replace(/'/g,"\\'")}','${e.url_video}')"`:''}">
           ${hasVideo(e.url_video)
             ? '<div class="exo-lib-play"></div>'
-            : '<div style="font-size:20px;color:var(--dim)">🏋️</div>'}
+            : '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 12h18"/></svg>'}
         </div>
         <div class="exo-lib-name">${e.nom}</div>
-        <div class="exo-lib-meta">${e.groupe_musculaire}${hasVideo(e.url_video) ? ' · Vimeo' : ''}</div>
-        <div class="exo-lib-tags">${tags}</div>
+        <div class="exo-lib-meta">${e.groupe_musculaire || '—'}</div>
+        <div class="exo-lib-tags">${tagList}</div>
       </div>`;
   }).join('');
 
@@ -1881,6 +2076,31 @@ function renderExoGrid(groupe) {
     : '';
 
   grid.innerHTML = emptyMsg + cardsHTML + addCard;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SUPPRESSION CLIENTE
+// ═══════════════════════════════════════════════════════════
+function confirmDeleteClient(clientId, prenom) {
+  const modal = document.getElementById('modal-delete-client');
+  document.getElementById('delete-client-name').textContent = prenom;
+  modal.dataset.clientId = clientId;
+  modal.classList.add('open');
+}
+
+async function deleteClientConfirmed() {
+  const modal    = document.getElementById('modal-delete-client');
+  const clientId = modal.dataset.clientId;
+  const btn      = document.getElementById('btn-confirm-delete-client');
+  btn.disabled   = true; btn.textContent = 'Suppression…';
+
+  const { error } = await db.from('clients').delete().eq('id', clientId);
+  if (error) { alert('Erreur : ' + error.message); btn.disabled = false; btn.textContent = 'Supprimer'; return; }
+
+  modal.classList.remove('open');
+  btn.disabled = false; btn.textContent = 'Supprimer';
+  toast('Cliente supprimée');
+  await loadClients();
 }
 
 // ═══════════════════════════════════════════════════════════
