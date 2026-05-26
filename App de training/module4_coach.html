@@ -1227,7 +1227,7 @@ CREATE POLICY "Allow all anon on seance_exercices"
 <div class="modal-overlay" id="modal-exo">
   <div class="modal-box">
     <div class="modal-header">
-      <div class="modal-header-title">Nouvel exercice</div>
+      <div class="modal-header-title" id="modal-exo-title">Nouvel exercice</div>
       <button class="modal-close" onclick="document.getElementById('modal-exo').classList.remove('open')">×</button>
     </div>
     <div class="modal-body">
@@ -1973,12 +1973,30 @@ function syncMuscleHiddenInputs() {
   document.getElementById('exo-tags').value   = active.join(', ');   // tous les tags
 }
 
+let editingExoId = null; // null = création, sinon = ID de l'exercice en édition
+
 function openAddExo() {
+  editingExoId = null;
   ['exo-nom','exo-video','exo-consignes'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   buildMusclePicker([]);
+  document.getElementById('modal-exo-title').textContent = 'Nouvel exercice';
+  document.getElementById('btn-save-exo').textContent = 'Ajouter à la bibliothèque';
+  document.getElementById('modal-exo').classList.add('open');
+}
+
+function openEditExo(exo) {
+  editingExoId = exo.id;
+  document.getElementById('exo-nom').value       = exo.nom || '';
+  document.getElementById('exo-video').value     = exo.url_video || '';
+  document.getElementById('exo-consignes').value = exo.consignes || '';
+  // Repeupler les tags muscles
+  const activeTags = exo.tags ? exo.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+  buildMusclePicker(activeTags);
+  document.getElementById('modal-exo-title').textContent = 'Modifier — ' + exo.nom;
+  document.getElementById('btn-save-exo').textContent = 'Enregistrer les modifications';
   document.getElementById('modal-exo').classList.add('open');
 }
 
@@ -1995,15 +2013,26 @@ async function saveExercice() {
   btn.disabled = true; btn.textContent = 'Enregistrement…';
 
   try {
-    const { error } = await db.from('exercices').insert({ nom, groupe_musculaire, tags, url_video, consignes });
+    let error;
+    if (editingExoId) {
+      // Mode édition — UPDATE
+      ({ error } = await db.from('exercices')
+        .update({ nom, groupe_musculaire, tags, url_video: url_video || null, consignes: consignes || null })
+        .eq('id', editingExoId));
+    } else {
+      // Mode création — INSERT
+      ({ error } = await db.from('exercices')
+        .insert({ nom, groupe_musculaire, tags, url_video: url_video || null, consignes: consignes || null }));
+    }
     if (error) { alert('Erreur Supabase : ' + error.message); return; }
     document.getElementById('modal-exo').classList.remove('open');
-    toast('Exercice ajouté ✓');
+    toast(editingExoId ? 'Exercice modifié ✓' : 'Exercice ajouté ✓');
     await loadExercices();
   } catch(e) {
     alert('Erreur : ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Ajouter à la bibliothèque';
+    btn.disabled = false;
+    btn.textContent = editingExoId ? 'Enregistrer les modifications' : 'Ajouter à la bibliothèque';
   }
 }
 
@@ -2089,8 +2118,13 @@ function renderExoGrid(groupe) {
         <div class="exo-lib-tags">${tagList}</div>
         <div style="display:flex;gap:5px;margin-top:8px;align-items:center;">
           ${videoBtn}
-          <button onclick="event.stopPropagation();deleteExoLib('${e.id}','${safeNom}')"
+          <button onclick="event.stopPropagation();openEditExo(${JSON.stringify(e).replace(/"/g,'&quot;')})"
             style="margin-left:auto;background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:5px;color:var(--dim);display:inline-flex;align-items:center;"
+            title="Modifier" onmouseover="this.style.color='var(--accent)';this.style.background='var(--accent-bg)'" onmouseout="this.style.color='var(--dim)';this.style.background='none'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button onclick="event.stopPropagation();deleteExoLib('${e.id}','${safeNom}')"
+            style="background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:5px;color:var(--dim);display:inline-flex;align-items:center;"
             title="Supprimer" onmouseover="this.style.color='var(--danger)';this.style.background='rgba(220,38,38,0.07)'" onmouseout="this.style.color='var(--dim)';this.style.background='none'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           </button>
@@ -2464,11 +2498,27 @@ async function loadBiblioHabits() {
   if (!list) return;
   list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Chargement…</div>';
 
-  const { data, error } = await db.from('habitudes').select('id, nom, type').order('nom', { ascending: true });
+  let { data, error } = await db.from('habitudes').select('id, nom, type').order('nom', { ascending: true });
 
   if (error) {
-    list.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px;">Erreur : ${error.message}</div>`;
-    return;
+    // Si problème de cache Supabase (colonne inconnue), on essaie sans ORDER
+    if (error.message && (error.message.includes('schema cache') || error.message.includes('column'))) {
+      const { data: d2, error: e2 } = await db.from('habitudes').select('id, nom, type');
+      if (!e2 && d2) {
+        data = d2.sort((a, b) => a.nom.localeCompare(b.nom));
+      } else {
+        list.innerHTML = `<div style="padding:16px;background:#fef9c3;border-radius:8px;border:1px solid #fde68a;font-size:12px;color:#92400e;">
+          ⚠️ Cache Supabase pas encore rafraîchi.<br><br>
+          Va dans <b>Supabase → Project Settings → API</b> et clique<br>
+          <b>"Reload schema cache"</b>, puis reviens ici.<br><br>
+          Erreur : ${e2?.message || error.message}
+        </div>`;
+        return;
+      }
+    } else {
+      list.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px;">Erreur : ${error.message}</div>`;
+      return;
+    }
   }
   if (!data || data.length === 0) {
     list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Aucune habitude dans la bibliothèque.<br>Clique sur "+ Créer" pour en ajouter une.</div>';
