@@ -865,26 +865,44 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     exoCards.forEach(card => {
       const exoId = card.dataset.exoId;
       if (!exoId) return;
+      const isUni = card.dataset.unilateral === 'true';
 
-      // Max charge saisie dans les inputs de la colonne charge (3e input de chaque série-row)
-      const chargeInputs = card.querySelectorAll('.series-row input[type="number"]:last-child');
-      const charges = [...chargeInputs].map(i => parseFloat(i.value)).filter(v => !isNaN(v) && v > 0);
-      const chargeReelle = charges.length ? Math.max(...charges) : null;
+      // Collecter les données par série
+      const seriesRows = card.querySelectorAll('.series-row');
+      const seriesData = [];
+      seriesRows.forEach((row, idx) => {
+        const inputs = row.querySelectorAll('input[type="number"]');
+        if (isUni) {
+          // Uni : [prescribed, side-g, side-d, charge]
+          const sideG  = parseFloat(inputs[1]?.value) || null;
+          const sideD  = parseFloat(inputs[2]?.value) || null;
+          const charge = parseFloat(inputs[3]?.value) || null;
+          seriesData.push({ serie: idx + 1, reps_g: sideG, reps_d: sideD, charge });
+        } else {
+          // Bi : [prescribed, reps-realisees, charge]
+          const reps   = parseFloat(inputs[1]?.value) || null;
+          const charge = parseFloat(inputs[2]?.value) || null;
+          seriesData.push({ serie: idx + 1, reps, charge });
+        }
+      });
 
-      // Reps max saisies (2e input de chaque série-row = "Réalisées")
-      const repsInputs = card.querySelectorAll('.series-row input[type="number"]:nth-child(3)');
-      const reps = [...repsInputs].map(i => parseFloat(i.value)).filter(v => !isNaN(v) && v > 0);
-      const repsReelles = reps.length ? Math.max(...reps) : null;
+      // Valeurs résumées (max) pour compatibilité ascendante
+      const allCharges = seriesData.map(s => s.charge).filter(v => v && v > 0);
+      const allReps    = seriesData.map(s => s.reps || s.reps_g || s.reps_d).filter(v => v && v > 0);
+      const chargeReelle = allCharges.length ? Math.max(...allCharges) : null;
+      const repsReelles  = allReps.length    ? Math.max(...allReps)    : null;
 
       // Commentaire client
       const commentInput = card.querySelector('.exo-comment-input');
       const notesClient = commentInput?.value?.trim() || null;
 
-      if (chargeReelle !== null || repsReelles !== null || notesClient) {
+      const hasData = seriesData.some(s => s.charge || s.reps || s.reps_g || s.reps_d);
+      if (hasData || notesClient) {
         const update = {};
         if (chargeReelle !== null) update.charge_reelle = chargeReelle;
         if (repsReelles  !== null) update.reps_reelles  = repsReelles;
         if (notesClient)           update.notes_client  = notesClient;
+        if (hasData)               update.series_data   = seriesData;
         savePromises.push(
           db.from('seance_exercices').update(update).eq('id', exoId)
         );

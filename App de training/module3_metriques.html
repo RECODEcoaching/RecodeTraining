@@ -1143,15 +1143,17 @@ function toggleSpotting() {
   spottingValue = !spottingValue;
   const btn = document.getElementById('spotting-toggle');
   if (spottingValue) {
-    btn.textContent = 'Oui';
+    btn.innerHTML = '✓ Oui';
     btn.style.borderColor = '#f97316';
-    btn.style.background  = 'rgba(249,115,22,0.08)';
-    btn.style.color       = '#f97316';
+    btn.style.background  = '#f97316';
+    btn.style.color       = '#fff';
+    btn.style.fontWeight  = '700';
   } else {
-    btn.textContent = 'Non';
+    btn.innerHTML = 'Non';
     btn.style.borderColor = 'var(--border)';
     btn.style.background  = 'var(--surface2)';
     btn.style.color       = 'var(--text-muted)';
+    btn.style.fontWeight  = '600';
   }
 }
 

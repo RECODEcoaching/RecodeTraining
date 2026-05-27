@@ -1552,16 +1552,20 @@ async function loadComments(clientId) {
   if (seances && seances.length) {
     const seanceIds  = seances.map(s => s.id);
     const dateMap    = {}; seances.forEach(s => { dateMap[s.id] = { date: s.date, titre: s.titre }; });
+    // Notes coach sur les exercices
     const { data: exoRows } = await db.from('seance_exercices')
-      .select('nom_exo, notes, seance_id').in('seance_id', seanceIds).not('notes', 'is', null).neq('notes', '');
+      .select('nom_exo, notes, notes_client, seance_id').in('seance_id', seanceIds);
     (exoRows || []).forEach(r => {
-      trainingComments.push({
-        auteur:    'client',
-        categorie: 'Training',
-        reference: r.nom_exo || 'Exercice',
-        contenu:   r.notes,
-        date:      dateMap[r.seance_id]?.date || '',
-      });
+      // Commentaire de la cliente sur son exercice
+      if (r.notes_client && r.notes_client.trim()) {
+        trainingComments.push({
+          auteur:    'client',
+          categorie: 'Training',
+          reference: r.nom_exo || 'Exercice',
+          contenu:   r.notes_client,
+          date:      dateMap[r.seance_id]?.date || '',
+        });
+      }
     });
   }
 
@@ -1721,7 +1725,7 @@ async function loadSeanceExercices(seanceId) {
   const container = document.getElementById('exo-list-' + seanceId);
   container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
 
-  const COLS_FULL = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
+  const COLS_FULL = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
   const COLS_BASE = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
 
   let { data, error } = await db
@@ -1760,14 +1764,37 @@ async function loadSeanceExercices(seanceId) {
     if (e.unilateral) planned += ' · Uni';
 
     // Réalisé (si la cliente a saisi)
-    const hasRealisé = e.charge_reelle || e.reps_reelles || e.notes_client;
-    const realiséHtml = hasRealisé ? `
-      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    const seriesArr = Array.isArray(e.series_data) ? e.series_data : (e.series_data ? JSON.parse(e.series_data) : null);
+    let realiséHtml = '';
+    if (seriesArr && seriesArr.length) {
+      const rows = seriesArr.map(s => {
+        const isUni = s.reps_g !== undefined;
+        if (isUni) {
+          return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
+            <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
+            ${s.reps_g || s.reps_d ? `<span style="color:var(--success);">G:${s.reps_g||'—'} D:${s.reps_d||'—'}</span>` : ''}
+            ${s.charge ? `<span style="font-weight:700;color:var(--success);">${s.charge} kg</span>` : ''}
+          </div>`;
+        }
+        return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
+          <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
+          ${s.reps   ? `<span style="color:var(--success);">${s.reps} reps</span>` : ''}
+          ${s.charge ? `<span style="font-weight:700;color:var(--success);">${s.charge} kg</span>` : ''}
+        </div>`;
+      }).join('');
+      realiséHtml = `<div style="margin-top:5px;background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.15);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;">
+        <span style="font-size:9px;font-weight:700;color:var(--success);letter-spacing:0.05em;margin-bottom:2px;">RÉALISÉ</span>
+        ${rows}
+        ${e.notes_client ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;border-top:1px solid rgba(22,163,74,0.15);padding-top:3px;">${e.notes_client}</div>` : ''}
+      </div>`;
+    } else if (e.charge_reelle || e.reps_reelles || e.notes_client) {
+      realiséHtml = `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--success);background:rgba(22,163,74,0.08);border-radius:20px;padding:1px 7px">Réalisé</span>
         ${e.charge_reelle ? `<span style="font-size:11px;font-weight:700;color:var(--success)">${e.charge_reelle} kg</span>` : ''}
         ${e.reps_reelles  ? `<span style="font-size:11px;color:var(--success)">${e.reps_reelles} reps</span>` : ''}
         ${e.notes_client  ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${e.notes_client}</span>` : ''}
-      </div>` : '';
+      </div>`;
+    }
 
     return `
       <div class="seance-exo-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
