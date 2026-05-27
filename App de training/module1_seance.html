@@ -729,14 +729,18 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
            </div>`
         : '';
+      const sdArrUni = (() => { try { return Array.isArray(exo.series_data) ? exo.series_data : (exo.series_data ? JSON.parse(exo.series_data) : null); } catch(e) { return null; } })();
       let rows = '';
       for (let i = 1; i <= (exo.series || 3); i++) {
-        const chargeVal = (isDone && exo.charge_reelle) ? exo.charge_reelle : '';
+        const sd = sdArrUni ? (sdArrUni[i-1] || {}) : null;
+        const chargeVal = isDone ? (sd?.charge ?? exo.charge_reelle ?? '') : '';
+        const sideGVal  = isDone ? (sd?.reps_g ?? '') : '';
+        const sideDVal  = isDone ? (sd?.reps_d ?? '') : '';
         rows += `<div class="series-row uni">
           <div class="serie-num">${i}</div>
           <input class="serie-input prescribed" value="${exo.reps}" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" ${isDone?'readonly':''} oninput="checkSide(this)">
-          <input class="serie-input side-d" type="number" placeholder="—" ${isDone?'readonly':''} oninput="checkSide(this)">
+          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" ${isDone?'readonly':''} oninput="checkSide(this)">
+          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" ${isDone?'readonly':''} oninput="checkSide(this)">
           <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" ${isDone?'readonly':''} oninput="checkSide(this)">
         </div>`;
       }
@@ -774,10 +778,12 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
          </div>`
       : '';
 
+    const sdArr = (() => { try { return Array.isArray(exo.series_data) ? exo.series_data : (exo.series_data ? JSON.parse(exo.series_data) : null); } catch(e) { return null; } })();
     let rows = '';
     for (let i = 1; i <= (exo.series || 3); i++) {
-      const repsVal   = (isDone && exo.reps_reelles)  ? exo.reps_reelles  : '';
-      const chargeVal = (isDone && exo.charge_reelle) ? exo.charge_reelle : '';
+      const sd = sdArr ? (sdArr[i-1] || {}) : null;
+      const repsVal   = isDone ? (sd?.reps   ?? exo.reps_reelles  ?? '') : '';
+      const chargeVal = isDone ? (sd?.charge ?? exo.charge_reelle ?? '') : '';
       rows += `<div class="series-row">
         <div class="serie-num">${i}</div>
         <input class="serie-input prescribed" value="${exo.reps}" readonly>
@@ -868,20 +874,21 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       const isUni = card.dataset.unilateral === 'true';
 
       // Collecter les données par série
+      // Note: le champ "prescrit" n'a pas type="number", donc input[type="number"] donne :
+      //   Bi  : [0]=reps réalisées, [1]=charge
+      //   Uni : [0]=côté G,         [1]=côté D,  [2]=charge
       const seriesRows = card.querySelectorAll('.series-row');
       const seriesData = [];
       seriesRows.forEach((row, idx) => {
         const inputs = row.querySelectorAll('input[type="number"]');
         if (isUni) {
-          // Uni : [prescribed, side-g, side-d, charge]
-          const sideG  = parseFloat(inputs[1]?.value) || null;
-          const sideD  = parseFloat(inputs[2]?.value) || null;
-          const charge = parseFloat(inputs[3]?.value) || null;
+          const sideG  = parseFloat(inputs[0]?.value) || null;
+          const sideD  = parseFloat(inputs[1]?.value) || null;
+          const charge = parseFloat(inputs[2]?.value) || null;
           seriesData.push({ serie: idx + 1, reps_g: sideG, reps_d: sideD, charge });
         } else {
-          // Bi : [prescribed, reps-realisees, charge]
-          const reps   = parseFloat(inputs[1]?.value) || null;
-          const charge = parseFloat(inputs[2]?.value) || null;
+          const reps   = parseFloat(inputs[0]?.value) || null;
+          const charge = parseFloat(inputs[1]?.value) || null;
           seriesData.push({ serie: idx + 1, reps, charge });
         }
       });
@@ -897,19 +904,28 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       const notesClient = commentInput?.value?.trim() || null;
 
       const hasData = seriesData.some(s => s.charge || s.reps || s.reps_g || s.reps_d);
-      if (hasData || notesClient) {
-        const update = {};
-        if (chargeReelle !== null) update.charge_reelle = chargeReelle;
-        if (repsReelles  !== null) update.reps_reelles  = repsReelles;
-        if (notesClient)           update.notes_client  = notesClient;
-        if (hasData)               update.series_data   = seriesData;
+
+      // Update 1 : colonnes stables (charge_reelle, reps_reelles, notes_client)
+      // Séparé de series_data pour éviter qu'un échec de l'un bloque l'autre
+      const baseUpdate = {};
+      if (chargeReelle !== null) baseUpdate.charge_reelle = chargeReelle;
+      if (repsReelles  !== null) baseUpdate.reps_reelles  = repsReelles;
+      if (notesClient)           baseUpdate.notes_client  = notesClient;
+      if (Object.keys(baseUpdate).length > 0) {
         savePromises.push(
-          db.from('seance_exercices').update(update).eq('id', exoId)
+          db.from('seance_exercices').update(baseUpdate).eq('id', exoId)
+        );
+      }
+
+      // Update 2 : series_data (peut échouer si la colonne n'existe pas encore)
+      if (hasData) {
+        savePromises.push(
+          db.from('seance_exercices').update({ series_data: seriesData }).eq('id', exoId)
         );
       }
     });
 
-    // Sauvegarder en parallèle (on ignore les erreurs de colonne manquante)
+    // Sauvegarder en parallèle (Promise.allSettled ignore les erreurs individuelles)
     await Promise.allSettled(savePromises);
 
     // 2. Valider la séance
