@@ -1725,20 +1725,21 @@ async function loadSeanceExercices(seanceId) {
   const container = document.getElementById('exo-list-' + seanceId);
   container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
 
-  const COLS_FULL = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
-  const COLS_BASE = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
+  // Fallback à 3 niveaux : on essaie du plus complet au plus basique
+  const COLS_V3 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
+  const COLS_V2 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
+  const COLS_V1 = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
 
-  let { data, error } = await db
-    .from('seance_exercices').select(COLS_FULL)
-    .eq('seance_id', seanceId)
-    .order('ordre', { ascending: true });
+  let { data, error } = await db.from('seance_exercices').select(COLS_V3)
+    .eq('seance_id', seanceId).order('ordre', { ascending: true });
 
-  // Si colonnes récentes absentes du cache schema → fallback colonnes de base
   if (error) {
-    ({ data, error } = await db
-      .from('seance_exercices').select(COLS_BASE)
-      .eq('seance_id', seanceId)
-      .order('ordre', { ascending: true }));
+    ({ data, error } = await db.from('seance_exercices').select(COLS_V2)
+      .eq('seance_id', seanceId).order('ordre', { ascending: true }));
+  }
+  if (error) {
+    ({ data, error } = await db.from('seance_exercices').select(COLS_V1)
+      .eq('seance_id', seanceId).order('ordre', { ascending: true }));
   }
 
   if (error) {
