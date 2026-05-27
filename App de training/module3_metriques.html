@@ -497,6 +497,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       </div>
     </div>
 
+    <div class="cycle-field">
+      <div class="cycle-field-label">Saignement</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="saignement-btn" data-val="aucun"   onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Aucun</button>
+        <button class="saignement-btn" data-val="léger"   onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Léger</button>
+        <button class="saignement-btn" data-val="modéré"  onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Modéré</button>
+        <button class="saignement-btn" data-val="abondant" onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Abondant</button>
+      </div>
+    </div>
+
     <button class="cycle-save-btn" onclick="saveDailyLog()">Enregistrer la saisie</button>
   </div>
 
@@ -861,11 +871,56 @@ function drawCycleRing(currentDay, avgLen) {
 }
 
 // ─── CYCLE STATS ──────────────────────────────────────────────
-const pastCycles = [
-  new Date('2026-01-14'), new Date('2026-02-10'),
-  new Date('2026-03-10'), new Date('2026-04-15'),
-  new Date('2026-05-14'),
-];
+let pastCycles = []; // chargé depuis Supabase
+let selectedGlaireValue = null;
+
+async function loadCycleData() {
+  if (!SESSION) return;
+
+  // 1. Charger les dates de début de cycle
+  const { data: logs } = await db.from('cycle_logs')
+    .select('date_debut').eq('client_id', SESSION.client_id)
+    .order('date_debut', { ascending: true });
+
+  pastCycles = (logs || []).map(l => new Date(l.date_debut + 'T12:00:00'));
+
+  const avg = updateCycleStats();
+  const today = new Date();
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  const dayOfCycle = lastCycle ? Math.round((today - lastCycle) / 86400000) + 1 : null;
+  drawCycleRing(dayOfCycle || 1, avg);
+
+  // 2. Afficher/masquer les insights selon le nombre de cycles
+  const insightsList = document.querySelector('.insights-list');
+  if (insightsList) {
+    if (pastCycles.length < 3) {
+      insightsList.innerHTML = `<div style="text-align:center;padding:24px 16px;color:var(--text-muted);font-size:13px;line-height:1.6;">
+        📊 Les insights apparaîtront après l'enregistrement d'au moins 3 cycles.<br>
+        <span style="font-size:11px;color:var(--text-dim);margin-top:6px;display:block;">Actuellement : ${pastCycles.length} cycle(s) enregistré(s)</span>
+      </div>`;
+    }
+  }
+
+  // 3. Charger la saisie du jour
+  const todayStr = today.toISOString().split('T')[0];
+  const { data: dayLog } = await db.from('cycle_daily_log')
+    .select('*').eq('client_id', SESSION.client_id).eq('date', todayStr).single();
+
+  if (dayLog) {
+    if (dayLog.temperature) document.getElementById('temp-input').value = dayLog.temperature;
+    if (dayLog.glaire) {
+      selectedGlaireValue = dayLog.glaire;
+      document.querySelectorAll('.glaire-card').forEach(c => {
+        c.classList.toggle('selected', c.getAttribute('onclick')?.includes(`'${dayLog.glaire}'`));
+      });
+    }
+    if (dayLog.saignement) {
+      document.querySelectorAll('.saignement-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.val === dayLog.saignement);
+      });
+    }
+  }
+}
 
 function calcAvgCycle(dates) {
   if (dates.length < 2) return null;
@@ -876,11 +931,9 @@ function calcAvgCycle(dates) {
 
 function updateCycleStats() {
   const avg = calcAvgCycle(pastCycles);
-  const recorded = pastCycles.length - 1;
-  if (avg) {
-    document.getElementById('stat-avg-cycle').textContent = avg + 'j';
-    document.getElementById('stat-cycles-recorded').textContent = recorded;
-  }
+  const recorded = pastCycles.length > 1 ? pastCycles.length - 1 : 0;
+  document.getElementById('stat-avg-cycle').textContent = avg ? avg + 'j' : '—';
+  document.getElementById('stat-cycles-recorded').textContent = recorded;
   return avg || 28;
 }
 
@@ -1074,14 +1127,45 @@ function toggleCheck(el) {
   if (ck) ck.textContent = el.classList.contains('done') ? '✓' : el.classList.contains('today') ? '·' : '';
 }
 
+function selectSaignement(btn) {
+  document.querySelectorAll('.saignement-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.style.borderColor = 'var(--border)';
+    b.style.background  = 'var(--surface2)';
+    b.style.color       = 'var(--text-muted)';
+  });
+  btn.classList.add('selected');
+  btn.style.borderColor = 'var(--accent)';
+  btn.style.background  = 'var(--accent-bg)';
+  btn.style.color       = 'var(--accent)';
+}
+
 function selectGlaire(card, type) {
   document.querySelectorAll('.glaire-card').forEach(c => c.classList.remove('selected'));
   card.classList.add('selected');
+  selectedGlaireValue = type;
 }
 
-function saveDailyLog() {
-  const temp = document.getElementById('temp-input').value;
-  toast(`Saisie enregistrée${temp ? ' · ' + temp + '°C' : ''}`);
+async function saveDailyLog() {
+  if (!SESSION) return;
+  const today = new Date().toISOString().split('T')[0];
+  const tempVal = parseFloat(document.getElementById('temp-input').value) || null;
+  const saignementEl = document.querySelector('.saignement-btn.selected');
+  const saignement = saignementEl ? saignementEl.dataset.val : null;
+
+  const payload = {
+    client_id:   SESSION.client_id,
+    date:        today,
+    glaire:      selectedGlaireValue || null,
+    temperature: tempVal,
+    saignement:  saignement,
+  };
+
+  const { error } = await db.from('cycle_daily_log')
+    .upsert(payload, { onConflict: 'client_id,date' });
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Saisie enregistrée ✓');
 }
 
 function openLog(metriqueId, name, unit, lastVal) {
@@ -1146,15 +1230,23 @@ function updateCyclePreview() {
   }
 }
 
-function confirmCycleLog() {
+async function confirmCycleLog() {
   const inp = document.getElementById('cycle-date-input');
-  const newDate = new Date(inp.value);
+  const dateStr = inp.value;
+  const newDate = new Date(dateStr + 'T12:00:00');
   if (isNaN(newDate)) return;
+
+  const { error } = await db.from('cycle_logs').insert({
+    client_id: SESSION.client_id,
+    date_debut: dateStr,
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
   pastCycles.push(newDate);
   const avg = updateCycleStats();
   drawCycleRing(1, avg);
   document.getElementById('modal-cycle').classList.remove('open');
-  toast('Nouveau cycle enregistré · Moyenne : ' + avg + ' jours');
+  toast('Nouveau cycle enregistré · Moyenne : ' + (avg || '—') + ' jours');
 }
 
 function toast(msg) {
@@ -1166,14 +1258,17 @@ function toast(msg) {
 }
 
 window.addEventListener('load', () => {
-  const avg = updateCycleStats();
-  drawCycleRing(8, avg);
   loadMetrics();
   loadHabits();
+  loadCycleData();
 });
 window.addEventListener('resize', () => {
   drawAllMetricCharts();
-  drawCycleRing(8, updateCycleStats());
+  const avg = updateCycleStats();
+  const today = new Date();
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  const dayOfCycle = lastCycle ? Math.round((today - lastCycle) / 86400000) + 1 : 1;
+  drawCycleRing(dayOfCycle, avg);
 });
 </script>
 </body>

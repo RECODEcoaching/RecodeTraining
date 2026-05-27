@@ -866,48 +866,34 @@ async function hashPin(pin) {
 
       <!-- Cycle -->
       <div class="client-tab-content" id="ctab-cycle">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div>
-            <div class="section-title">Résumé du cycle</div>
-            <div style="background:var(--surface);border-radius:var(--r);padding:14px;margin-bottom:9px;border:1px solid var(--border);">
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:11px;">
-                <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;">
-                  <div style="font-size:18px;font-weight:800;color:var(--accent)">27j</div>
-                  <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Durée moy.</div>
-                </div>
-                <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;">
-                  <div style="font-size:18px;font-weight:800;color:var(--cycle-follicular)">J8</div>
-                  <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Jour actuel</div>
-                </div>
-                <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;">
-                  <div style="font-size:18px;font-weight:800;">4</div>
-                  <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Cycles enreg.</div>
-                </div>
-              </div>
-              <div style="background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:var(--rs);padding:10px;">
-                <div style="font-size:10px;font-weight:700;color:var(--cycle-follicular);margin-bottom:3px;">🌱 PHASE FOLLICULAIRE</div>
-                <div style="font-size:13px;font-weight:700;">Jour 8 · encore ~6 jours</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:3px;">Énergie en hausse, bon moment pour pousser l'intensité</div>
-              </div>
+        <div id="cycle-coach-loading" style="padding:24px 0;text-align:center;color:var(--muted);font-size:13px;">Chargement…</div>
+        <div id="cycle-coach-content" style="display:none;">
+          <!-- Résumé -->
+          <div class="section-title">Résumé du cycle</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:12px;">
+            <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;border:1px solid var(--border);">
+              <div id="cc-avg" style="font-size:20px;font-weight:800;color:var(--accent)">—</div>
+              <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Durée moy.</div>
+            </div>
+            <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;border:1px solid var(--border);">
+              <div id="cc-day" style="font-size:20px;font-weight:800;color:var(--cycle-follicular)">—</div>
+              <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Jour actuel</div>
+            </div>
+            <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;border:1px solid var(--border);">
+              <div id="cc-count" style="font-size:20px;font-weight:800;">0</div>
+              <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Cycles enreg.</div>
             </div>
           </div>
-          <div>
-            <div class="section-title">Insights</div>
-            <div style="display:flex;flex-direction:column;gap:7px;">
-              <div style="background:var(--surface);border-radius:var(--r);padding:12px;border:1px solid var(--border);border-left:2px solid var(--cycle-luteal);">
-                <div style="font-size:12px;font-weight:700;margin-bottom:4px;">😴 Sommeil court en phase lutéale</div>
-                <div style="font-size:11px;color:var(--muted);line-height:1.5;">Moy. 6h15 en lutéale vs 7h40 en folliculaire sur 4 cycles.</div>
-              </div>
-              <div style="background:var(--surface);border-radius:var(--r);padding:12px;border:1px solid var(--border);border-left:2px solid var(--cycle-menstrual);">
-                <div style="font-size:12px;font-weight:700;margin-bottom:4px;">⚡ Énergie + stress croisés J1–J2</div>
-                <div style="font-size:11px;color:var(--muted);line-height:1.5;">Score énergie 4/10, stress élevé les deux premiers jours de règles.</div>
-              </div>
-              <div style="background:var(--surface);border-radius:var(--r);padding:12px;border:1px solid var(--border);border-left:2px solid var(--cycle-ovulation);">
-                <div style="font-size:12px;font-weight:700;margin-bottom:4px;">🌡️ Hausse temp. confirmée J14</div>
-                <div style="font-size:11px;color:var(--muted);line-height:1.5;">+0.2°C observé à J14 sur 3 cycles consécutifs.</div>
-              </div>
-            </div>
+          <div id="cc-phase-box" style="display:none;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:var(--rs);padding:10px;margin-bottom:16px;">
+            <div id="cc-phase-label" style="font-size:10px;font-weight:700;color:var(--cycle-follicular);margin-bottom:3px;"></div>
+            <div id="cc-phase-desc" style="font-size:13px;font-weight:700;"></div>
           </div>
+          <div id="cc-no-data" style="display:none;color:var(--muted);font-size:12px;margin-bottom:16px;">Aucun cycle enregistré par la cliente.</div>
+
+          <!-- Journal quotidien -->
+          <div class="section-title">Journal quotidien (30 derniers jours)</div>
+          <div id="cc-daily-empty" style="display:none;color:var(--muted);font-size:12px;padding:8px 0;">Aucune saisie quotidienne.</div>
+          <div id="cc-daily-list" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
       </div>
 
@@ -1266,6 +1252,26 @@ CREATE POLICY "Allow all anon on seance_exercices"
       <button onclick="closeCoachVideo()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);line-height:1">×</button>
     </div>
     <div id="coach-video-zone" style="width:100%;aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : ASSIGNER HABITUDE ═══════════════ -->
+<div class="modal-overlay" id="modal-assign-habit">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-header-title" id="assign-habit-title">Assigner l'habitude</div>
+      <button class="modal-close" onclick="document.getElementById('modal-assign-habit').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Sélectionne la cliente à qui assigner cette habitude :</p>
+      <select class="form-select" id="assign-habit-client" style="width:100%;margin-bottom:14px;">
+        <option value="">— Choisir une cliente —</option>
+      </select>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-assign-habit').classList.remove('open')">Annuler</button>
+        <button class="btn btn-accent btn-sm" onclick="confirmAssignHabit()">Assigner</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2242,7 +2248,98 @@ function switchClientTab(btn, id) {
   document.querySelectorAll('.client-tab-content').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('ctab-' + id).classList.add('active');
-  if (id === 'perfs') drawCoachPerfs();
+  if (id === 'perfs')  drawCoachPerfs();
+  if (id === 'cycle')  loadClientCycleData();
+}
+
+// ─── CYCLE : vue coach ─────────────────────────────────────────
+async function loadClientCycleData() {
+  if (!currentClientId) return;
+  document.getElementById('cycle-coach-loading').style.display = 'block';
+  document.getElementById('cycle-coach-content').style.display  = 'none';
+
+  // 1. Charger les débuts de cycle
+  const { data: logs } = await db.from('cycle_logs')
+    .select('date_debut')
+    .eq('client_id', currentClientId)
+    .order('date_debut', { ascending: true });
+
+  const cycles = (logs || []).map(l => new Date(l.date_debut + 'T12:00:00'));
+
+  // Calcul durée moyenne
+  let avgLen = null;
+  if (cycles.length >= 2) {
+    let total = 0;
+    for (let i = 1; i < cycles.length; i++) total += Math.round((cycles[i] - cycles[i-1]) / 86400000);
+    avgLen = Math.round(total / (cycles.length - 1));
+  }
+
+  // Jour actuel dans le cycle
+  const today   = new Date();
+  const lastCyc = cycles.length ? cycles[cycles.length - 1] : null;
+  const dayOfCyc = lastCyc ? Math.round((today - lastCyc) / 86400000) + 1 : null;
+
+  // Afficher résumé
+  document.getElementById('cc-avg').textContent   = avgLen   ? avgLen + 'j'  : '—';
+  document.getElementById('cc-day').textContent   = dayOfCyc ? 'J' + dayOfCyc : '—';
+  document.getElementById('cc-count').textContent = cycles.length;
+
+  // Phase
+  const phaseBox = document.getElementById('cc-phase-box');
+  if (dayOfCyc && avgLen) {
+    phaseBox.style.display = 'block';
+    document.getElementById('cc-no-data').style.display = 'none';
+    const { label, color, desc } = getCyclePhase(dayOfCyc, avgLen);
+    document.getElementById('cc-phase-label').textContent = label;
+    document.getElementById('cc-phase-label').style.color = color;
+    document.getElementById('cc-phase-desc').textContent  = desc;
+    phaseBox.style.borderColor  = color.replace(')', ',0.3)').replace('rgb', 'rgba');
+    phaseBox.style.background   = color.replace(')', ',0.06)').replace('rgb', 'rgba');
+  } else {
+    phaseBox.style.display = 'none';
+    document.getElementById('cc-no-data').style.display = cycles.length === 0 ? 'block' : 'none';
+  }
+
+  // 2. Charger le journal quotidien (30 derniers jours)
+  const { data: daily } = await db.from('cycle_daily_log')
+    .select('date, glaire, temperature, saignement')
+    .eq('client_id', currentClientId)
+    .order('date', { ascending: false })
+    .limit(30);
+
+  const dailyList = document.getElementById('cc-daily-list');
+  dailyList.innerHTML = '';
+  if (!daily || daily.length === 0) {
+    document.getElementById('cc-daily-empty').style.display = 'block';
+  } else {
+    document.getElementById('cc-daily-empty').style.display = 'none';
+    daily.forEach(row => {
+      const d = document.createElement('div');
+      d.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
+      const dateStr = new Date(row.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'short' });
+      const glaireIcon = { absente:'🔴', collante:'🟡', crémeuse:'🟠', filante:'🟢' }[row.glaire] || '';
+      const saigColor  = { aucun:'var(--muted)', léger:'#fb923c', modéré:'#ef4444', abondant:'#b91c1c' }[row.saignement] || 'var(--muted)';
+      d.innerHTML = `
+        <span style="font-size:11px;font-weight:700;color:var(--muted);min-width:46px;">${dateStr}</span>
+        ${row.glaire     ? `<span style="font-size:11px;">${glaireIcon} <span style="color:var(--text-muted)">${row.glaire}</span></span>` : ''}
+        ${row.saignement ? `<span style="font-size:11px;color:${saigColor};">🩸 ${row.saignement}</span>` : ''}
+        ${row.temperature ? `<span style="font-size:11px;">🌡️ ${row.temperature}°C</span>` : ''}
+        ${(!row.glaire && !row.saignement && !row.temperature) ? '<span style="font-size:11px;color:var(--muted);">—</span>' : ''}
+      `;
+      dailyList.appendChild(d);
+    });
+  }
+
+  document.getElementById('cycle-coach-loading').style.display = 'none';
+  document.getElementById('cycle-coach-content').style.display  = 'block';
+}
+
+function getCyclePhase(day, avgLen) {
+  const ovul = Math.round(avgLen * 0.5);
+  if (day <= 5)             return { label:'🩸 MENSTRUATION',   color:'#EF4444', desc:`Jour ${day} · règles` };
+  if (day <= ovul - 2)      return { label:'🌱 PHASE FOLLICULAIRE', color:'#F97316', desc:`Jour ${day} · énergie en hausse` };
+  if (day <= ovul + 1)      return { label:'🥚 OVULATION',       color:'#EAB308', desc:`Jour ${day} · pic de fertilité` };
+  return                           { label:'🌙 PHASE LUTÉALE',   color:'#A855F7', desc:`Jour ${day} · phase de récupération` };
 }
 
 // Bibliothèque de métriques et habitudes (source de vérité côté JS)
@@ -2535,7 +2632,8 @@ async function loadBiblioHabits() {
         <div class="lib-metric-unit">${typeLabel[h.type] || h.type}</div>
       </div>
       <div class="assign-pills"></div>
-      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openLibHabitGerer('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Gérer</button>
+      <button class="btn btn-accent btn-sm" onclick="openAssignHabit('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Assigner</button>
+      <button class="btn btn-ghost btn-sm" onclick="openLibHabitGerer('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Gérer</button>
       <button class="btn btn-danger btn-sm" onclick="deleteHabitLib('${h.id}','${h.nom.replace(/'/g,"\\'")}',this)">Supprimer</button>
     </div>`).join('');
 }
@@ -2587,6 +2685,45 @@ async function deleteHabitLibById(id, nom) {
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Habitude supprimée');
   await loadBiblioHabits();
+}
+
+let assignHabitData = null;
+
+async function openAssignHabit(id, nom, type) {
+  assignHabitData = { id, nom, type };
+  document.getElementById('assign-habit-title').textContent = 'Assigner — ' + nom;
+
+  // Charger la liste des clientes
+  const { data: clients } = await db.from('clients').select('id, prenom').order('prenom');
+  const sel = document.getElementById('assign-habit-client');
+  sel.innerHTML = '<option value="">— Choisir une cliente —</option>' +
+    (clients || []).map(c => `<option value="${c.id}">${c.prenom}</option>`).join('');
+
+  document.getElementById('modal-assign-habit').classList.add('open');
+}
+
+async function confirmAssignHabit() {
+  const clientId = document.getElementById('assign-habit-client').value;
+  if (!clientId) { toast('Sélectionne une cliente'); return; }
+  if (!assignHabitData) return;
+
+  // Vérifier si déjà assignée
+  const { data: existing } = await db.from('client_habitudes')
+    .select('id').eq('client_id', clientId).eq('nom', assignHabitData.nom).limit(1);
+  if (existing && existing.length) {
+    toast('Cette habitude est déjà assignée à cette cliente');
+    return;
+  }
+
+  const { error } = await db.from('client_habitudes').insert({
+    client_id: clientId,
+    nom: assignHabitData.nom,
+    type: assignHabitData.type,
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  document.getElementById('modal-assign-habit').classList.remove('open');
+  toast('Habitude assignée ✓');
 }
 
 async function deleteExoLib(id, nom) {
