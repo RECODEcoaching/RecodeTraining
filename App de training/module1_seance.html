@@ -655,7 +655,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     // Charger les exercices
     const { data: exos } = await db
       .from('seance_exercices')
-      .select('*, exercices(url_video, consignes)')
+      .select('*, exercices(url_video, consignes, tags)')
       .eq('seance_id', seanceId)
       .order('ordre', { ascending: true });
 
@@ -724,12 +724,15 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         </div>`;
       }
       const savedNote = exo.notes_client || '';
+      const tagsUni = (exo.exercices?.tags || []);
+      const tagsHtmlUni = tagsUni.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tagsUni.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
       return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}">
         <div class="exo-header" onclick="toggleExo(this)">
           <div class="exo-num">${index + 1}</div>
           <div class="exo-info">
             <div class="exo-name">${exo.nom_exo} <span class="uni-badge">Uni</span></div>
             <div class="exo-params">${params}</div>
+            ${tagsHtmlUni}
           </div>
           ${histBtn}${videoBtnUni}
           <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -764,6 +767,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" ${isDone?'readonly':''} oninput="checkDone(this)">
       </div>`;
     }
+    const tags = (exo.exercices?.tags || []);
+    const tagsHtml = tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tags.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
     const savedNote = exo.notes_client || '';
     return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}">
       <div class="exo-header" onclick="toggleExo(this)">
@@ -771,6 +776,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <div class="exo-info">
           <div class="exo-name">${exo.nom_exo}</div>
           <div class="exo-params">${params}</div>
+          ${tagsHtml}
         </div>
         ${histBtn}${videoBtnHtml}
         <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>

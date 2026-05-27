@@ -507,6 +507,14 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       </div>
     </div>
 
+    <div class="cycle-field">
+      <div class="cycle-field-label">Spotting</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="spotting-toggle" onclick="toggleSpotting()" style="padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Non</button>
+        <span style="font-size:11px;color:var(--text-muted);">Légères traces, pas le début des règles</span>
+      </div>
+    </div>
+
     <button class="cycle-save-btn" onclick="saveDailyLog()">Enregistrer la saisie</button>
   </div>
 
@@ -873,6 +881,7 @@ function drawCycleRing(currentDay, avgLen) {
 // ─── CYCLE STATS ──────────────────────────────────────────────
 let pastCycles = []; // chargé depuis Supabase
 let selectedGlaireValue = null;
+let spottingValue = false;
 
 async function loadCycleData() {
   if (!SESSION) return;
@@ -916,8 +925,12 @@ async function loadCycleData() {
     }
     if (dayLog.saignement) {
       document.querySelectorAll('.saignement-btn').forEach(b => {
-        b.classList.toggle('selected', b.dataset.val === dayLog.saignement);
+        if (b.dataset.val === dayLog.saignement) selectSaignement(b);
       });
+    }
+    if (dayLog.spotting) {
+      spottingValue = false; // on toggle pour passer à true
+      toggleSpotting();
     }
   }
 }
@@ -1127,6 +1140,22 @@ function toggleCheck(el) {
   if (ck) ck.textContent = el.classList.contains('done') ? '✓' : el.classList.contains('today') ? '·' : '';
 }
 
+function toggleSpotting() {
+  spottingValue = !spottingValue;
+  const btn = document.getElementById('spotting-toggle');
+  if (spottingValue) {
+    btn.textContent = 'Oui';
+    btn.style.borderColor = '#f97316';
+    btn.style.background  = 'rgba(249,115,22,0.08)';
+    btn.style.color       = '#f97316';
+  } else {
+    btn.textContent = 'Non';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.background  = 'var(--surface2)';
+    btn.style.color       = 'var(--text-muted)';
+  }
+}
+
 function selectSaignement(btn) {
   document.querySelectorAll('.saignement-btn').forEach(b => {
     b.classList.remove('selected');
@@ -1159,6 +1188,7 @@ async function saveDailyLog() {
     glaire:      selectedGlaireValue || null,
     temperature: tempVal,
     saignement:  saignement,
+    spotting:    spottingValue || false,
   };
 
   const { error } = await db.from('cycle_daily_log')
@@ -1205,13 +1235,18 @@ async function saveLog() {
 }
 
 function openCycleLog() {
-  const lastDate = pastCycles[pastCycles.length - 1];
-  const daysSince = Math.round((new Date() - lastDate) / 86400000);
-  document.getElementById('cycle-modal-sub').textContent =
-    `Dernier cycle déclaré : ${lastDate.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} (il y a ${daysSince} jours)`;
+  const lastDate = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  if (lastDate) {
+    const daysSince = Math.round((new Date() - lastDate) / 86400000);
+    document.getElementById('cycle-modal-sub').textContent =
+      `Dernier cycle déclaré : ${lastDate.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} (il y a ${daysSince} jours)`;
+  } else {
+    document.getElementById('cycle-modal-sub').textContent = 'Aucun cycle enregistré — ce sera votre J1.';
+  }
   const inp = document.getElementById('cycle-date-input');
   inp.value = new Date().toISOString().split('T')[0];
   updateCyclePreview();
+  inp.removeEventListener('input', updateCyclePreview);
   inp.addEventListener('input', updateCyclePreview);
   document.getElementById('modal-cycle').classList.add('open');
 }
@@ -1220,7 +1255,11 @@ function updateCyclePreview() {
   const inp = document.getElementById('cycle-date-input');
   const newDate = new Date(inp.value);
   if (isNaN(newDate)) return;
-  const lastDate = pastCycles[pastCycles.length - 1];
+  const lastDate = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  if (!lastDate) {
+    document.getElementById('cycle-calc-preview').style.display = 'none';
+    return;
+  }
   const thisCycleLen = Math.round((newDate - lastDate) / 86400000);
   if (thisCycleLen > 0) {
     const preview = [...pastCycles, newDate];

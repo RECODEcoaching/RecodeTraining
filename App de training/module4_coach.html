@@ -1674,10 +1674,15 @@ CREATE POLICY "Allow all anon on seances"
     annulée:   'background:rgba(220,38,38,0.08);color:var(--danger)',
   };
 
+  // Sauvegarder le statut des séances pour y accéder dans loadSeanceExercices
+  window._seanceStatuts = {};
+  seances.forEach(s => { window._seanceStatuts[s.id] = s.statut; });
+
   list.innerHTML = seances.map(s => {
     const st = statutStyle[s.statut] || statutStyle.planifiée;
     const d  = new Date(s.date + 'T12:00:00');
     const dateStr = d.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+    const isValidee = s.statut === 'validée';
     return `
       <div class="seance-card" id="seance-${s.id}">
         <div class="seance-card-top" onclick="toggleSeanceDetail('${s.id}')">
@@ -1688,13 +1693,13 @@ CREATE POLICY "Allow all anon on seances"
         </div>
         <div class="seance-exo-panel" id="exo-panel-${s.id}">
           <div id="exo-list-${s.id}" class="seance-exo-empty">Chargement…</div>
-          <button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
+          ${!isValidee ? `<button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Ajouter un exercice
-          </button>
+          </button>` : ''}
           <div style="padding:8px 14px 10px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center;">
             ${s.notes ? `<span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.notes}</span>` : '<span style="flex:1"></span>'}
-            <button class="btn btn-danger btn-sm" onclick="deleteSeance('${s.id}')">Supprimer la séance</button>
+            ${!isValidee ? `<button class="btn btn-danger btn-sm" onclick="deleteSeance('${s.id}')">Supprimer la séance</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -1716,16 +1721,28 @@ async function loadSeanceExercices(seanceId) {
   const container = document.getElementById('exo-list-' + seanceId);
   container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
 
-  const { data, error } = await db
-    .from('seance_exercices').select('*')
+  const COLS_FULL = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
+  const COLS_BASE = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
+
+  let { data, error } = await db
+    .from('seance_exercices').select(COLS_FULL)
     .eq('seance_id', seanceId)
     .order('ordre', { ascending: true });
 
+  // Fallback si colonnes récentes absentes du cache schema
+  if (error && (error.message.includes('charge_reelle') || error.message.includes('charge_kg') || error.message.includes('notes_client'))) {
+    ({ data, error } = await db
+      .from('seance_exercices').select(COLS_BASE)
+      .eq('seance_id', seanceId)
+      .order('ordre', { ascending: true }));
+  }
+
   if (error) {
-    // Table pas encore créée
-    container.innerHTML = `<div class="seance-exo-empty" style="color:var(--warning);">Table <code>seance_exercices</code> introuvable — exécute le SQL ci-dessous.</div>`;
+    container.innerHTML = `<div class="seance-exo-empty" style="color:var(--warning);">Erreur : ${error.message}</div>`;
     return;
   }
+
+  const isValidee = (window._seanceStatuts || {})[seanceId] === 'validée';
 
   const exos = data || [];
   if (exos.length === 0) {
@@ -1761,7 +1778,7 @@ async function loadSeanceExercices(seanceId) {
             <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
             ${realiséHtml}
           </div>
-          <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
+          ${!isValidee ? `<button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -2302,7 +2319,7 @@ async function loadClientCycleData() {
 
   // 2. Charger le journal quotidien (30 derniers jours)
   const { data: daily } = await db.from('cycle_daily_log')
-    .select('date, glaire, temperature, saignement')
+    .select('date, glaire, temperature, saignement, spotting')
     .eq('client_id', currentClientId)
     .order('date', { ascending: false })
     .limit(30);
@@ -2324,7 +2341,8 @@ async function loadClientCycleData() {
         ${row.glaire     ? `<span style="font-size:11px;">${glaireIcon} <span style="color:var(--text-muted)">${row.glaire}</span></span>` : ''}
         ${row.saignement ? `<span style="font-size:11px;color:${saigColor};">🩸 ${row.saignement}</span>` : ''}
         ${row.temperature ? `<span style="font-size:11px;">🌡️ ${row.temperature}°C</span>` : ''}
-        ${(!row.glaire && !row.saignement && !row.temperature) ? '<span style="font-size:11px;color:var(--muted);">—</span>' : ''}
+        ${row.spotting   ? `<span style="font-size:11px;color:#f97316;">✦ spotting</span>` : ''}
+        ${(!row.glaire && !row.saignement && !row.temperature && !row.spotting) ? '<span style="font-size:11px;color:var(--muted);">—</span>' : ''}
       `;
       dailyList.appendChild(d);
     });
