@@ -652,12 +652,29 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     document.getElementById('session-title-text').textContent = seance.titre;
     document.getElementById('session-date-chip').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
-    // Charger les exercices
+    // Charger les exercices (sans join pour éviter les erreurs schema cache)
     const { data: exos } = await db
       .from('seance_exercices')
-      .select('*, exercices(url_video, consignes, tags)')
+      .select('*')
       .eq('seance_id', seanceId)
       .order('ordre', { ascending: true });
+
+    // Charger les tags séparément via exercice_id (indépendant du reste)
+    const exoIds = (exos || []).map(e => e.exercice_id).filter(Boolean);
+    const tagsMap = {};
+    if (exoIds.length) {
+      const { data: libExos } = await db
+        .from('exercices')
+        .select('id, tags, url_video, consignes')
+        .in('id', exoIds);
+      (libExos || []).forEach(e => { tagsMap[e.id] = e; });
+    }
+    // Injecter les données lib dans chaque exo
+    (exos || []).forEach(e => {
+      if (e.exercice_id && tagsMap[e.exercice_id]) {
+        e.exercices = tagsMap[e.exercice_id];
+      }
+    });
 
     const exoList = document.getElementById('exo-list');
     if (!exos || exos.length === 0) {
@@ -724,7 +741,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         </div>`;
       }
       const savedNote = exo.notes_client || '';
-      const tagsUni = (exo.exercices?.tags || []);
+      const rawTagsUni = exo.exercices?.tags || [];
+      const tagsUni = Array.isArray(rawTagsUni) ? rawTagsUni : (rawTagsUni ? String(rawTagsUni).split(',').map(t=>t.trim()).filter(Boolean) : []);
       const tagsHtmlUni = tagsUni.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tagsUni.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
       return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}">
         <div class="exo-header" onclick="toggleExo(this)">
@@ -767,7 +785,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" ${isDone?'readonly':''} oninput="checkDone(this)">
       </div>`;
     }
-    const tags = (exo.exercices?.tags || []);
+    const rawTags = exo.exercices?.tags || [];
+    const tags = Array.isArray(rawTags) ? rawTags : (rawTags ? String(rawTags).split(',').map(t=>t.trim()).filter(Boolean) : []);
     const tagsHtml = tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tags.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
     const savedNote = exo.notes_client || '';
     return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}">

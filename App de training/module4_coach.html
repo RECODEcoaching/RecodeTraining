@@ -1729,8 +1729,8 @@ async function loadSeanceExercices(seanceId) {
     .eq('seance_id', seanceId)
     .order('ordre', { ascending: true });
 
-  // Fallback si colonnes récentes absentes du cache schema
-  if (error && (error.message.includes('charge_reelle') || error.message.includes('charge_kg') || error.message.includes('notes_client'))) {
+  // Si colonnes récentes absentes du cache schema → fallback colonnes de base
+  if (error) {
     ({ data, error } = await db
       .from('seance_exercices').select(COLS_BASE)
       .eq('seance_id', seanceId)
