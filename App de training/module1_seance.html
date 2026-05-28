@@ -600,10 +600,22 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       return;
     }
 
-    list.innerHTML = seances.map(s => renderSessionCard(s)).join('');
+    // Vérifier les réponses coach non lues pour toutes les séances de la semaine
+    const seanceIds = seances.map(s => s.id);
+    const unreadSeances = new Set();
+    try {
+      const { data: unread } = await db.from('seance_exercices')
+        .select('seance_id')
+        .in('seance_id', seanceIds)
+        .not('reponse_coach', 'is', null)
+        .eq('reponse_lue', false);
+      (unread || []).forEach(r => unreadSeances.add(r.seance_id));
+    } catch(e) {}
+
+    list.innerHTML = seances.map(s => renderSessionCard(s, unreadSeances.has(s.id))).join('');
   }
 
-  function renderSessionCard(s) {
+  function renderSessionCard(s, hasUnread = false) {
     const dateObj = new Date(s.date + 'T12:00:00');
     const today   = new Date().toISOString().split('T')[0];
     const isToday = s.date === today;
@@ -618,10 +630,15 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     const statusClass = isDone ? 'done' : isRest ? 'rest' : '';
     const cardClass   = isDone ? 'session-card done' : (isRest ? 'session-card rest-card' : 'session-card');
 
+    // Badge rouge si réponse coach non lue
+    const badge = hasUnread ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#EF4444;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;">
+      <span style="display:inline-block;width:5px;height:5px;background:#fff;border-radius:50%;"></span>Réponse coach
+    </span>` : '';
+
     return `<div class="${cardClass}" onclick="openSession('${s.id}')">
       <div class="session-meta">
         <div class="session-day">${dayLabel}</div>
-        <div class="session-status ${statusClass}">${statusLabel}</div>
+        <div style="display:flex;align-items:center;"><div class="session-status ${statusClass}">${statusLabel}</div>${badge}</div>
       </div>
       <div class="session-name">${s.titre}</div>
       <div class="session-info" id="card-info-${s.id}">
@@ -675,6 +692,12 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         e.exercices = tagsMap[e.exercice_id];
       }
     });
+
+    // Marquer les réponses coach comme lues (silencieusement)
+    const unreadIds = (exos || []).filter(e => e.reponse_coach && e.reponse_lue === false).map(e => e.id);
+    if (unreadIds.length) {
+      db.from('seance_exercices').update({ reponse_lue: true }).in('id', unreadIds).then(() => {});
+    }
 
     const exoList = document.getElementById('exo-list');
     if (!exos || exos.length === 0) {
@@ -764,6 +787,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           ${rows}
           ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
           <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''}>${savedNote}</textarea>
+          ${exo.reponse_coach ? `<div style="margin-top:8px;padding:9px 11px;background:rgba(249,115,22,0.07);border-left:2px solid #f97316;border-radius:6px;">
+            <div style="font-size:9px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">Réponse coach</div>
+            <div style="font-size:12px;color:var(--text);line-height:1.5;">${exo.reponse_coach}</div>
+          </div>` : ''}
         </div>
       </div>`;
     }
@@ -811,6 +838,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         ${rows}
         ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
         <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''}>${savedNote}</textarea>
+        ${exo.reponse_coach ? `<div style="margin-top:8px;padding:9px 11px;background:rgba(249,115,22,0.07);border-left:2px solid #f97316;border-radius:6px;">
+          <div style="font-size:9px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">Réponse coach</div>
+          <div style="font-size:12px;color:var(--text);line-height:1.5;">${exo.reponse_coach}</div>
+        </div>` : ''}
       </div>
     </div>`;
   }

@@ -1552,17 +1552,17 @@ async function loadComments(clientId) {
   if (seances && seances.length) {
     const seanceIds  = seances.map(s => s.id);
     const dateMap    = {}; seances.forEach(s => { dateMap[s.id] = { date: s.date, titre: s.titre }; });
-    // Notes coach sur les exercices
     const { data: exoRows } = await db.from('seance_exercices')
-      .select('nom_exo, notes, notes_client, seance_id').in('seance_id', seanceIds);
+      .select('id, nom_exo, notes_client, reponse_coach, seance_id').in('seance_id', seanceIds);
     (exoRows || []).forEach(r => {
-      // Commentaire de la cliente sur son exercice
       if (r.notes_client && r.notes_client.trim()) {
         trainingComments.push({
+          exoId:     r.id,
           auteur:    'client',
           categorie: 'Training',
           reference: r.nom_exo || 'Exercice',
           contenu:   r.notes_client,
+          reponse:   r.reponse_coach || null,
           date:      dateMap[r.seance_id]?.date || '',
         });
       }
@@ -1590,17 +1590,62 @@ async function loadComments(clientId) {
     const isCoach  = c.auteur === 'coach';
     const catColor = CAT_COLORS[c.categorie] || '#6B7280';
     const dateStr  = c.date ? new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : '';
+    const safeExoId = c.exoId ? c.exoId.replace(/[^a-zA-Z0-9-]/g,'') : '';
+    // Bloc réponse coach (uniquement pour les commentaires client Training)
+    const replyBlock = (!isCoach && c.exoId) ? `
+      ${c.reponse ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(109,40,217,0.06);border-left:2px solid var(--accent);border-radius:4px;">
+        <div style="font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">Réponse coach</div>
+        <div style="font-size:12px;color:var(--text);">${c.reponse}</div>
+        <button onclick="toggleReplyForm('${safeExoId}')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px;padding:0;">Modifier</button>
+      </div>` : ''}
+      <div id="reply-form-${safeExoId}" style="display:${c.reponse ? 'none' : 'none'};margin-top:8px;">
+        <textarea id="reply-input-${safeExoId}" rows="2" placeholder="Écrire votre réponse à cette note…"
+          style="width:100%;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;font-family:inherit;resize:none;outline:none;"></textarea>
+        <div style="display:flex;gap:6px;margin-top:5px;justify-content:flex-end;">
+          <button onclick="toggleReplyForm('${safeExoId}')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;color:var(--muted);">Annuler</button>
+          <button onclick="saveCoachReply('${safeExoId}')" style="font-size:11px;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Envoyer</button>
+        </div>
+      </div>
+      ${!c.reponse ? `<button onclick="toggleReplyForm('${safeExoId}')" style="margin-top:7px;font-size:11px;padding:3px 10px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(109,40,217,0.15);border-radius:20px;cursor:pointer;font-weight:600;">↩ Répondre</button>` : ''}
+    ` : '';
     return `
     <div class="comment-card ${isCoach ? 'coach' : 'client'}">
       <div class="comment-meta">
-        <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Kevin (coach)' : currentClientData?.prenom || 'Cliente'}</span>
+        <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Coach' : currentClientData?.prenom || 'Cliente'}</span>
         ${c.categorie ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:${catColor}1a;color:${catColor};font-weight:600">${c.categorie}</span>` : ''}
         ${c.reference ? `<span class="comment-exo">${c.reference}</span>` : ''}
         ${dateStr ? `<span class="comment-date">${dateStr}</span>` : ''}
       </div>
       <div class="comment-body">${c.contenu}</div>
+      ${replyBlock}
     </div>`;
   }).join('');
+}
+
+function toggleReplyForm(exoId) {
+  const form = document.getElementById('reply-form-' + exoId);
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveCoachReply(exoId) {
+  const textarea = document.getElementById('reply-input-' + exoId);
+  const reponse  = textarea?.value?.trim();
+  if (!reponse) return;
+
+  const btn = textarea.nextElementSibling?.querySelector('button:last-child');
+  if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
+
+  const { error } = await db.from('seance_exercices')
+    .update({ reponse_coach: reponse, reponse_lue: false })
+    .eq('id', exoId);
+
+  if (error) {
+    toast('Erreur : ' + error.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
+    return;
+  }
+  toast('Réponse envoyée ✓');
+  await loadComments(currentClientId);
 }
 
 async function sendCoachComment() {
@@ -3189,52 +3234,45 @@ async function drawCoachPerfs() {
   seances.forEach(s => { dateMap[s.id] = s.date; });
 
   // 2. Données de performance
-  // Essai avec charge_kg, fallback sans si la colonne n'existe pas encore
+  // Colonnes : charge_kg (programmé), charge (texte legacy), charge_reelle (réalisé par client)
   let rows, rowsErr;
   ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-    .select('nom_exo, charge_kg, charge, seance_id')
+    .select('nom_exo, charge_kg, charge, charge_reelle, seance_id')
     .in('seance_id', seanceIds));
 
-  if (rowsErr && rowsErr.message && rowsErr.message.includes('charge_kg')) {
+  if (rowsErr) {
+    // Fallback sans les nouvelles colonnes
     ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
       .select('nom_exo, charge, seance_id')
       .in('seance_id', seanceIds));
   }
 
   if (rowsErr) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur seance_exercices : ${rowsErr.message}</div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Impossible de charger les données de performance.</div>`;
     return;
   }
 
   if (!rows || !rows.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">
-      ⚠️ DEBUG — ${seances.length} séance(s) trouvée(s), 0 exercice dans seance_exercices<br>
-      IDs : ${seanceIds.slice(0,3).join(', ')}<br>
-      → Le coach doit ajouter des exercices dans ces séances.</div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Aucun exercice enregistré dans les séances de cette cliente.</div>`;
     return;
   }
 
-  // 3. Grouper par exercice — charge_kg en priorité, sinon parse le champ texte "charge"
+  // 3. Grouper par exercice
+  // Priorité charge : charge_reelle (réalisé) > charge_kg (programmé) > parse(charge)
   const grouped = {};
-  const allExoNames = new Set();
   rows.forEach(r => {
     const nom = r.nom_exo;
     if (!nom) return;
-    allExoNames.add(nom);
-    let charge = r.charge_kg;
-    if (!charge && r.charge) charge = parseFloat(r.charge); // "60 kg" → 60
+    let charge = r.charge_reelle;                          // ce que la cliente a réellement soulevé
+    if (!charge && r.charge_kg) charge = r.charge_kg;      // charge programmée
+    if (!charge && r.charge)    charge = parseFloat(r.charge); // champ texte legacy
     if (!charge || charge <= 0) return;
     if (!grouped[nom]) grouped[nom] = [];
     grouped[nom].push({ date: dateMap[r.seance_id], charge });
   });
 
   if (!Object.keys(grouped).length) {
-    // Exercices trouvés mais sans charge → montrer la liste + message d'aide
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">
-      ✅ ${rows.length} ligne(s) dans seance_exercices<br>
-      Exercices : ${[...allExoNames].join(', ')}<br>
-      ⚠️ Mais charge_kg = NULL et charge non numérique → pas de graphique possible.<br>
-      → Assigne une charge numérique (ex: 60) dans le champ "Charge" lors de l'ajout d'un exercice à la séance.</div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Les séances existent mais aucune charge n'a encore été enregistrée pour tracer une courbe de progression.</div>`;
     return;
   }
 
