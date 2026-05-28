@@ -1765,35 +1765,48 @@ async function loadSeanceExercices(seanceId) {
     if (e.unilateral) planned += ' · Uni';
 
     // Réalisé (si la cliente a saisi)
-    const seriesArr = Array.isArray(e.series_data) ? e.series_data : (e.series_data ? JSON.parse(e.series_data) : null);
+    const seriesArr = (() => {
+      try {
+        if (!e.series_data) return null;
+        return Array.isArray(e.series_data) ? e.series_data : JSON.parse(e.series_data);
+      } catch(err) { return null; }
+    })();
     let realiséHtml = '';
     if (seriesArr && seriesArr.length) {
+      // Charge globale de fallback si aucune série n'a de charge individuelle
+      const globalCharge = e.charge_reelle || null;
       const rows = seriesArr.map(s => {
-        const isUni = s.reps_g !== undefined;
+        const isUni = s.reps_g !== undefined || s.reps_d !== undefined;
+        // charge individuelle ou fallback sur charge_reelle
+        const chg = (s.charge !== null && s.charge !== undefined) ? s.charge : globalCharge;
         if (isUni) {
           return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
             <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
-            ${s.reps_g || s.reps_d ? `<span style="color:var(--success);">G:${s.reps_g||'—'} D:${s.reps_d||'—'}</span>` : ''}
-            ${s.charge ? `<span style="font-weight:700;color:var(--success);">${s.charge} kg</span>` : ''}
+            ${(s.reps_g !== null && s.reps_g !== undefined) || (s.reps_d !== null && s.reps_d !== undefined) ? `<span style="color:var(--success);">G:${s.reps_g ?? '—'} D:${s.reps_d ?? '—'}</span>` : ''}
+            ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
           </div>`;
         }
         return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
           <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
-          ${s.reps   ? `<span style="color:var(--success);">${s.reps} reps</span>` : ''}
-          ${s.charge ? `<span style="font-weight:700;color:var(--success);">${s.charge} kg</span>` : ''}
+          ${(s.reps !== null && s.reps !== undefined) ? `<span style="color:var(--success);">${s.reps} reps</span>` : ''}
+          ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
         </div>`;
       }).join('');
+      // Debug ligne (temporaire) — montre le JSON brut pour diagnostic
+      const debugLine = `<div style="font-size:9px;color:#aaa;margin-top:2px;word-break:break-all;">RAW: ${JSON.stringify(seriesArr)}</div>`;
       realiséHtml = `<div style="margin-top:5px;background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.15);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;">
         <span style="font-size:9px;font-weight:700;color:var(--success);letter-spacing:0.05em;margin-bottom:2px;">RÉALISÉ</span>
         ${rows}
+        ${debugLine}
         ${e.notes_client ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;border-top:1px solid rgba(22,163,74,0.15);padding-top:3px;">${e.notes_client}</div>` : ''}
       </div>`;
     } else if (e.charge_reelle || e.reps_reelles || e.notes_client) {
       realiséHtml = `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--success);background:rgba(22,163,74,0.08);border-radius:20px;padding:1px 7px">Réalisé</span>
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--success);background:rgba(22,163,74,0.08);border-radius:20px;padding:1px 7px">Réalisé (résumé)</span>
         ${e.charge_reelle ? `<span style="font-size:11px;font-weight:700;color:var(--success)">${e.charge_reelle} kg</span>` : ''}
         ${e.reps_reelles  ? `<span style="font-size:11px;color:var(--success)">${e.reps_reelles} reps</span>` : ''}
         ${e.notes_client  ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${e.notes_client}</span>` : ''}
+        <div style="font-size:9px;color:#aaa;">[pas de series_data]</div>
       </div>`;
     }
 

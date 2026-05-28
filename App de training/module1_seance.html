@@ -739,9 +739,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         rows += `<div class="series-row uni">
           <div class="serie-num">${i}</div>
           <input class="serie-input prescribed" value="${exo.reps}" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" ${isDone?'readonly':''} oninput="checkSide(this)">
-          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" ${isDone?'readonly':''} oninput="checkSide(this)">
-          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" ${isDone?'readonly':''} oninput="checkSide(this)">
+          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" data-field="reps-g" ${isDone?'readonly':''} oninput="checkSide(this)">
+          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" data-field="reps-d" ${isDone?'readonly':''} oninput="checkSide(this)">
+          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkSide(this)">
         </div>`;
       }
       const savedNote = exo.notes_client || '';
@@ -787,8 +787,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       rows += `<div class="series-row">
         <div class="serie-num">${i}</div>
         <input class="serie-input prescribed" value="${exo.reps}" readonly>
-        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" ${isDone?'readonly':''} oninput="checkDone(this)">
-        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" ${isDone?'readonly':''} oninput="checkDone(this)">
+        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" data-field="reps" ${isDone?'readonly':''} oninput="checkDone(this)">
+        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkDone(this)">
       </div>`;
     }
     const rawTags = exo.exercices?.tags || [];
@@ -873,29 +873,33 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       if (!exoId) return;
       const isUni = card.dataset.unilateral === 'true';
 
-      // Collecter les données par série
-      // Note: le champ "prescrit" n'a pas type="number", donc input[type="number"] donne :
-      //   Bi  : [0]=reps réalisées, [1]=charge
-      //   Uni : [0]=côté G,         [1]=côté D,  [2]=charge
+      // Collecter les données par série via data-field (le plus explicite possible)
       const seriesRows = card.querySelectorAll('.series-row');
       const seriesData = [];
       seriesRows.forEach((row, idx) => {
-        const inputs = row.querySelectorAll('input[type="number"]');
+        // val() : retourne null si pas de valeur, NaN → null, 0 est accepté
+        const val = inp => {
+          if (!inp) return null;
+          const v = parseFloat(inp.value);
+          return isNaN(v) ? null : v;
+        };
         if (isUni) {
-          const sideG  = parseFloat(inputs[0]?.value) || null;
-          const sideD  = parseFloat(inputs[1]?.value) || null;
-          const charge = parseFloat(inputs[2]?.value) || null;
+          const sideG  = val(row.querySelector('[data-field="reps-g"]'));
+          const sideD  = val(row.querySelector('[data-field="reps-d"]'));
+          const charge = val(row.querySelector('[data-field="charge"]'));
           seriesData.push({ serie: idx + 1, reps_g: sideG, reps_d: sideD, charge });
         } else {
-          const reps   = parseFloat(inputs[0]?.value) || null;
-          const charge = parseFloat(inputs[1]?.value) || null;
+          const reps   = val(row.querySelector('[data-field="reps"]'));
+          const charge = val(row.querySelector('[data-field="charge"]'));
           seriesData.push({ serie: idx + 1, reps, charge });
         }
       });
+      // Debug : écrire dans localStorage pour diagnostic
+      try { localStorage.setItem('_recode_debug_' + exoId, JSON.stringify(seriesData)); } catch(e) {}
 
       // Valeurs résumées (max) pour compatibilité ascendante
-      const allCharges = seriesData.map(s => s.charge).filter(v => v && v > 0);
-      const allReps    = seriesData.map(s => s.reps || s.reps_g || s.reps_d).filter(v => v && v > 0);
+      const allCharges = seriesData.map(s => s.charge).filter(v => v !== null && v !== undefined);
+      const allReps    = seriesData.map(s => s.reps ?? s.reps_g ?? s.reps_d).filter(v => v !== null && v !== undefined);
       const chargeReelle = allCharges.length ? Math.max(...allCharges) : null;
       const repsReelles  = allReps.length    ? Math.max(...allReps)    : null;
 
@@ -903,7 +907,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       const commentInput = card.querySelector('.exo-comment-input');
       const notesClient = commentInput?.value?.trim() || null;
 
-      const hasData = seriesData.some(s => s.charge || s.reps || s.reps_g || s.reps_d);
+      const hasData = seriesData.some(s => s.charge !== null || s.reps !== null || s.reps_g !== null || s.reps_d !== null);
 
       // Update 1 : colonnes stables (charge_reelle, reps_reelles, notes_client)
       // Séparé de series_data pour éviter qu'un échec de l'un bloque l'autre
