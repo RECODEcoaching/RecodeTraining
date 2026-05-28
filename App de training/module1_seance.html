@@ -739,9 +739,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         rows += `<div class="series-row uni">
           <div class="serie-num">${i}</div>
           <input class="serie-input prescribed" value="${exo.reps}" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" data-field="reps-g" ${isDone?'readonly':''} oninput="checkSide(this)">
-          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" data-field="reps-d" ${isDone?'readonly':''} oninput="checkSide(this)">
-          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkSide(this)">
+          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" data-field="reps-g" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-g')">
+          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" data-field="reps-d" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-d')">
+          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'charge')">
         </div>`;
       }
       const savedNote = exo.notes_client || '';
@@ -787,8 +787,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       rows += `<div class="series-row">
         <div class="serie-num">${i}</div>
         <input class="serie-input prescribed" value="${exo.reps}" readonly>
-        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" data-field="reps" ${isDone?'readonly':''} oninput="checkDone(this)">
-        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkDone(this)">
+        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" data-field="reps" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'reps')">
+        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'charge')">
       </div>`;
     }
     const rawTags = exo.exercices?.tags || [];
@@ -858,6 +858,21 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     }).join('');
   }
 
+  // ── Tracking des valeurs saisies (oninput → map global) ──────
+  window._exoTrack = window._exoTrack || {};
+
+  function trackExoInput(inp, exoId, serie, field) {
+    const v = parseFloat(inp.value);
+    window._exoTrack[exoId + '|' + serie + '|' + field] = isNaN(v) ? null : v;
+  }
+
+  function getTracked(exoId, serie, field) {
+    const key = exoId + '|' + serie + '|' + field;
+    return Object.prototype.hasOwnProperty.call(window._exoTrack, key)
+      ? window._exoTrack[key]
+      : undefined;
+  }
+
   // ── Valider la séance — collecte les perfs avant de valider ────
   async function validateSession() {
     if (!currentSeanceId) return;
@@ -873,28 +888,30 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       if (!exoId) return;
       const isUni = card.dataset.unilateral === 'true';
 
-      // Collecter les données par série via data-field (le plus explicite possible)
+      // Collecter les données par série
+      // Priorité 1 : valeurs trackées via oninput (les plus fiables)
+      // Priorité 2 : lecture directe du DOM via data-field
       const seriesRows = card.querySelectorAll('.series-row');
       const seriesData = [];
+      const domVal = inp => {
+        if (!inp) return null;
+        const v = parseFloat(inp.value);
+        return isNaN(v) ? null : v;
+      };
       seriesRows.forEach((row, idx) => {
-        // val() : retourne null si pas de valeur, NaN → null, 0 est accepté
-        const val = inp => {
-          if (!inp) return null;
-          const v = parseFloat(inp.value);
-          return isNaN(v) ? null : v;
-        };
+        const s = idx + 1; // numéro de série (1-indexed)
         if (isUni) {
-          const sideG  = val(row.querySelector('[data-field="reps-g"]'));
-          const sideD  = val(row.querySelector('[data-field="reps-d"]'));
-          const charge = val(row.querySelector('[data-field="charge"]'));
-          seriesData.push({ serie: idx + 1, reps_g: sideG, reps_d: sideD, charge });
+          const repsG  = getTracked(exoId, s, 'reps-g')  ?? domVal(row.querySelector('[data-field="reps-g"]'));
+          const repsD  = getTracked(exoId, s, 'reps-d')  ?? domVal(row.querySelector('[data-field="reps-d"]'));
+          const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
+          seriesData.push({ serie: s, reps_g: repsG ?? null, reps_d: repsD ?? null, charge: charge ?? null });
         } else {
-          const reps   = val(row.querySelector('[data-field="reps"]'));
-          const charge = val(row.querySelector('[data-field="charge"]'));
-          seriesData.push({ serie: idx + 1, reps, charge });
+          const reps   = getTracked(exoId, s, 'reps')    ?? domVal(row.querySelector('[data-field="reps"]'));
+          const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
+          seriesData.push({ serie: s, reps: reps ?? null, charge: charge ?? null });
         }
       });
-      // Debug : écrire dans localStorage pour diagnostic
+      // Debug localStorage pour diagnostic (à retirer plus tard)
       try { localStorage.setItem('_recode_debug_' + exoId, JSON.stringify(seriesData)); } catch(e) {}
 
       // Valeurs résumées (max) pour compatibilité ascendante
