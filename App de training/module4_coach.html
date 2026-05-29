@@ -3385,7 +3385,9 @@ function _renderCoachPerfs() {
 
   const metricLabel = metricLabels[metric];
 
-  grid.innerHTML = exos.map((e, i) => `
+  grid.innerHTML = exos.map((e, i) => {
+    const trLabel = getTechRevueLabel(e.name);
+    return `
     <div class="perf-card">
       <div class="perf-card-name">${e.name}</div>
       <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${metricLabel}</div>
@@ -3395,7 +3397,13 @@ function _renderCoachPerfs() {
         <span style="font-size:11px;font-weight:700;color:${e.prog >= 0 ? 'var(--success)' : 'var(--danger)'}">${e.prog >= 0 ? '+' : ''}${e.prog}%</span>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:3px;">${e.vals.length} séance${e.vals.length > 1 ? 's' : ''}</div>
-    </div>`).join('');
+      <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span id="tr-label-${i}" style="font-size:9px;color:var(--muted);font-style:italic;">${trLabel}</span>
+        <button onclick="markTechniqueRevue(${JSON.stringify(e.name)},${i})"
+          style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--accent);color:var(--accent);background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;">✓ Technique revue</button>
+      </div>
+    </div>`;
+  }).join('');
 
   requestAnimationFrame(() => {
     exos.forEach((e, i) => {
@@ -3415,6 +3423,34 @@ function _renderCoachPerfs() {
       }
     });
   });
+}
+
+function _techRevueKey(exoName) {
+  return 'tr_' + (currentClientId || 'x') + '_' + encodeURIComponent(exoName);
+}
+
+function getTechRevueLabel(exoName) {
+  try {
+    const raw = localStorage.getItem(_techRevueKey(exoName));
+    if (!raw) return '';
+    const dates = JSON.parse(raw);
+    if (!dates.length) return '';
+    const last = new Date(dates[dates.length - 1]);
+    return 'Revue le ' + last.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch(e) { return ''; }
+}
+
+function markTechniqueRevue(exoName, cardIdx) {
+  try {
+    const key = _techRevueKey(exoName);
+    const raw = localStorage.getItem(key);
+    const dates = raw ? JSON.parse(raw) : [];
+    dates.push(new Date().toISOString());
+    localStorage.setItem(key, JSON.stringify(dates));
+    const el = document.getElementById('tr-label-' + cardIdx);
+    if (el) el.textContent = 'Revue le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    toast('Technique revue enregistrée ✓');
+  } catch(e) { toast('Erreur : ' + e.message); }
 }
 
 function drawMiniLineChart(canvas, vals, dates, color, H) {

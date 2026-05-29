@@ -427,50 +427,40 @@ const GROUP_MAP = {
 async function loadPerfsExos() {
   if (!SESSION) return;
   const list = document.getElementById('exo-list');
-  list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;line-height:1.6;color:#166534;">🔍 DEBUG — client_id : ${SESSION.client_id}<br>Chargement séances…</div>`;
+  list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>`;
 
-  // 1. Récupérer toutes les séances du client
-  const { data: seances, error: seancesErr } = await db.from('seances').select('id').eq('client_id', SESSION.client_id);
+  // 1. Récupérer toutes les séances validées du client
+  const { data: seances, error: seancesErr } = await db.from('seances')
+    .select('id')
+    .eq('client_id', SESSION.client_id)
+    .eq('statut', 'validée');
 
-  if (seancesErr) {
-    list.innerHTML = `<div style="padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur séances : ${seancesErr.message}</div>`;
-    return;
-  }
-  if (!seances || seances.length === 0) {
-    list.innerHTML = `<div style="padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">⚠️ 0 séance trouvée pour client_id=${SESSION.client_id}<br>→ Vérifie que le coach a bien créé une séance pour ce client dans Supabase.</div>`;
+  if (seancesErr || !seances || seances.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucune séance validée pour le moment.</div>`;
     return;
   }
 
   const seanceIds = seances.map(s => s.id);
-  list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;color:#166534;">✅ ${seances.length} séance(s) trouvée(s)<br>Chargement exercices…</div>`;
 
-  // 2. Récupérer tous les exercices de ces séances
-  // Essai avec charge_kg, fallback sans si la colonne n'existe pas encore
+  // 2. Récupérer tous les exercices avec toutes les colonnes de charge
   let rows, rowsErr;
   ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-    .select('nom_exo, charge_kg, charge, seance_id, exercice_id')
+    .select('nom_exo, charge_kg, charge, charge_reelle, reps_reelles, series_data, seance_id, exercice_id')
     .in('seance_id', seanceIds));
 
-  if (rowsErr && rowsErr.message && rowsErr.message.includes('charge_kg')) {
-    // Colonne charge_kg pas encore créée → requête sans
+  if (rowsErr) {
+    // Fallback sans les nouvelles colonnes
     ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-      .select('nom_exo, charge, seance_id, exercice_id')
+      .select('nom_exo, charge_kg, charge, seance_id, exercice_id')
       .in('seance_id', seanceIds));
   }
 
-  if (rowsErr) {
-    list.innerHTML = `<div style="padding:12px 16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:12px;font-family:monospace;color:#991b1b;">❌ Erreur seance_exercices : ${rowsErr.message}</div>`;
-    return;
-  }
-
   if (!rows || rows.length === 0) {
-    list.innerHTML = `<div style="padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">⚠️ 0 exercice trouvé dans seance_exercices pour ${seanceIds.length} séance(s)<br>IDs séances : ${seanceIds.slice(0,3).join(', ')}${seanceIds.length>3?'…':''}<br>→ Le coach doit ajouter des exercices dans ces séances.</div>`;
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucun exercice trouvé.</div>`;
     return;
   }
 
-  list.innerHTML = `<div style="padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;font-family:monospace;color:#166534;">✅ ${rows.length} exercice(s) trouvé(s)<br>${[...new Set(rows.map(r=>r.nom_exo))].slice(0,5).join(', ')}${rows.length>5?'…':''}</div>`;
-
-  // 3. Récupérer les groupes musculaires séparément (optionnel — ignore les erreurs)
+  // 3. Récupérer les groupes musculaires séparément (optionnel)
   const exerciceIds = [...new Set(rows.map(r => r.exercice_id).filter(Boolean))];
   const groupeMap = {};
   if (exerciceIds.length) {
@@ -481,7 +471,7 @@ async function loadPerfsExos() {
     } catch(e) { /* ignore */ }
   }
 
-  // 4. Grouper par nom_exo
+  // 4. Grouper par nom_exo — priorité charge_reelle > max(series_data) > charge_kg > charge
   const grouped = {};
   rows.forEach(r => {
     const nom = r.nom_exo || 'Exercice';
@@ -492,13 +482,20 @@ async function loadPerfsExos() {
       seancesSet: new Set()
     };
     grouped[nom].seancesSet.add(r.seance_id);
-    // Priorité : charge_kg (numérique), sinon parseFloat(charge)
-    if (r.charge_kg && r.charge_kg > 0) {
-      grouped[nom].charges.push(r.charge_kg);
-    } else if (r.charge) {
-      const c = parseFloat(r.charge);
-      if (c > 0) grouped[nom].charges.push(c);
+    // Cherche la meilleure charge disponible
+    let bestCharge = null;
+    if (r.charge_reelle && r.charge_reelle > 0) {
+      bestCharge = r.charge_reelle;
+    } else if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        const max = Math.max(...sd.map(s => parseFloat(s.charge) || 0).filter(v => v > 0));
+        if (max > 0) bestCharge = max;
+      } catch(e) {}
     }
+    if (!bestCharge && r.charge_kg && r.charge_kg > 0) bestCharge = r.charge_kg;
+    if (!bestCharge && r.charge) { const c = parseFloat(r.charge); if (c > 0) bestCharge = c; }
+    if (bestCharge) grouped[nom].charges.push(bestCharge);
   });
 
   allPerfsExos = Object.values(grouped).map(e => ({
@@ -556,19 +553,28 @@ async function openDetail(nomExo) {
   document.getElementById('history-list').innerHTML   = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>';
   showScreen('screen-detail');
 
-  // Charger les séances
-  const { data: seances } = await db.from('seances').select('id, date').eq('client_id', SESSION.client_id);
+  // Charger les séances validées
+  const { data: seances } = await db.from('seances').select('id, date').eq('client_id', SESSION.client_id).eq('statut', 'validée');
   if (!seances || !seances.length) return;
 
   const seanceIds    = seances.map(s => s.id);
   const dateMap      = {};
   seances.forEach(s => { dateMap[s.id] = s.date; });
 
-  // Charger l'historique de cet exercice
-  const { data: rows } = await db.from('seance_exercices')
-    .select('charge_kg, reps, series, notes, technique, seance_id')
+  // Charger l'historique de cet exercice (avec toutes les colonnes de perf)
+  let rows, rowsErr2;
+  ({ data: rows, error: rowsErr2 } = await db.from('seance_exercices')
+    .select('charge_kg, charge, charge_reelle, reps, reps_reelles, series, series_data, notes_client, notes, technique, seance_id')
     .in('seance_id', seanceIds)
-    .eq('nom_exo', nomExo);
+    .eq('nom_exo', nomExo));
+
+  if (rowsErr2) {
+    // Fallback sans nouvelles colonnes
+    ({ data: rows } = await db.from('seance_exercices')
+      .select('charge_kg, charge, reps, series, notes, technique, seance_id')
+      .in('seance_id', seanceIds)
+      .eq('nom_exo', nomExo));
+  }
 
   if (!rows || !rows.length) {
     document.getElementById('stat-pr').textContent      = '—';
@@ -581,16 +587,44 @@ async function openDetail(nomExo) {
   // Construire l'historique trié du plus récent au plus ancien
   const history = rows.map(r => {
     const dateStr = dateMap[r.seance_id] || '';
-    const d       = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
-    const charge  = r.charge_kg || 0;
-    const reps    = r.reps || 0;
-    const series  = r.series || 1;
+    const d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+
+    // Charge : charge_reelle > max(series_data) > charge_kg > parseFloat(charge)
+    let charge = 0;
+    if (r.charge_reelle && r.charge_reelle > 0) {
+      charge = r.charge_reelle;
+    } else if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        const maxC = Math.max(...sd.map(s => parseFloat(s.charge) || 0).filter(v => v > 0));
+        if (maxC > 0) charge = maxC;
+      } catch(e) {}
+    }
+    if (!charge && r.charge_kg && r.charge_kg > 0) charge = r.charge_kg;
+    if (!charge && r.charge) { const c = parseFloat(r.charge); if (c > 0) charge = c; }
+
+    // Reps : reps_reelles > max(series_data.reps) > reps
+    let reps = 0;
+    if (r.reps_reelles && r.reps_reelles > 0) {
+      reps = r.reps_reelles;
+    } else if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        const maxR = Math.max(
+          ...sd.map(s => Math.max(parseFloat(s.reps) || 0, parseFloat(s.reps_g) || 0, parseFloat(s.reps_d) || 0))
+        );
+        if (maxR > 0) reps = maxR;
+      } catch(e) {}
+    }
+    if (!reps && r.reps && r.reps > 0) reps = r.reps;
+
+    const series = r.series || (r.series_data ? (Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data || '[]')).length : 1) || 1;
     return {
       date:      d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
       short:     d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }),
       charge, volume: charge * reps * series, reps,
       technique: r.technique || false,
-      comment:   r.notes || '',
+      comment:   r.notes_client || r.notes || '',
       _ts:       d.getTime(),
     };
   }).sort((a, b) => b._ts - a._ts);
