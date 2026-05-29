@@ -429,14 +429,13 @@ async function loadPerfsExos() {
   const list = document.getElementById('exo-list');
   list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>`;
 
-  // 1. Récupérer toutes les séances validées du client
+  // 1. Récupérer toutes les séances du client
   const { data: seances, error: seancesErr } = await db.from('seances')
     .select('id')
-    .eq('client_id', SESSION.client_id)
-    .eq('statut', 'validée');
+    .eq('client_id', SESSION.client_id);
 
   if (seancesErr || !seances || seances.length === 0) {
-    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucune séance validée pour le moment.</div>`;
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucune séance pour le moment.</div>`;
     return;
   }
 
@@ -553,8 +552,8 @@ async function openDetail(nomExo) {
   document.getElementById('history-list').innerHTML   = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>';
   showScreen('screen-detail');
 
-  // Charger les séances validées
-  const { data: seances } = await db.from('seances').select('id, date').eq('client_id', SESSION.client_id).eq('statut', 'validée');
+  // Charger les séances du client
+  const { data: seances } = await db.from('seances').select('id, date').eq('client_id', SESSION.client_id);
   if (!seances || !seances.length) return;
 
   const seanceIds    = seances.map(s => s.id);
@@ -618,7 +617,8 @@ async function openDetail(nomExo) {
     }
     if (!reps && r.reps && r.reps > 0) reps = r.reps;
 
-    const series = r.series || (r.series_data ? (Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data || '[]')).length : 1) || 1;
+    let series = r.series || 1;
+    if (!series && r.series_data) { try { const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data); series = sd.length || 1; } catch(e) {} }
     return {
       date:      d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
       short:     d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }),

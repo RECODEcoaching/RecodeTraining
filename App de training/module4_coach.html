@@ -3399,7 +3399,8 @@ function _renderCoachPerfs() {
       <div style="font-size:10px;color:var(--muted);margin-top:3px;">${e.vals.length} séance${e.vals.length > 1 ? 's' : ''}</div>
       <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px;">
         <span id="tr-label-${i}" style="font-size:9px;color:var(--muted);font-style:italic;">${trLabel}</span>
-        <button onclick="markTechniqueRevue(${JSON.stringify(e.name)},${i})"
+        <button data-exo-name="${e.name.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" data-card-idx="${i}"
+          onclick="markTechniqueRevue(this.dataset.exoName, parseInt(this.dataset.cardIdx))"
           style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--accent);color:var(--accent);background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;">✓ Technique revue</button>
       </div>
     </div>`;
