@@ -265,6 +265,12 @@ async function hashPin(pin) {
   .prog-status { margin-left: auto; }
 
   /* ─── PERFS TAB ──────────────────────────────────────────── */
+  .perf-ctrl-btn {
+    padding: 5px 11px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .perf-ctrl-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .perfs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .perf-card {
     background: var(--surface); border-radius: var(--r); padding: 14px;
@@ -786,6 +792,20 @@ async function hashPin(pin) {
       <!-- Perfs -->
       <div class="client-tab-content" id="ctab-perfs">
         <div class="section-title">Évolution des performances</div>
+        <!-- Contrôles : métrique + période -->
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          <div style="display:flex;gap:6px;" id="perf-metric-btns">
+            <button class="perf-ctrl-btn active" onclick="setCoachPerfMetric(this,'charge')">Charge max</button>
+            <button class="perf-ctrl-btn" onclick="setCoachPerfMetric(this,'volume')">Volume total</button>
+            <button class="perf-ctrl-btn" onclick="setCoachPerfMetric(this,'reps')">Reps max</button>
+          </div>
+          <div style="display:flex;gap:6px;" id="perf-period-btns">
+            <button class="perf-ctrl-btn active" onclick="setCoachPerfPeriod(this,'4s')">4 sem.</button>
+            <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'8s')">8 sem.</button>
+            <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'3m')">3 mois</button>
+            <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'tout')">Tout</button>
+          </div>
+        </div>
         <div class="perfs-grid" id="coach-perfs-grid"></div>
       </div>
 
@@ -1553,9 +1573,11 @@ async function loadComments(clientId) {
     const seanceIds  = seances.map(s => s.id);
     const dateMap    = {}; seances.forEach(s => { dateMap[s.id] = { date: s.date, titre: s.titre }; });
     const { data: exoRows } = await db.from('seance_exercices')
-      .select('id, nom_exo, notes_client, reponse_coach, seance_id').in('seance_id', seanceIds);
+      .select('id, nom_exo, notes_client, reponse_coach, messages_thread, seance_id').in('seance_id', seanceIds);
     (exoRows || []).forEach(r => {
       if (r.notes_client && r.notes_client.trim()) {
+        let thread = [];
+        try { thread = Array.isArray(r.messages_thread) ? r.messages_thread : (r.messages_thread ? JSON.parse(r.messages_thread) : []); } catch(e) {}
         trainingComments.push({
           exoId:     r.id,
           auteur:    'client',
@@ -1563,6 +1585,7 @@ async function loadComments(clientId) {
           reference: r.nom_exo || 'Exercice',
           contenu:   r.notes_client,
           reponse:   r.reponse_coach || null,
+          thread,
           date:      dateMap[r.seance_id]?.date || '',
         });
       }
@@ -1586,65 +1609,79 @@ async function loadComments(clientId) {
   }
 
   const CAT_COLORS = { Training: '#6D28D9', Métrique: '#0891B2', Habitude: '#16A34A', Coach: '#6D28D9' };
+  const clientPrenom = currentClientData?.prenom || 'Cliente';
+
   list.innerHTML = allComments.map(c => {
     const isCoach  = c.auteur === 'coach';
     const catColor = CAT_COLORS[c.categorie] || '#6B7280';
     const dateStr  = c.date ? new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : '';
     const safeExoId = c.exoId ? c.exoId.replace(/[^a-zA-Z0-9-]/g,'') : '';
-    // Bloc réponse coach (uniquement pour les commentaires client Training)
-    const replyBlock = (!isCoach && c.exoId) ? `
-      ${c.reponse ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(109,40,217,0.06);border-left:2px solid var(--accent);border-radius:4px;">
-        <div style="font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">Réponse coach</div>
-        <div style="font-size:12px;color:var(--text);">${c.reponse}</div>
-        <button onclick="toggleReplyForm('${safeExoId}')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px;padding:0;">Modifier</button>
-      </div>` : ''}
-      <div id="reply-form-${safeExoId}" style="display:${c.reponse ? 'none' : 'none'};margin-top:8px;">
-        <textarea id="reply-input-${safeExoId}" rows="2" placeholder="Écrire votre réponse à cette note…"
-          style="width:100%;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;font-family:inherit;resize:none;outline:none;"></textarea>
-        <div style="display:flex;gap:6px;margin-top:5px;justify-content:flex-end;">
-          <button onclick="toggleReplyForm('${safeExoId}')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;color:var(--muted);">Annuler</button>
-          <button onclick="saveCoachReply('${safeExoId}')" style="font-size:11px;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Envoyer</button>
+
+    // Thread de conversation (Training uniquement, avec exoId)
+    let threadHtml = '';
+    if (!isCoach && c.exoId) {
+      const thread = Array.isArray(c.thread) ? c.thread : [];
+      // Bulles de conversation
+      const bubbles = thread.map(msg => {
+        const isC = msg.auteur === 'coach';
+        const ts  = msg.ts ? new Date(msg.ts).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+        return `<div style="display:flex;flex-direction:column;align-items:${isC?'flex-end':'flex-start'};margin-bottom:5px;">
+          <div style="max-width:85%;padding:7px 11px;border-radius:${isC?'12px 12px 4px 12px':'12px 12px 12px 4px'};
+            background:${isC?'var(--accent)':'var(--surface2)'};color:${isC?'#fff':'var(--text)'};
+            font-size:12px;line-height:1.45;">${msg.contenu}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">${isC?'Coach':clientPrenom}${ts?' · '+ts:''}</div>
+        </div>`;
+      }).join('');
+
+      threadHtml = `
+        <div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:10px;display:flex;flex-direction:column;gap:2px;" id="thread-${safeExoId}">
+          ${thread.length ? bubbles : '<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0;">Commencer la conversation…</div>'}
         </div>
-      </div>
-      ${!c.reponse ? `<button onclick="toggleReplyForm('${safeExoId}')" style="margin-top:7px;font-size:11px;padding:3px 10px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(109,40,217,0.15);border-radius:20px;cursor:pointer;font-weight:600;">↩ Répondre</button>` : ''}
-    ` : '';
+        <div style="display:flex;gap:6px;margin-top:7px;">
+          <input id="thread-input-${safeExoId}" type="text" placeholder="Répondre à ${clientPrenom}…"
+            style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;"
+            onkeydown="if(event.key==='Enter')appendThreadMsg('${safeExoId}','${c.exoId}')">
+          <button onclick="appendThreadMsg('${safeExoId}','${c.exoId}')"
+            style="padding:7px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">↩</button>
+        </div>`;
+    }
+
     return `
     <div class="comment-card ${isCoach ? 'coach' : 'client'}">
       <div class="comment-meta">
-        <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Coach' : currentClientData?.prenom || 'Cliente'}</span>
+        <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Coach' : clientPrenom}</span>
         ${c.categorie ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:${catColor}1a;color:${catColor};font-weight:600">${c.categorie}</span>` : ''}
         ${c.reference ? `<span class="comment-exo">${c.reference}</span>` : ''}
         ${dateStr ? `<span class="comment-date">${dateStr}</span>` : ''}
       </div>
       <div class="comment-body">${c.contenu}</div>
-      ${replyBlock}
+      ${threadHtml}
     </div>`;
   }).join('');
 }
 
-function toggleReplyForm(exoId) {
-  const form = document.getElementById('reply-form-' + exoId);
-  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
+// Ajouter un message coach dans le thread d'un exercice
+async function appendThreadMsg(safeExoId, exoId) {
+  const input   = document.getElementById('thread-input-' + safeExoId);
+  const contenu = input?.value?.trim();
+  if (!contenu) return;
+  input.value = '';
 
-async function saveCoachReply(exoId) {
-  const textarea = document.getElementById('reply-input-' + exoId);
-  const reponse  = textarea?.value?.trim();
-  if (!reponse) return;
+  // Lire le thread actuel
+  const { data: exoRow } = await db.from('seance_exercices')
+    .select('messages_thread').eq('id', exoId).single();
 
-  const btn = textarea.nextElementSibling?.querySelector('button:last-child');
-  if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
+  let thread = [];
+  try { thread = Array.isArray(exoRow?.messages_thread) ? exoRow.messages_thread : (exoRow?.messages_thread ? JSON.parse(exoRow.messages_thread) : []); } catch(e) {}
+
+  thread.push({ auteur: 'coach', contenu, ts: new Date().toISOString() });
 
   const { error } = await db.from('seance_exercices')
-    .update({ reponse_coach: reponse, reponse_lue: false })
+    .update({ messages_thread: thread, reponse_lue: false, reponse_coach: contenu })
     .eq('id', exoId);
 
-  if (error) {
-    toast('Erreur : ' + error.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
-    return;
-  }
-  toast('Réponse envoyée ✓');
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Message envoyé ✓');
   await loadComments(currentClientId);
 }
 
@@ -1837,12 +1874,9 @@ async function loadSeanceExercices(seanceId) {
           ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
         </div>`;
       }).join('');
-      // Debug ligne (temporaire) — montre le JSON brut pour diagnostic
-      const debugLine = `<div style="font-size:9px;color:#aaa;margin-top:2px;word-break:break-all;">RAW: ${JSON.stringify(seriesArr)}</div>`;
       realiséHtml = `<div style="margin-top:5px;background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.15);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;">
         <span style="font-size:9px;font-weight:700;color:var(--success);letter-spacing:0.05em;margin-bottom:2px;">RÉALISÉ</span>
         ${rows}
-        ${debugLine}
         ${e.notes_client ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;border-top:1px solid rgba(22,163,74,0.15);padding-top:3px;">${e.notes_client}</div>` : ''}
       </div>`;
     } else if (e.charge_reelle || e.reps_reelles || e.notes_client) {
@@ -3210,108 +3244,174 @@ async function saveProgSeance() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  PERF CHARTS (Supabase)
+//  PERF CHARTS (Supabase) — Charge max / Volume / Reps
 // ═══════════════════════════════════════════════════════════
+let _coachPerfMetric = 'charge';
+let _coachPerfPeriod = '4s';
+let _coachPerfRows   = null;  // cache des données brutes
+let _coachPerfDates  = null;  // cache dateMap
+
+function setCoachPerfMetric(btn, metric) {
+  document.querySelectorAll('#perf-metric-btns .perf-ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _coachPerfMetric = metric;
+  _renderCoachPerfs();
+}
+
+function setCoachPerfPeriod(btn, period) {
+  document.querySelectorAll('#perf-period-btns .perf-ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _coachPerfPeriod = period;
+  _renderCoachPerfs();
+}
+
 async function drawCoachPerfs() {
   if (!currentClientId) return;
+  _coachPerfRows  = null;
+  _coachPerfDates = null;
+
   const grid = document.getElementById('coach-perfs-grid');
   grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:13px;text-align:center;">Chargement…</div>';
 
-  // 1. Séances du client (triées chronologiquement)
+  // 1. Toutes les séances du client
   const { data: seances, error: seancesErr } = await db.from('seances')
     .select('id, date').eq('client_id', currentClientId)
     .order('date', { ascending: true });
 
   if (seancesErr || !seances || !seances.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:12px 16px;background:#fef9c3;border-radius:10px;border:1px solid #fde68a;font-size:12px;font-family:monospace;color:#92400e;">
-      ⚠️ DEBUG — client_id : ${currentClientId}<br>
-      ${seancesErr ? '❌ Erreur séances : ' + seancesErr.message : '0 séance trouvée pour ce client.<br>→ Crée d\'abord une séance pour ce client dans l\'onglet Programmation.'}</div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Aucune séance trouvée pour cette cliente.</div>`;
     return;
   }
 
-  const seanceIds = seances.map(s => s.id);
-  const dateMap   = {};
+  const dateMap = {};
   seances.forEach(s => { dateMap[s.id] = s.date; });
+  const seanceIds = seances.map(s => s.id);
 
-  // 2. Données de performance
-  // Colonnes : charge_kg (programmé), charge (texte legacy), charge_reelle (réalisé par client)
+  // 2. Données : charge_reelle, reps_reelles, series (+ charge/charge_kg legacy)
   let rows, rowsErr;
   ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-    .select('nom_exo, charge_kg, charge, charge_reelle, seance_id')
+    .select('nom_exo, charge_kg, charge, charge_reelle, reps_reelles, series, seance_id')
     .in('seance_id', seanceIds));
 
   if (rowsErr) {
-    // Fallback sans les nouvelles colonnes
     ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-      .select('nom_exo, charge, seance_id')
-      .in('seance_id', seanceIds));
+      .select('nom_exo, charge, seance_id').in('seance_id', seanceIds));
   }
 
-  if (rowsErr) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Impossible de charger les données de performance.</div>`;
+  if (rowsErr || !rows || !rows.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">
+      ${rowsErr ? 'Impossible de charger les données.' : 'Aucun exercice enregistré.'}</div>`;
     return;
   }
 
-  if (!rows || !rows.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Aucun exercice enregistré dans les séances de cette cliente.</div>`;
-    return;
-  }
+  _coachPerfRows  = rows;
+  _coachPerfDates = dateMap;
+  _renderCoachPerfs();
+}
 
-  // 3. Grouper par exercice
-  // Priorité charge : charge_reelle (réalisé) > charge_kg (programmé) > parse(charge)
+function _renderCoachPerfs() {
+  const grid = document.getElementById('coach-perfs-grid');
+  if (!_coachPerfRows) return;
+
+  const rows    = _coachPerfRows;
+  const dateMap = _coachPerfDates;
+  const metric  = _coachPerfMetric;
+  const period  = _coachPerfPeriod;
+
+  // Calculer la date de coupure selon la période
+  const now = new Date();
+  let cutoff = null;
+  if (period === '4s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 28); }
+  if (period === '8s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 56); }
+  if (period === '3m') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); }
+
+  // Grouper par exercice avec toutes les métriques
   const grouped = {};
   rows.forEach(r => {
     const nom = r.nom_exo;
     if (!nom) return;
-    let charge = r.charge_reelle;                          // ce que la cliente a réellement soulevé
-    if (!charge && r.charge_kg) charge = r.charge_kg;      // charge programmée
-    if (!charge && r.charge)    charge = parseFloat(r.charge); // champ texte legacy
-    if (!charge || charge <= 0) return;
+    const date = dateMap[r.seance_id];
+    if (!date) return;
+    if (cutoff && new Date(date + 'T12:00:00') < cutoff) return;
+
+    // Charge : charge_reelle > charge_kg > parse(charge)
+    let charge = r.charge_reelle;
+    if (!charge && r.charge_kg) charge = r.charge_kg;
+    if (!charge && r.charge)    charge = parseFloat(r.charge);
+    charge = charge || 0;
+
+    const reps   = r.reps_reelles || 0;
+    const series = r.series || 1;
+    const volume = charge * reps * series;
+
     if (!grouped[nom]) grouped[nom] = [];
-    grouped[nom].push({ date: dateMap[r.seance_id], charge });
+    grouped[nom].push({ date, charge, reps, volume });
   });
 
-  if (!Object.keys(grouped).length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Les séances existent mais aucune charge n'a encore été enregistrée pour tracer une courbe de progression.</div>`;
+  // Choisir la valeur à tracer selon la métrique
+  const getValue = pt => {
+    if (metric === 'charge') return pt.charge;
+    if (metric === 'volume') return pt.volume;
+    if (metric === 'reps')   return pt.reps;
+    return 0;
+  };
+
+  const metricLabels = { charge: 'Charge max', volume: 'Volume total', reps: 'Reps max' };
+  const metricUnits  = { charge: 'kg', volume: 'kg', reps: 'reps' };
+
+  const COLORS = ['#6D28D9','#16A34A','#F97316','#A855F7','#0891B2','#DC2626','#D97706','#059669'];
+
+  const exos = Object.entries(grouped).map(([name, pts], i) => {
+    const sorted = pts
+      .filter(p => getValue(p) > 0)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    if (!sorted.length) return null;
+
+    const vals  = sorted.map(p => getValue(p));
+    const dates = sorted.map(p => new Date(p.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
+    const best  = Math.max(...vals);
+    const first = vals[0], last = vals[vals.length - 1];
+    const prog  = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+    const unit  = metricUnits[metric];
+
+    return { name, vals, dates, best, prog, unit, color: COLORS[i % COLORS.length] };
+  }).filter(Boolean);
+
+  if (!exos.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">
+      Aucune donnée pour cette période et cette métrique.</div>`;
     return;
   }
 
-  const COLORS = ['#6D28D9','#16A34A','#F97316','#A855F7','#0891B2','#DC2626','#D97706','#059669'];
-  const exos = Object.entries(grouped).map(([name, pts], i) => {
-    const sorted = pts.filter(p => p.date).sort((a, b) => new Date(a.date) - new Date(b.date));
-    const vals   = sorted.map(p => p.charge);
-    const dates  = sorted.map(p => {
-      const d = new Date(p.date + 'T12:00:00');
-      return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
-    });
-    const pr = Math.max(...vals);
-    const first = vals[0], last = vals[vals.length-1];
-    const prog = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-    return { name, vals, dates, pr: pr + ' kg', prog: (prog >= 0 ? '+' : '') + prog + '%', color: COLORS[i % COLORS.length] };
-  }).filter(e => e.vals.length > 0);
+  const metricLabel = metricLabels[metric];
 
   grid.innerHTML = exos.map((e, i) => `
     <div class="perf-card">
       <div class="perf-card-name">${e.name}</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${metricLabel}</div>
       <canvas class="perf-card-canvas" id="pfc-${i}" height="80"></canvas>
-      <div class="perf-pr" style="display:flex;justify-content:space-between;align-items:center">
-        <span>PR actuel <strong>${e.pr}</strong></span>
-        <span style="font-size:11px;font-weight:700;color:var(--success)">${e.prog}</span>
+      <div class="perf-pr" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;">
+        <span style="font-size:11px;color:var(--muted);">Best <strong style="color:var(--accent);font-size:14px;font-weight:800;">${e.best} ${e.unit}</strong></span>
+        <span style="font-size:11px;font-weight:700;color:${e.prog >= 0 ? 'var(--success)' : 'var(--danger)'}">${e.prog >= 0 ? '+' : ''}${e.prog}%</span>
       </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px;">${e.vals.length} séance${e.vals.length > 1 ? 's' : ''}</div>
     </div>`).join('');
 
   requestAnimationFrame(() => {
     exos.forEach((e, i) => {
       const c = document.getElementById('pfc-' + i);
-      if (c && e.vals.length >= 2) drawMiniLineChart(c, e.vals, e.dates, e.color, 80);
-      else if (c && e.vals.length === 1) {
-        // Un seul point — afficher juste le chiffre
+      if (!c) return;
+      if (e.vals.length >= 2) {
+        drawMiniLineChart(c, e.vals, e.dates, e.color, 80);
+      } else {
         const ctx = c.getContext('2d');
-        c.width = (c.offsetWidth || 200) * (window.devicePixelRatio || 1);
+        c.width  = (c.offsetWidth || 200) * (window.devicePixelRatio || 1);
         c.height = 80 * (window.devicePixelRatio || 1);
-        ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
-        ctx.fillStyle = '#9CA3AF'; ctx.font = '12px Inter,sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('1 séance enregistrée', (c.offsetWidth||200)/2, 44);
+        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '12px Inter,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('1 séance — ' + e.vals[0] + ' ' + e.unit, (c.offsetWidth || 200) / 2, 44);
       }
     });
   });

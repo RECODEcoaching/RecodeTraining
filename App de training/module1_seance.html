@@ -787,10 +787,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           ${rows}
           ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
           <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''}>${savedNote}</textarea>
-          ${exo.reponse_coach ? `<div style="margin-top:8px;padding:9px 11px;background:rgba(249,115,22,0.07);border-left:2px solid #f97316;border-radius:6px;">
-            <div style="font-size:9px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">Réponse coach</div>
-            <div style="font-size:12px;color:var(--text);line-height:1.5;">${exo.reponse_coach}</div>
-          </div>` : ''}
+          ${renderExoThread(exo, true)}
         </div>
       </div>`;
     }
@@ -838,10 +835,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         ${rows}
         ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
         <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''}>${savedNote}</textarea>
-        ${exo.reponse_coach ? `<div style="margin-top:8px;padding:9px 11px;background:rgba(249,115,22,0.07);border-left:2px solid #f97316;border-radius:6px;">
-          <div style="font-size:9px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">Réponse coach</div>
-          <div style="font-size:12px;color:var(--text);line-height:1.5;">${exo.reponse_coach}</div>
-        </div>` : ''}
+        ${renderExoThread(exo, false)}
       </div>
     </div>`;
   }
@@ -887,6 +881,86 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <div style="font-size:12px;color:var(--text-muted);min-width:36px;text-align:right;">${reps ? reps + ' reps' : ''}</div>
       </div>`;
     }).join('');
+  }
+
+  // ── Thread de conversation coach/client sur un exercice ─────
+  function renderExoThread(exo, isUnilatéral) {
+    const thread = (() => {
+      try { return Array.isArray(exo.messages_thread) ? exo.messages_thread : (exo.messages_thread ? JSON.parse(exo.messages_thread) : []); }
+      catch(e) { return []; }
+    })();
+
+    // Pas de thread et pas de note client → rien à afficher
+    if (!thread.length && !exo.reponse_coach) return '';
+
+    const safeId = (exo.id || '').replace(/[^a-zA-Z0-9]/g, '');
+
+    const bubbles = thread.map(msg => {
+      const isCoach = msg.auteur === 'coach';
+      return `<div style="display:flex;flex-direction:column;align-items:${isCoach?'flex-end':'flex-start'};margin-bottom:4px;">
+        <div style="max-width:88%;padding:7px 11px;border-radius:${isCoach?'12px 12px 4px 12px':'12px 12px 12px 4px'};
+          background:${isCoach?'#f97316':'var(--surface3)'};color:${isCoach?'#fff':'var(--text)'};
+          font-size:12px;line-height:1.45;">${msg.contenu}</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">${isCoach?'Coach':'Moi'}</div>
+      </div>`;
+    }).join('');
+
+    // Fallback : si reponse_coach existe mais thread vide (ancien format)
+    const legacyReponse = (!thread.length && exo.reponse_coach)
+      ? `<div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:4px;">
+          <div style="max-width:88%;padding:7px 11px;border-radius:12px 12px 4px 12px;background:#f97316;color:#fff;font-size:12px;line-height:1.45;">${exo.reponse_coach}</div>
+          <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">Coach</div>
+        </div>`
+      : '';
+
+    const canReply = currentSeanceStatut === 'validée';
+
+    return `<div style="margin-top:8px;">
+      <div style="font-size:9px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Conversation</div>
+      <div style="background:rgba(249,115,22,0.05);border:1px solid rgba(249,115,22,0.15);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;" id="thread-bubbles-${safeId}">
+        ${legacyReponse}${bubbles || ''}
+      </div>
+      ${canReply ? `<div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="thread-client-${safeId}" type="text" placeholder="Répondre au coach…"
+          style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;"
+          onkeydown="if(event.key==='Enter')sendClientThreadReply('${safeId}','${exo.id}')">
+        <button onclick="sendClientThreadReply('${safeId}','${exo.id}')"
+          style="padding:7px 12px;background:#f97316;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">↩</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  async function sendClientThreadReply(safeId, exoId) {
+    const input   = document.getElementById('thread-client-' + safeId);
+    const contenu = input?.value?.trim();
+    if (!contenu) return;
+    input.value = '';
+    input.disabled = true;
+
+    const { data: exoRow } = await db.from('seance_exercices')
+      .select('messages_thread').eq('id', exoId).single();
+
+    let thread = [];
+    try { thread = Array.isArray(exoRow?.messages_thread) ? exoRow.messages_thread : (exoRow?.messages_thread ? JSON.parse(exoRow.messages_thread) : []); } catch(e) {}
+
+    thread.push({ auteur: 'client', contenu, ts: new Date().toISOString() });
+
+    const { error } = await db.from('seance_exercices')
+      .update({ messages_thread: thread, reponse_lue: false })
+      .eq('id', exoId);
+
+    input.disabled = false;
+    if (error) { alert('Erreur : ' + error.message); return; }
+
+    // Mettre à jour les bulles localement sans recharger
+    const bubblesDiv = document.getElementById('thread-bubbles-' + safeId);
+    if (bubblesDiv) {
+      bubblesDiv.insertAdjacentHTML('beforeend',
+        `<div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:4px;">
+          <div style="max-width:88%;padding:7px 11px;border-radius:12px 12px 12px 4px;background:var(--surface3);color:var(--text);font-size:12px;line-height:1.45;">${contenu}</div>
+          <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">Moi</div>
+        </div>`);
+    }
   }
 
   // ── Tracking des valeurs saisies (oninput → map global) ──────
