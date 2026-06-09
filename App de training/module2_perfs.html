@@ -560,19 +560,27 @@ async function openDetail(nomExo) {
   const dateMap      = {};
   seances.forEach(s => { dateMap[s.id] = s.date; });
 
-  // Charger l'historique de cet exercice (avec toutes les colonnes de perf)
-  let rows, rowsErr2;
-  ({ data: rows, error: rowsErr2 } = await db.from('seance_exercices')
-    .select('charge_kg, charge, charge_reelle, reps, reps_reelles, series, series_data, notes_client, notes, technique, seance_id')
-    .in('seance_id', seanceIds)
-    .eq('nom_exo', nomExo));
+  // Charger l'historique — 3 niveaux de fallback selon les colonnes disponibles
+  let rows = null;
+  const baseFilter = (q) => q.in('seance_id', seanceIds).eq('nom_exo', nomExo);
 
-  if (rowsErr2) {
-    // Fallback sans nouvelles colonnes
-    ({ data: rows } = await db.from('seance_exercices')
-      .select('charge_kg, charge, reps, series, notes, technique, seance_id')
-      .in('seance_id', seanceIds)
-      .eq('nom_exo', nomExo));
+  // Niveau 1 : toutes les colonnes modernes
+  { const { data, error } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, charge_reelle, reps, reps_reelles, series, series_data, notes_client, notes, technique, seance_id'));
+    if (!error) rows = data; }
+
+  // Niveau 2 : sans les colonnes récentes (charge_reelle etc.)
+  if (!rows) {
+    const { data, error } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, reps, series, seance_id'));
+    if (!error) rows = data;
+  }
+
+  // Niveau 3 : strictement minimal
+  if (!rows) {
+    const { data } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, seance_id'));
+    rows = data;
   }
 
   if (!rows || !rows.length) {
