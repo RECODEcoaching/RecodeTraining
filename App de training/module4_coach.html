@@ -792,19 +792,12 @@ async function hashPin(pin) {
       <!-- Perfs -->
       <div class="client-tab-content" id="ctab-perfs">
         <div class="section-title">Évolution des performances</div>
-        <!-- Contrôles : métrique + période -->
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
-          <div style="display:flex;gap:6px;" id="perf-metric-btns">
-            <button class="perf-ctrl-btn active" onclick="setCoachPerfMetric(this,'charge')">Charge max</button>
-            <button class="perf-ctrl-btn" onclick="setCoachPerfMetric(this,'volume')">Volume total</button>
-            <button class="perf-ctrl-btn" onclick="setCoachPerfMetric(this,'reps')">Reps max</button>
-          </div>
-          <div style="display:flex;gap:6px;" id="perf-period-btns">
-            <button class="perf-ctrl-btn active" onclick="setCoachPerfPeriod(this,'4s')">4 sem.</button>
-            <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'8s')">8 sem.</button>
-            <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'3m')">3 mois</button>
-            <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'tout')">Tout</button>
-          </div>
+        <!-- Contrôles : période uniquement -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;" id="perf-period-btns">
+          <button class="perf-ctrl-btn active" onclick="setCoachPerfPeriod(this,'4s')">4 sem.</button>
+          <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'8s')">8 sem.</button>
+          <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'3m')">3 mois</button>
+          <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'tout')">Tout</button>
         </div>
         <div class="perfs-grid" id="coach-perfs-grid"></div>
       </div>
@@ -3246,17 +3239,9 @@ async function saveProgSeance() {
 // ═══════════════════════════════════════════════════════════
 //  PERF CHARTS (Supabase) — Charge max / Volume / Reps
 // ═══════════════════════════════════════════════════════════
-let _coachPerfMetric = 'charge';
 let _coachPerfPeriod = '4s';
-let _coachPerfRows   = null;  // cache des données brutes
-let _coachPerfDates  = null;  // cache dateMap
-
-function setCoachPerfMetric(btn, metric) {
-  document.querySelectorAll('#perf-metric-btns .perf-ctrl-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  _coachPerfMetric = metric;
-  _renderCoachPerfs();
-}
+let _coachPerfRows   = null;
+let _coachPerfDates  = null;
 
 function setCoachPerfPeriod(btn, period) {
   document.querySelectorAll('#perf-period-btns .perf-ctrl-btn').forEach(b => b.classList.remove('active'));
@@ -3315,17 +3300,16 @@ function _renderCoachPerfs() {
 
   const rows    = _coachPerfRows;
   const dateMap = _coachPerfDates;
-  const metric  = _coachPerfMetric;
   const period  = _coachPerfPeriod;
 
-  // Calculer la date de coupure selon la période
+  // Cutoff selon la période
   const now = new Date();
   let cutoff = null;
   if (period === '4s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 28); }
   if (period === '8s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 56); }
   if (period === '3m') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); }
 
-  // Grouper par exercice avec toutes les métriques
+  // Grouper par exercice
   const grouped = {};
   rows.forEach(r => {
     const nom = r.nom_exo;
@@ -3334,13 +3318,12 @@ function _renderCoachPerfs() {
     if (!date) return;
     if (cutoff && new Date(date + 'T12:00:00') < cutoff) return;
 
-    // Charge : charge_reelle > charge_kg > parse(charge)
     let charge = r.charge_reelle;
     if (!charge && r.charge_kg) charge = r.charge_kg;
     if (!charge && r.charge)    charge = parseFloat(r.charge);
     charge = charge || 0;
 
-    const reps   = r.reps_reelles || 0;
+    const reps   = r.reps_reelles || r.reps || 0;
     const series = r.series || 1;
     const volume = charge * reps * series;
 
@@ -3348,20 +3331,13 @@ function _renderCoachPerfs() {
     grouped[nom].push({ date, charge, reps, volume });
   });
 
-  // Choisir la valeur à tracer selon la métrique
-  const getValue = pt => {
-    if (metric === 'charge') return pt.charge;
-    if (metric === 'volume') return pt.volume;
-    if (metric === 'reps')   return pt.reps;
-    return 0;
-  };
-
-  const metricLabels = { charge: 'Charge max', volume: 'Volume total', reps: 'Reps max' };
-  const metricUnits  = { charge: 'kg', volume: 'kg', reps: 'reps' };
-
   const COLORS = ['#6D28D9','#16A34A','#F97316','#A855F7','#0891B2','#DC2626','#D97706','#059669'];
 
   const exos = Object.entries(grouped).map(([name, pts], i) => {
+    // BW si toutes les charges sont 0
+    const isBW = pts.every(p => p.charge === 0);
+    const getValue = p => isBW ? p.reps : p.volume;
+
     const sorted = pts
       .filter(p => getValue(p) > 0)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -3372,25 +3348,26 @@ function _renderCoachPerfs() {
     const best  = Math.max(...vals);
     const first = vals[0], last = vals[vals.length - 1];
     const prog  = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-    const unit  = metricUnits[metric];
+    const unit  = isBW ? 'reps' : 'kg';
+    const label = isBW ? 'Reps' : 'Volume';
 
-    return { name, vals, dates, best, prog, unit, color: COLORS[i % COLORS.length] };
+    return { name, vals, dates, best, prog, unit, label, color: COLORS[i % COLORS.length] };
   }).filter(Boolean);
 
   if (!exos.length) {
     grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">
-      Aucune donnée pour cette période et cette métrique.</div>`;
+      Aucune donnée pour cette période.</div>`;
     return;
   }
 
-  const metricLabel = metricLabels[metric];
+  const metricLabel = 'Volume (reps × charge)';
 
   grid.innerHTML = exos.map((e, i) => {
     const trLabel = getTechRevueLabel(e.name);
     return `
     <div class="perf-card">
       <div class="perf-card-name">${e.name}</div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${metricLabel}</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${e.label}</div>
       <canvas class="perf-card-canvas" id="pfc-${i}" height="80"></canvas>
       <div class="perf-pr" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;">
         <span style="font-size:11px;color:var(--muted);">Best <strong style="color:var(--accent);font-size:14px;font-weight:800;">${e.best} ${e.unit}</strong></span>
@@ -3467,7 +3444,7 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
   const min  = Math.min(...vals), max = Math.max(...vals);
   const rng  = (max - min) || 1;
   const minD = min - rng*0.1, maxD = max + rng*0.1, rngD = maxD - minD;
-  const xp   = i => pad.left + (i / (vals.length-1)) * cW;
+  const xp   = i => vals.length <= 1 ? pad.left + cW/2 : pad.left + (i / (vals.length-1)) * cW;
   const yp   = v => pad.top + cH - ((v - minD) / rngD) * cH;
 
   ctx.fillStyle = '#9CA3AF'; ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'right';

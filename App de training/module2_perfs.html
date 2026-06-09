@@ -327,13 +327,6 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     </div>
   </div>
 
-  <!-- Metric toggle -->
-  <div class="metric-toggle">
-    <div class="toggle-btn active" onclick="switchMetric(this,'charge')">Charge max</div>
-    <div class="toggle-btn" onclick="switchMetric(this,'volume')">Volume total</div>
-    <div class="toggle-btn" onclick="switchMetric(this,'reps')">Reps max</div>
-  </div>
-
   <!-- Period -->
   <div class="period-row">
     <div class="period-btn active" onclick="switchPeriod(this,'4s')">4 sem.</div>
@@ -345,7 +338,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <!-- Chart -->
   <div class="chart-wrap" style="position:relative;">
     <div class="chart-title-row">
-      <div class="chart-label" id="chart-label-txt">Charge max par séance (kg)</div>
+      <div class="chart-label" id="chart-label-txt">Volume par séance (reps × charge)</div>
       <div class="legend-wrap">
         <div class="legend-item"><div class="legend-dot normal"></div>Normal</div>
         <div class="legend-item"><div class="legend-dot technique"></div>Technique revue</div>
@@ -637,45 +630,31 @@ async function openDetail(nomExo) {
     };
   }).sort((a, b) => b._ts - a._ts);
 
-  const charges = history.map(h => h.charge).filter(c => c > 0);
-  const isBW    = charges.length === 0; // Exercice poids de corps
-  const pr      = charges.length ? Math.max(...charges) : 0;
-  const first   = history[history.length - 1];
-  const last    = history[0];
+  // Métrique unique : volume (reps × charge), fallback reps pour BW
+  const isBW = history.every(h => h.charge === 0);
+  const scores = history.map(h => isBW ? h.reps : h.volume);
 
-  // Pour BW : progression en reps, sinon en charge
-  let prLabel, progLabel;
-  if (isBW) {
-    const allReps = history.map(h => h.reps).filter(r => r > 0);
-    const bestReps = allReps.length ? Math.max(...allReps) : 0;
-    prLabel = bestReps > 0 ? bestReps + ' reps' : 'BW';
-    const firstReps = history[history.length - 1]?.reps || 0;
-    const lastReps  = history[0]?.reps || 0;
-    const progReps  = firstReps > 0 ? Math.round(((lastReps - firstReps) / firstReps) * 100) : 0;
-    progLabel = (progReps >= 0 ? '+' : '') + progReps + '%';
-  } else {
-    prLabel   = pr + ' kg';
-    const prog = first?.charge > 0 ? Math.round(((last.charge - first.charge) / first.charge) * 100) : 0;
-    progLabel = (prog >= 0 ? '+' : '') + prog + '%';
-  }
+  const best  = scores.filter(v => v > 0);
+  const pr    = best.length ? Math.max(...best) : 0;
+  const first = scores[scores.length - 1] || 0;
+  const last  = scores[0] || 0;
+  const prog  = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+
+  const prLabel   = pr > 0 ? pr + (isBW ? ' reps' : ' kg') : '—';
+  const progLabel = (prog >= 0 ? '+' : '') + prog + '%';
 
   currentExo = { name: nomExo, pr: prLabel, seances: history.length, prog: progLabel, history, isBW };
+  currentMetric = isBW ? 'reps' : 'volume';
 
-  document.getElementById('stat-pr').textContent      = currentExo.pr;
+  document.getElementById('stat-pr').textContent      = prLabel;
   document.getElementById('stat-seances').textContent = history.length;
-  document.getElementById('stat-prog').textContent    = currentExo.prog;
+  document.getElementById('stat-prog').textContent    = progLabel;
+  document.getElementById('chart-label-txt').textContent = isBW ? 'Reps par séance' : 'Volume par séance (reps × charge)';
 
-  // Pour BW : afficher Reps max par défaut
-  const defaultMetric = isBW ? 'reps' : 'charge';
-  document.querySelectorAll('.toggle-btn').forEach((b, idx) => {
-    const metrics = ['charge', 'volume', 'reps'];
-    b.classList.toggle('active', metrics[idx] === defaultMetric);
-  });
-  currentMetric = defaultMetric;
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.period-btn')[0].classList.add('active');
 
-  renderChart(history, defaultMetric);
+  renderChart(history, currentMetric);
   renderHistory(history);
 }
 
@@ -698,22 +677,19 @@ function filterExos(val) {
 }
 
 // ─── METRIC / PERIOD ─────────────────────────────────────────────────
-function switchMetric(btn, metric) {
-  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  currentMetric = metric;
-  const labels = { charge: 'Charge max par séance (kg)', volume: 'Volume total par séance (kg)', reps: 'Reps max par séance' };
-  document.getElementById('chart-label-txt').textContent = labels[metric];
-  if (currentExo) renderChart(currentExo.history, metric);
-}
 
 function switchPeriod(btn, period) {
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (!currentExo) return;
-  let data = [...currentExo.history];
-  const cuts = { '4s': 4, '8s': 8, '3m': 13, 'tout': 999 };
-  data = data.slice(0, cuts[period] || 999);
+  const now = new Date();
+  let cutoff = null;
+  if (period === '4s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 28); }
+  if (period === '8s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 56); }
+  if (period === '3m') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); }
+  const data = cutoff
+    ? currentExo.history.filter(h => h._ts >= cutoff.getTime())
+    : [...currentExo.history];
   renderChart(data, currentMetric);
   renderHistory(data);
 }
