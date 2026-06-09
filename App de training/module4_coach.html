@@ -3275,12 +3275,12 @@ async function drawCoachPerfs() {
   // 2. Données : charge_reelle, reps_reelles, series (+ charge/charge_kg legacy)
   let rows, rowsErr;
   ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-    .select('nom_exo, charge_kg, charge, charge_reelle, reps_reelles, series, seance_id')
+    .select('nom_exo, charge_kg, charge, charge_reelle, reps_reelles, series, series_data, seance_id')
     .in('seance_id', seanceIds));
 
   if (rowsErr) {
     ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
-      .select('nom_exo, charge, seance_id').in('seance_id', seanceIds));
+      .select('nom_exo, charge_kg, charge, series_data, seance_id').in('seance_id', seanceIds));
   }
 
   if (rowsErr || !rows || !rows.length) {
