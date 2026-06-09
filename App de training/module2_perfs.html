@@ -632,7 +632,7 @@ async function openDetail(nomExo) {
       short:     d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }),
       charge,
       volume: (() => {
-        // Meilleure série = max(reps × charge) parmi toutes les séries
+        // Meilleure série = max(reps × charge) depuis series_data uniquement
         if (r.series_data) {
           try {
             const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
@@ -641,13 +641,12 @@ async function openDetail(nomExo) {
                 const c  = parseFloat(s.charge) || 0;
                 const rv = parseFloat(s.reps) || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
                 return c * rv;
-              }));
+              }).filter(v => v > 0));
               if (best > 0) return best;
             }
           } catch(e) {}
         }
-        // Fallback : charge × reps
-        return charge * reps;
+        return 0; // Pas de series_data = pas de valeur fiable
       })(),
       reps,
       technique: r.technique || false,
