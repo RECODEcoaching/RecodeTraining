@@ -3325,7 +3325,21 @@ function _renderCoachPerfs() {
 
     const reps   = r.reps_reelles || r.reps || 0;
     const series = r.series || 1;
-    const volume = charge * reps * series;
+    // Meilleure série = max(reps × charge)
+    let volume = charge * reps;
+    if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        if (sd.length) {
+          const best = Math.max(...sd.map(s => {
+            const c  = parseFloat(s.charge) || 0;
+            const rv = parseFloat(s.reps) || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
+            return c * rv;
+          }));
+          if (best > 0) volume = best;
+        }
+      } catch(e) {}
+    }
 
     if (!grouped[nom]) grouped[nom] = [];
     grouped[nom].push({ date, charge, reps, volume });

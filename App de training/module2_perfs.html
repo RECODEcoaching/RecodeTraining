@@ -630,7 +630,26 @@ async function openDetail(nomExo) {
     return {
       date:      d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
       short:     d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }),
-      charge, volume: charge * reps * series, reps,
+      charge,
+      volume: (() => {
+        // Meilleure série = max(reps × charge) parmi toutes les séries
+        if (r.series_data) {
+          try {
+            const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+            if (sd.length) {
+              const best = Math.max(...sd.map(s => {
+                const c  = parseFloat(s.charge) || 0;
+                const rv = parseFloat(s.reps) || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
+                return c * rv;
+              }));
+              if (best > 0) return best;
+            }
+          } catch(e) {}
+        }
+        // Fallback : charge × reps
+        return charge * reps;
+      })(),
+      reps,
       technique: r.technique || false,
       comment:   r.notes_client || r.notes || '',
       _ts:       d.getTime(),
@@ -654,7 +673,7 @@ async function openDetail(nomExo) {
   document.getElementById('stat-pr').textContent      = prLabel;
   document.getElementById('stat-seances').textContent = history.length;
   document.getElementById('stat-prog').textContent    = progLabel;
-  document.getElementById('chart-label-txt').textContent = 'Volume par séance (reps × charge)';
+  document.getElementById('chart-label-txt').textContent = 'Meilleure série (reps × charge)';
 
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.period-btn')[0].classList.add('active');
