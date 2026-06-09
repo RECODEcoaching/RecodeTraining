@@ -3334,24 +3334,18 @@ function _renderCoachPerfs() {
   const COLORS = ['#6D28D9','#16A34A','#F97316','#A855F7','#0891B2','#DC2626','#D97706','#059669'];
 
   const exos = Object.entries(grouped).map(([name, pts], i) => {
-    // BW si toutes les charges sont 0
-    const isBW = pts.every(p => p.charge === 0);
-    const getValue = p => isBW ? p.reps : p.volume;
-
     const sorted = pts
-      .filter(p => getValue(p) > 0)
+      .filter(p => p.volume > 0)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
     if (!sorted.length) return null;
 
-    const vals  = sorted.map(p => getValue(p));
+    const vals  = sorted.map(p => p.volume);
     const dates = sorted.map(p => new Date(p.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
     const best  = Math.max(...vals);
     const first = vals[0], last = vals[vals.length - 1];
     const prog  = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-    const unit  = isBW ? 'reps' : 'kg';
-    const label = isBW ? 'Reps' : 'Volume';
 
-    return { name, vals, dates, best, prog, unit, label, color: COLORS[i % COLORS.length] };
+    return { name, vals, dates, best, prog, unit: 'kg', label: 'Volume', color: COLORS[i % COLORS.length] };
   }).filter(Boolean);
 
   if (!exos.length) {

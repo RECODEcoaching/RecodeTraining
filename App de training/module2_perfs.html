@@ -553,7 +553,7 @@ async function openDetail(nomExo) {
   const dateMap      = {};
   seances.forEach(s => { dateMap[s.id] = s.date; });
 
-  // Charger l'historique — 3 niveaux de fallback selon les colonnes disponibles
+  // Charger l'historique — 4 niveaux de fallback selon les colonnes disponibles
   let rows = null;
   const baseFilter = (q) => q.in('seance_id', seanceIds).eq('nom_exo', nomExo);
 
@@ -562,14 +562,21 @@ async function openDetail(nomExo) {
       .select('charge_kg, charge, charge_reelle, reps, reps_reelles, series, series_data, notes_client, notes, technique, seance_id'));
     if (!error) rows = data; }
 
-  // Niveau 2 : sans les colonnes récentes (charge_reelle etc.)
+  // Niveau 2 : sans charge_reelle/reps_reelles mais avec series_data
+  if (!rows) {
+    const { data, error } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, reps, series, series_data, seance_id'));
+    if (!error) rows = data;
+  }
+
+  // Niveau 3 : sans series_data
   if (!rows) {
     const { data, error } = await baseFilter(db.from('seance_exercices')
       .select('charge_kg, charge, reps, series, seance_id'));
     if (!error) rows = data;
   }
 
-  // Niveau 3 : strictement minimal
+  // Niveau 4 : strictement minimal
   if (!rows) {
     const { data } = await baseFilter(db.from('seance_exercices')
       .select('charge_kg, charge, seance_id'));
@@ -630,31 +637,29 @@ async function openDetail(nomExo) {
     };
   }).sort((a, b) => b._ts - a._ts);
 
-  // Métrique unique : volume (reps × charge), fallback reps pour BW
-  const isBW = history.every(h => h.charge === 0);
-  const scores = history.map(h => isBW ? h.reps : h.volume);
+  // Métrique unique : volume = reps × charge
+  const scores = history.map(h => h.volume);
+  const best   = scores.filter(v => v > 0);
+  const pr     = best.length ? Math.max(...best) : 0;
+  const first  = scores[scores.length - 1] || 0;
+  const last   = scores[0] || 0;
+  const prog   = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
 
-  const best  = scores.filter(v => v > 0);
-  const pr    = best.length ? Math.max(...best) : 0;
-  const first = scores[scores.length - 1] || 0;
-  const last  = scores[0] || 0;
-  const prog  = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-
-  const prLabel   = pr > 0 ? pr + (isBW ? ' reps' : ' kg') : '—';
+  const prLabel   = pr > 0 ? pr + ' kg' : '—';
   const progLabel = (prog >= 0 ? '+' : '') + prog + '%';
 
-  currentExo = { name: nomExo, pr: prLabel, seances: history.length, prog: progLabel, history, isBW };
-  currentMetric = isBW ? 'reps' : 'volume';
+  currentExo = { name: nomExo, pr: prLabel, seances: history.length, prog: progLabel, history };
+  currentMetric = 'volume';
 
   document.getElementById('stat-pr').textContent      = prLabel;
   document.getElementById('stat-seances').textContent = history.length;
   document.getElementById('stat-prog').textContent    = progLabel;
-  document.getElementById('chart-label-txt').textContent = isBW ? 'Reps par séance' : 'Volume par séance (reps × charge)';
+  document.getElementById('chart-label-txt').textContent = 'Volume par séance (reps × charge)';
 
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.period-btn')[0].classList.add('active');
 
-  renderChart(history, currentMetric);
+  renderChart(history, 'volume');
   renderHistory(history);
 }
 
