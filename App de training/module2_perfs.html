@@ -726,28 +726,43 @@ function renderChart(history, metric) {
   // Reverse so oldest → newest left to right
   const data = [...history].reverse();
 
-  const labels = data.map(d => d.short);
-  const values = data.map(d => d[metric]);
-  const isTechnique = data.map(d => d.technique);
-
   const dpr = window.devicePixelRatio || 1;
   canvas.width = canvas.offsetWidth * dpr;
   canvas.height = 200 * dpr;
   ctx.scale(dpr, dpr);
   const W = canvas.offsetWidth;
   const H = 200;
-
   ctx.clearRect(0, 0, W, H);
+
+  const values = data.map(d => d[metric]);
+  const hasData = values.some(v => v > 0);
+
+  // Si aucune valeur > 0 : afficher message
+  if (!hasData) {
+    ctx.fillStyle = '#AEAEB2';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    const metricNames = { charge: 'charge', volume: 'volume', reps: 'répétitions' };
+    ctx.fillText('Aucune donnée de ' + (metricNames[metric] || metric) + ' enregistrée', W / 2 / dpr, H / 2 / dpr);
+    canvas._points = [];
+    return;
+  }
 
   const pad = { top: 16, right: 20, bottom: 36, left: 38 };
   const chartW = W - pad.left - pad.right;
   const chartH = H - pad.top - pad.bottom;
 
-  const minVal = Math.min(...values) * 0.85;
-  const maxVal = Math.max(...values) * 1.08;
-  const range = maxVal - minVal;
+  const rawMin = Math.min(...values.filter(v => v > 0));
+  const rawMax = Math.max(...values);
+  const minVal = rawMin * 0.85;
+  const maxVal = rawMax * 1.15;
+  const range  = maxVal - minVal || 1; // Évite division par zéro si toutes égales
 
-  function xPos(i) { return pad.left + (i / (data.length - 1)) * chartW; }
+  // Cas 1 point : centré horizontalement
+  function xPos(i) {
+    if (data.length <= 1) return pad.left + chartW / 2;
+    return pad.left + (i / (data.length - 1)) * chartW;
+  }
   function yPos(v) { return pad.top + chartH - ((v - minVal) / range) * chartH; }
 
   // Grid
