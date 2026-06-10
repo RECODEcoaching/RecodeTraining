@@ -79,8 +79,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
   /* ── SECTION LABEL ── */
   .section-label {
-    font-size: 12px; font-weight: 600; color: var(--text-dim);
-    padding: 20px 20px 10px; letter-spacing: 0.2px;
+    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    padding: 20px 20px 10px; letter-spacing: 0.6px;
     text-transform: uppercase;
   }
 
@@ -157,7 +157,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     width: 100%; padding: 14px; border-radius: var(--radius);
     background: var(--accent); color: #fff;
     font-size: 15px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 14px rgba(109,40,217,0.28); transition: opacity 0.15s;
   }
+  .btn-primary:active { opacity: 0.85; }
   .btn-ghost {
     width: 100%; padding: 13px; border-radius: var(--radius);
     background: transparent; color: var(--text-muted);
@@ -237,105 +239,203 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   .check-day.today .cd-check { color: var(--text-muted); }
 
   /* ═══════ CYCLE ═══════ */
-  .cycle-banner {
-    margin: 16px 20px 0; border-radius: var(--radius);
-    padding: 18px 20px; position: relative;
+  /* ── HERO CARD CYCLE ── */
+  .cycle-hero {
+    margin: 16px 20px 0; border-radius: 20px; padding: 20px 20px 18px;
+    background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
+    color: #fff; position: relative; overflow: hidden;
   }
-  .cycle-banner.menstrual  { background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.18); }
-  .cycle-banner.follicular { background: rgba(251,146,60,0.06);  border: 1px solid rgba(251,146,60,0.18); }
-  .cycle-banner.ovulation  { background: rgba(250,204,21,0.06);  border: 1px solid rgba(250,204,21,0.22); }
-  .cycle-banner.luteal     { background: rgba(192,132,252,0.06); border: 1px solid rgba(192,132,252,0.18); }
-  .cycle-phase-label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 4px; }
-  .cycle-phase-name  { font-size: 19px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
-  .cycle-day-info    { font-size: 13px; color: var(--text-muted); }
+  .cycle-hero::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); pointer-events: none;
+  }
+  .cycle-hero::after {
+    content: ''; position: absolute; bottom: -20px; left: -10px;
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(255,255,255,0.04); pointer-events: none;
+  }
+  .cycle-hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .cycle-hero-left {}
+  .cycle-hero-day-num { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+  .cycle-hero-day-label { font-size: 10px; font-weight: 500; opacity: 0.65; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+  .cycle-hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 4px; }
+  .cycle-hero-badge {
+    font-size: 12px; font-weight: 700; padding: 5px 13px; border-radius: 20px;
+    background: rgba(255,255,255,0.18); backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .cycle-hero-sub { font-size: 11px; opacity: 0.6; }
+  /* Barre de progression de phase */
+  .cycle-hero-progress { height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-bottom: 16px; }
+  .cycle-hero-progress-fill { height: 100%; border-radius: 2px; background: rgba(255,255,255,0.75); transition: width 0.5s ease; }
+  /* Stats intégrées */
+  .cycle-hero-stats { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid rgba(255,255,255,0.15); padding-top: 14px; }
+  .cycle-hero-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .cycle-hero-stat + .cycle-hero-stat { border-left: 1px solid rgba(255,255,255,0.15); }
+  .cycle-hero-stat-val { font-size: 19px; font-weight: 700; }
+  .cycle-hero-stat-label { font-size: 9px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.6px; }
 
-  .cycle-stats {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px; padding: 12px 20px 0;
+  /* ── CALENDRIER PILL ── */
+  .cycle-calendar {
+    margin: 14px 20px 0; background: var(--surface);
+    border-radius: var(--radius); padding: 16px 14px 12px;
+    border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
-  .cycle-stat {
-    background: var(--surface); border-radius: var(--radius-sm);
-    padding: 12px; text-align: center; border: 1px solid var(--border);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: var(--surface2); color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 15px; transition: var(--transition);
   }
-  .cycle-stat-val   { font-size: 17px; font-weight: 700; color: var(--text); }
-  .cycle-stat-label { font-size: 11px; color: var(--text-dim); font-weight: 500; margin-top: 3px; }
+  .cal-nav-btn:hover { background: rgba(109,40,217,0.1); color: var(--accent); }
+  .cal-month-label { font-size: 13px; font-weight: 700; color: var(--text); }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; }
+  .cal-wd { text-align:center; font-size:9px; font-weight:600; color:var(--text-dim); padding:2px 0; text-transform:uppercase; letter-spacing:.5px; }
+  /* Rows semaine */
+  .cal-week { display: grid; grid-template-columns: repeat(7,1fr); position: relative; height: 36px; margin-bottom: 2px; }
+  /* Pills phase */
+  .cal-pill {
+    position: absolute; height: 26px; top: 5px;
+    border-radius: 13px; z-index: 0; pointer-events: none;
+  }
+  .cal-pill-menstrual  { background: #fce7f3; border: 1.5px solid #e879a0; }
+  .cal-pill-follicular { background: #ede9fe; border: 1.5px solid #a78bfa; }
+  .cal-pill-ovulation  { background: #c4b5fd; border: 1.5px solid #7c3aed; }
+  .cal-pill-luteal     { background: rgba(109,40,217,0.22); border: 1.5px solid #6D28D9; }
+  /* Cellules jour */
+  .cal-cell {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; position: relative; z-index: 1; height: 36px;
+  }
+  .cal-num {
+    font-size: 11px; font-weight: 500; color: var(--text);
+    width: 22px; height: 22px; display: flex; align-items: center;
+    justify-content: center; border-radius: 50%;
+  }
+  .cal-num-today { background: var(--accent); color: #fff; font-weight: 700; }
+  .cal-num-muted { color: var(--text-dim); }
+  .cal-dots { display:flex; gap:2px; margin-top:1px; }
+  .cal-dot { width: 3px; height: 3px; border-radius: 50%; }
+  .cal-dot-temp  { background: #6D28D9; }
+  .cal-dot-mucus { background: #8b5cf6; }
+  .cal-dot-saign { background: #e879a0; }
+  .cal-j1-dot {
+    position: absolute; top: 3px; right: 1px;
+    width: 5px; height: 5px; border-radius: 50%; background: #e879a0;
+  }
+  /* Légende calendrier */
+  .cal-legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; padding: 0 2px; }
+  .cal-legend-item { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--text-muted); }
+  .cal-legend-swatch { width:18px; height:8px; border-radius:4px; }
 
-  .cycle-ring-wrap { display: flex; justify-content: center; padding: 16px 20px 0; }
-  .cycle-ring-inner { position: relative; width: 180px; height: 180px; }
-  #cycleCanvas { width: 180px; height: 180px; }
-  .cycle-center {
-    position: absolute; inset: 0; display: flex;
-    flex-direction: column; align-items: center; justify-content: center;
+  /* ── BOUTON J1 ── */
+  .log-cycle-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 12px 20px 0; border-radius: var(--radius); padding: 11px 16px;
+    cursor: pointer; border: 1.5px dashed rgba(109,40,217,0.3);
+    background: rgba(109,40,217,0.03);
+    color: var(--accent); font-size: 12px; font-weight: 600; transition: var(--transition);
   }
-  .cycle-center-day   { font-size: 30px; font-weight: 700; }
-  .cycle-center-label { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+  .log-cycle-btn:hover { background: rgba(109,40,217,0.07); }
+  .log-cycle-dot { width: 7px; height: 7px; border-radius: 50%; background: #e879a0; flex: 0 0 auto; }
 
-  .phase-legend {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 20px 0;
-  }
-  .phase-item {
-    display: flex; align-items: center; gap: 8px; background: var(--surface);
-    border-radius: 9px; padding: 10px 12px; border: 1px solid var(--border);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-  }
-  .phase-dot  { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-  .phase-name { font-size: 12px; font-weight: 600; }
-  .phase-days { font-size: 11px; color: var(--text-dim); }
-
+  /* ── SAISIE QUOTIDIENNE ── */
   .cycle-daily-log {
     margin: 14px 20px 0; background: var(--surface); border-radius: var(--radius);
-    padding: 18px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    padding: 18px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   }
-  .cycle-daily-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
-  .cycle-field { margin-bottom: 14px; }
+  .cycle-daily-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .cycle-daily-title { font-size: 14px; font-weight: 700; }
+  .cycle-daily-date { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .cycle-field { margin-bottom: 18px; }
+  .cycle-field:last-of-type { margin-bottom: 0; }
   .cycle-field-label {
-    font-size: 12px; font-weight: 600; color: var(--text-muted);
-    margin-bottom: 8px; letter-spacing: 0.1px;
+    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    margin-bottom: 10px; letter-spacing: .6px; text-transform: uppercase;
   }
-  .temp-input-row { display: flex; align-items: center; gap: 10px; }
+  /* Température */
+  .temp-input-row { display: flex; align-items: center; gap: 10px; width: 100%; }
   .temp-input {
-    flex: 1; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text); font-size: 22px; font-weight: 700;
-    padding: 12px 16px; outline: none; font-family: inherit;
-    transition: border-color 0.18s; text-align: center;
+    flex: 1; min-width: 0; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--text); font-size: 26px; font-weight: 700;
+    padding: 10px 16px; outline: none; font-family: inherit;
+    transition: border-color 0.18s; text-align: center; width: 100%; box-sizing: border-box;
+    -moz-appearance: textfield;
   }
-  .temp-input:focus { border-color: rgba(109,40,217,0.35); }
-  .temp-unit { font-size: 15px; color: var(--text-muted); font-weight: 600; }
-
-  .glaire-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .temp-input::-webkit-inner-spin-button,
+  .temp-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .temp-input:focus { border-color: rgba(109,40,217,0.4); background: #fff; }
+  .temp-unit { font-size: 16px; color: var(--text-muted); font-weight: 600; flex-shrink: 0; }
+  /* Glaire */
+  .glaire-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; }
   .glaire-card {
-    padding: 12px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--surface2); cursor: pointer; transition: var(--transition);
-    text-align: center;
+    padding: 10px 4px 8px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--surface2); cursor: pointer; transition: var(--transition); text-align: center;
   }
-  .glaire-card.selected { border-color: rgba(109,40,217,0.3); background: var(--accent-light); }
-  .glaire-dot-icon {
-    width: 12px; height: 12px; border-radius: 50%;
-    margin: 0 auto 6px;
-  }
-  .glaire-card-name { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .glaire-card:hover { border-color: rgba(109,40,217,0.25); }
+  .glaire-card.selected { border-color: var(--accent); background: rgba(109,40,217,0.06); }
+  .glaire-icon { margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; height: 22px; }
+  .glaire-card-name { font-size: 11px; font-weight: 600; color: var(--text-muted); }
   .glaire-card.selected .glaire-card-name { color: var(--accent); }
-  .glaire-card-desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
-
+  .glaire-card-desc { font-size: 9px; color: var(--text-dim); margin-top: 2px; line-height: 1.3; }
+  /* Saignement */
+  .saignement-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; }
+  .saignement-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 10px 4px 8px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--surface2); cursor: pointer; font-family: inherit;
+    transition: var(--transition);
+  }
+  .saignement-btn:hover { border-color: rgba(109,40,217,0.25); }
+  .saignement-btn.selected { border-color: var(--accent); background: rgba(109,40,217,0.06); }
+  .saignement-drops { display: flex; gap: 2px; align-items: flex-end; height: 16px; }
+  .sdrop { width: 5px; border-radius: 50% 50% 50% 0; background: #e879a0; }
+  .saignement-label { font-size: 10px; font-weight: 600; color: var(--text-muted); }
+  .saignement-btn.selected .saignement-label { color: var(--accent); }
+  /* Spotting toggle */
+  .spotting-row { display: flex; align-items: center; justify-content: space-between; }
+  .spotting-desc { font-size: 12px; color: var(--text-muted); }
+  .toggle-switch { position: relative; width: 44px; height: 26px; cursor: pointer; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute; inset: 0; background: var(--border);
+    border-radius: 13px; transition: background 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track { background: var(--accent); }
+  .toggle-knob {
+    position: absolute; top: 3px; left: 3px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    transition: transform 0.2s;
+  }
+  .toggle-switch input:checked ~ .toggle-knob { transform: translateX(18px); }
+  /* Save */
   .cycle-save-btn {
-    width: 100%; padding: 13px; border-radius: var(--radius);
+    width: 100%; padding: 14px; border-radius: var(--radius);
     background: var(--accent); color: #fff;
-    font-size: 14px; font-weight: 600; border: none; cursor: pointer; margin-top: 4px; font-family: inherit;
+    font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+    margin-top: 18px; font-family: inherit; letter-spacing: 0.2px;
+    box-shadow: 0 4px 14px rgba(109,40,217,0.28); transition: opacity 0.15s;
   }
+  .cycle-save-btn:active { opacity: 0.85; }
+  /* Encarts info */
+  .cycle-info-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--accent); font-weight: 600;
+    cursor: pointer; margin-top: 8px; background: none; border: none;
+    padding: 0; font-family: inherit;
+  }
+  .cycle-info-box {
+    display: none; margin-top: 8px; padding: 11px 13px;
+    background: rgba(109,40,217,0.04); border-radius: 10px;
+    border: 1px solid rgba(109,40,217,0.12); font-size: 12px;
+    color: var(--text-muted); line-height: 1.65;
+  }
+  .cycle-info-box.open { display: block; }
 
-  .log-cycle-btn {
-    display: flex; align-items: center; justify-content: center; gap: 9px;
-    margin: 12px 20px 0; background: var(--surface); border-radius: var(--radius);
-    padding: 13px; cursor: pointer; border: 1px dashed var(--border-md);
-    color: var(--text-muted); font-size: 13px; font-weight: 500; transition: var(--transition);
-  }
-  .log-cycle-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--cycle-menstrual); flex: 0 0 auto;
-  }
-
-  /* Insights */
+  /* ── INSIGHTS ── */
   .insights-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
   .insight-card {
     background: var(--surface); border-radius: var(--radius);
@@ -416,101 +516,175 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <!-- ═══════ TAB 3 : CYCLE ═══════ -->
 <div class="tab-content" id="tab-cycle">
 
-  <div class="cycle-banner follicular">
-    <div class="cycle-phase-label">Phase actuelle</div>
-    <div class="cycle-phase-name">Phase folliculaire</div>
-    <div class="cycle-day-info">Jour 8 · encore ~6 jours</div>
-  </div>
-
-  <div class="cycle-stats">
-    <div class="cycle-stat">
-      <div class="cycle-stat-val" id="stat-avg-cycle">27j</div>
-      <div class="cycle-stat-label">Durée moy.</div>
+  <!-- Hero Card -->
+  <div class="cycle-hero" id="cycle-hero">
+    <div class="cycle-hero-top">
+      <div class="cycle-hero-left">
+        <div class="cycle-hero-day-num" id="cycle-hero-day">—</div>
+        <div class="cycle-hero-day-label">Jour du cycle</div>
+      </div>
+      <div class="cycle-hero-right">
+        <div class="cycle-hero-badge" id="cycle-hero-phase">—</div>
+        <div class="cycle-hero-sub" id="cycle-hero-sub">—</div>
+      </div>
     </div>
-    <div class="cycle-stat">
-      <div class="cycle-stat-val">8</div>
-      <div class="cycle-stat-label">Jour actuel</div>
+    <div class="cycle-hero-progress">
+      <div class="cycle-hero-progress-fill" id="cycle-hero-progress-fill" style="width:0%"></div>
     </div>
-    <div class="cycle-stat">
-      <div class="cycle-stat-val" id="stat-cycles-recorded">4</div>
-      <div class="cycle-stat-label">Cycles enreg.</div>
-    </div>
-  </div>
-
-  <div class="cycle-ring-wrap">
-    <div class="cycle-ring-inner">
-      <canvas id="cycleCanvas" width="180" height="180"></canvas>
-      <div class="cycle-center">
-        <div class="cycle-center-day">J8</div>
-        <div class="cycle-center-label">du cycle</div>
+    <div class="cycle-hero-stats">
+      <div class="cycle-hero-stat">
+        <div class="cycle-hero-stat-val" id="stat-avg-cycle">—</div>
+        <div class="cycle-hero-stat-label">Durée moy.</div>
+      </div>
+      <div class="cycle-hero-stat">
+        <div class="cycle-hero-stat-val" id="stat-current-day">—</div>
+        <div class="cycle-hero-stat-label">Jour actuel</div>
+      </div>
+      <div class="cycle-hero-stat">
+        <div class="cycle-hero-stat-val" id="stat-cycles-recorded">0</div>
+        <div class="cycle-hero-stat-label">Cycles</div>
       </div>
     </div>
   </div>
 
-  <div class="phase-legend">
-    <div class="phase-item"><div class="phase-dot" style="background:var(--cycle-menstrual)"></div><div><div class="phase-name">Règles</div><div class="phase-days">J1–J5</div></div></div>
-    <div class="phase-item"><div class="phase-dot" style="background:var(--cycle-follicular)"></div><div><div class="phase-name">Folliculaire</div><div class="phase-days">J6–J13</div></div></div>
-    <div class="phase-item"><div class="phase-dot" style="background:var(--cycle-ovulation)"></div><div><div class="phase-name">Ovulation</div><div class="phase-days">J14–J16</div></div></div>
-    <div class="phase-item"><div class="phase-dot" style="background:var(--cycle-luteal)"></div><div><div class="phase-name">Lutéale</div><div class="phase-days">J17–J27</div></div></div>
+  <!-- Calendrier pill -->
+  <div class="cycle-calendar" id="cycle-calendar">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calNavMonth(-1)">&#8249;</button>
+      <span class="cal-month-label" id="cal-month-label">—</span>
+      <button class="cal-nav-btn" onclick="calNavMonth(+1)">&#8250;</button>
+    </div>
+    <div class="cal-weekdays">
+      <div class="cal-wd">L</div><div class="cal-wd">M</div><div class="cal-wd">Me</div>
+      <div class="cal-wd">J</div><div class="cal-wd">V</div><div class="cal-wd">S</div>
+      <div class="cal-wd">D</div>
+    </div>
+    <div id="cal-grid"></div>
+    <div class="cal-legend">
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#fce7f3;border:1px solid #e879a0;"></div>Règles</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#ede9fe;border:1px solid #a78bfa;"></div>Folliculaire</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#c4b5fd;border:1px solid #7c3aed;"></div>Ovulation</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:rgba(109,40,217,0.22);border:1px solid #6D28D9;"></div>Lutéale</div>
+    </div>
   </div>
 
+  <!-- Bouton J1 -->
   <div class="log-cycle-btn" onclick="openCycleLog()">
     <div class="log-cycle-dot"></div>
     Déclarer le début de mes règles
   </div>
 
+  <!-- Saisie quotidienne -->
   <div class="cycle-daily-log">
-    <div class="cycle-daily-title">Saisie du jour · 22 mai</div>
+    <div class="cycle-daily-header">
+      <div class="cycle-daily-title">Saisie du jour</div>
+      <div class="cycle-daily-date" id="cycle-daily-title">—</div>
+    </div>
 
     <div class="cycle-field">
-      <div class="cycle-field-label">Température buccale</div>
+      <div class="cycle-field-label">Température basale</div>
       <div class="temp-input-row">
         <input class="temp-input" type="number" step="0.01" placeholder="36.8" id="temp-input">
         <div class="temp-unit">°C</div>
       </div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">À prendre le matin, au réveil, avant de vous lever</div>
+      <button class="cycle-info-btn" onclick="toggleInfoBox('info-temp')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        En savoir plus
+      </button>
+      <div class="cycle-info-box" id="info-temp">
+        <strong style="color:var(--accent);">Température basale</strong><br>
+        Après l'ovulation, la progestérone fait monter la température de repos de +0.2 à +0.5°C. Une hausse confirmée sur 3 jours consécutifs indique que l'ovulation a eu lieu. Plus vous enregistrez, plus l'estimation de vos phases gagne en précision.
+      </div>
     </div>
 
     <div class="cycle-field">
       <div class="cycle-field-label">Glaire cervicale</div>
       <div class="glaire-grid">
+        <!-- Absente -->
         <div class="glaire-card" onclick="selectGlaire(this,'absente')">
-          <div class="glaire-dot-icon" style="background:#f87171;"></div>
+          <div class="glaire-icon">
+            <svg width="18" height="22" viewBox="0 0 18 22" fill="none"><path d="M9 2C9 2 3 9 3 14a6 6 0 0012 0C15 9 9 2 9 2z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.5"/><line x1="9" y1="10" x2="9" y2="16" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
           <div class="glaire-card-name">Absente</div>
           <div class="glaire-card-desc">Sèche</div>
         </div>
+        <!-- Collante -->
         <div class="glaire-card" onclick="selectGlaire(this,'collante')">
-          <div class="glaire-dot-icon" style="background:#fbbf24;"></div>
+          <div class="glaire-icon">
+            <svg width="18" height="22" viewBox="0 0 18 22" fill="none"><path d="M9 2C9 2 3 9 3 14a6 6 0 0012 0C15 9 9 2 9 2z" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1.5"/></svg>
+          </div>
           <div class="glaire-card-name">Collante</div>
-          <div class="glaire-card-desc">Blanche, épaisse</div>
+          <div class="glaire-card-desc">Épaisse</div>
         </div>
-        <div class="glaire-card selected" onclick="selectGlaire(this,'crémeuse')">
-          <div class="glaire-dot-icon" style="background:#fb923c;"></div>
+        <!-- Crémeuse -->
+        <div class="glaire-card" onclick="selectGlaire(this,'crémeuse')">
+          <div class="glaire-icon">
+            <svg width="18" height="22" viewBox="0 0 18 22" fill="none"><path d="M9 2C9 2 3 9 3 14a6 6 0 0012 0C15 9 9 2 9 2z" fill="#ddd6fe" stroke="#8b5cf6" stroke-width="1.5"/></svg>
+          </div>
           <div class="glaire-card-name">Crémeuse</div>
-          <div class="glaire-card-desc">Lisse, blanche</div>
+          <div class="glaire-card-desc">Lisse</div>
         </div>
+        <!-- Filante -->
         <div class="glaire-card" onclick="selectGlaire(this,'filante')">
-          <div class="glaire-dot-icon" style="background:#34d399;"></div>
+          <div class="glaire-icon">
+            <svg width="18" height="22" viewBox="0 0 18 22" fill="none"><path d="M9 2C9 2 3 9 3 14a6 6 0 0012 0C15 9 9 2 9 2z" fill="rgba(109,40,217,0.15)" stroke="#6D28D9" stroke-width="1.5"/><path d="M9 7v8M6 13l3 3 3-3" stroke="#6D28D9" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <div class="glaire-card-name">Filante</div>
-          <div class="glaire-card-desc">Transparente, fertile</div>
+          <div class="glaire-card-desc">Fertile ✦</div>
         </div>
+      </div>
+      <button class="cycle-info-btn" onclick="toggleInfoBox('info-glaire')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        En savoir plus
+      </button>
+      <div class="cycle-info-box" id="info-glaire">
+        <strong style="color:var(--accent);">Glaire cervicale</strong><br>
+        Elle évolue tout au long du cycle : absente ou collante après les règles, elle devient crémeuse puis filante (transparente, élastique) autour de l'ovulation — c'est le signe le plus fertile. Observer ce changement affine l'estimation de votre pic.
       </div>
     </div>
 
     <div class="cycle-field">
       <div class="cycle-field-label">Saignement</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="saignement-btn" data-val="aucun"   onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Aucun</button>
-        <button class="saignement-btn" data-val="léger"   onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Léger</button>
-        <button class="saignement-btn" data-val="modéré"  onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Modéré</button>
-        <button class="saignement-btn" data-val="abondant" onclick="selectSaignement(this)" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Abondant</button>
+      <div class="saignement-grid">
+        <button class="saignement-btn" data-val="aucun" onclick="selectSaignement(this)">
+          <div class="saignement-drops">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#cbd5e1"/></svg>
+          </div>
+          <div class="saignement-label">Aucun</div>
+        </button>
+        <button class="saignement-btn" data-val="léger" onclick="selectSaignement(this)">
+          <div class="saignement-drops">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#fce7f3" stroke="#e879a0" stroke-width="1"/></svg>
+          </div>
+          <div class="saignement-label">Léger</div>
+        </button>
+        <button class="saignement-btn" data-val="modéré" onclick="selectSaignement(this)">
+          <div class="saignement-drops" style="gap:3px;">
+            <svg width="8" height="10" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#e879a0"/></svg>
+            <svg width="8" height="10" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#e879a0"/></svg>
+          </div>
+          <div class="saignement-label">Modéré</div>
+        </button>
+        <button class="saignement-btn" data-val="abondant" onclick="selectSaignement(this)">
+          <div class="saignement-drops" style="gap:2px;">
+            <svg width="7" height="9" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#c026d3"/></svg>
+            <svg width="7" height="9" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#c026d3"/></svg>
+            <svg width="7" height="9" viewBox="0 0 10 12" fill="none"><path d="M5 1C5 1 2 5 2 7.5a3 3 0 006 0C8 5 5 1 5 1z" fill="#c026d3"/></svg>
+          </div>
+          <div class="saignement-label">Abondant</div>
+        </button>
       </div>
     </div>
 
     <div class="cycle-field">
       <div class="cycle-field-label">Spotting</div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <button id="spotting-toggle" onclick="toggleSpotting()" style="padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Non</button>
+      <div class="spotting-row">
+        <span class="spotting-desc">Légères traces en dehors des règles</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="spotting-checkbox" onchange="spottingValue = this.checked">
+          <div class="toggle-track"></div>
+          <div class="toggle-knob"></div>
+        </label>
       </div>
     </div>
 
@@ -834,6 +1008,55 @@ function drawAllMetricCharts() {
 }
 
 // ─── CYCLE RING ───────────────────────────────────────────────
+// ─── PHASES (calcul dynamique) ────────────────────────────────
+function getCyclePhase(day, avgLen) {
+  const L = avgLen || 28;
+  const ovDay = Math.round(L - 14); // ovulation théorique
+  if (day <= 5)         return { name: 'Règles',       cls: 'menstrual',   daysLeft: 5 - day + 1,      color: '#f87171' };
+  if (day <= ovDay - 2) return { name: 'Folliculaire', cls: 'follicular',  daysLeft: ovDay - 2 - day + 1, color: '#fb923c' };
+  if (day <= ovDay + 1) return { name: 'Ovulation',    cls: 'ovulation',   daysLeft: ovDay + 1 - day + 1, color: '#facc15' };
+  return                       { name: 'Lutéale',      cls: 'luteal',      daysLeft: L - day + 1,       color: '#c084fc' };
+}
+
+function updateCycleDisplay(currentDay, avgLen) {
+  const L = avgLen || 28;
+  const phase = getCyclePhase(currentDay, L);
+  const daysLeft = Math.max(0, L - currentDay);
+
+  // Hero card
+  const heroDay = document.getElementById('cycle-hero-day');
+  if (heroDay) heroDay.textContent = currentDay;
+  const heroBadge = document.getElementById('cycle-hero-phase');
+  if (heroBadge) heroBadge.textContent = phase.name;
+  const heroSub = document.getElementById('cycle-hero-sub');
+  if (heroSub) heroSub.textContent = `encore ~${daysLeft} jour${daysLeft > 1 ? 's' : ''}`;
+  // Barre de progression — avancement dans la phase
+  const fill = document.getElementById('cycle-hero-progress-fill');
+  if (fill) {
+    const phaseProgress = getPhasePct(currentDay, L);
+    fill.style.width = phaseProgress + '%';
+  }
+
+  // Stats
+  const sdl = document.getElementById('stat-current-day');
+  if (sdl) sdl.textContent = currentDay;
+
+  // Date saisie
+  const titleEl = document.getElementById('cycle-daily-title');
+  if (titleEl) {
+    const today = new Date();
+    titleEl.textContent = today.toLocaleDateString('fr-FR', { day:'numeric', month:'long' });
+  }
+}
+
+function getPhasePct(day, L) {
+  const ovDay = Math.round(L - 14);
+  if (day <= 5)         return Math.round((day / 5) * 100);
+  if (day <= ovDay - 2) return Math.round(((day - 5) / (ovDay - 2 - 5)) * 100);
+  if (day <= ovDay + 1) return Math.round(((day - (ovDay-2)) / 3) * 100);
+  return Math.round(((day - (ovDay+1)) / (L - (ovDay+1))) * 100);
+}
+
 function drawCycleRing(currentDay, avgLen) {
   const canvas = document.getElementById('cycleCanvas');
   if (!canvas) return;
@@ -897,7 +1120,7 @@ async function loadCycleData() {
   const today = new Date();
   const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
   const dayOfCycle = lastCycle ? Math.round((today - lastCycle) / 86400000) + 1 : null;
-  drawCycleRing(dayOfCycle || 1, avg);
+  updateCycleDisplay(dayOfCycle || 1, avg);
 
   // 2. Afficher/masquer les insights selon le nombre de cycles
   const insightsList = document.querySelector('.insights-list');
@@ -929,11 +1152,212 @@ async function loadCycleData() {
       });
     }
     if (dayLog.spotting) {
-      spottingValue = false; // on toggle pour passer à true
-      toggleSpotting();
+      spottingValue = true;
+      const cb = document.getElementById('spotting-checkbox');
+      if (cb) cb.checked = true;
+    }
+    // Ajouter ce log au map calendrier
+    calDailyMap[todayStr] = dayLog;
+  }
+
+  // 4. Construire le calendrier
+  calViewYear  = today.getFullYear();
+  calViewMonth = today.getMonth();
+  await buildCycleCalendar();
+}
+
+// ─── CALENDRIER CYCLE ─────────────────────────────────────────
+let calViewYear  = new Date().getFullYear();
+let calViewMonth = new Date().getMonth(); // 0-based
+let calDailyMap  = {};  // 'YYYY-MM-DD' → { temperature, glaire, saignement, spotting }
+let calJ1Set     = new Set(); // 'YYYY-MM-DD' des J1
+
+/* Algorithme sympto-thermique — retourne le jour d'ovulation estimé
+   entrées: pastCycles (dates J1), dailyLogsForAllCycles (map date→log)
+   fallback: avgLen - 14
+*/
+function computeOvulationEstimate(startDate, endDate, logsMap) {
+  const avgLen = calcAvgCycle(pastCycles) || 28;
+  const fallback = Math.round(avgLen - 14);
+  if (!startDate) return fallback;
+
+  // Collecter données entre startDate et endDate (ou aujourd'hui)
+  const end = endDate || new Date();
+  const temps = [];
+  const d = new Date(startDate);
+  while (d <= end) {
+    const key = d.toISOString().split('T')[0];
+    const log = logsMap[key];
+    if (log && log.temperature) {
+      temps.push({ day: Math.round((d - startDate) / 86400000) + 1, t: parseFloat(log.temperature), key });
+    }
+    d.setDate(d.getDate() + 1);
+  }
+
+  // Signal BBT : hausse de ≥ 0.2°C sur 3 jours consécutifs au-dessus de la moyenne des 6 jours précédents
+  let bbtOvDay = null;
+  for (let i = 6; i < temps.length; i++) {
+    const base6 = temps.slice(i - 6, i).reduce((s, t) => s + t.t, 0) / 6;
+    if (temps[i].t >= base6 + 0.2 && temps[i - 1]?.t >= base6 + 0.2 && temps[i - 2]?.t >= base6 + 0.2) {
+      bbtOvDay = temps[i - 2].day; // 1er des 3 jours de hausse
+      break;
     }
   }
+
+  // Signal glaire : dernier jour "filante" + 1
+  let glaireOvDay = null;
+  const allDays = Object.keys(logsMap).filter(k => k >= startDate.toISOString().split('T')[0] && (!endDate || k <= end.toISOString().split('T')[0])).sort();
+  let lastFilante = null;
+  allDays.forEach(k => { if (logsMap[k]?.glaire === 'filante') lastFilante = k; });
+  if (lastFilante) {
+    const d2 = new Date(lastFilante + 'T12:00:00');
+    glaireOvDay = Math.round((d2 - startDate) / 86400000) + 2; // +1 day index
+  }
+
+  if (bbtOvDay && glaireOvDay) return Math.round((bbtOvDay + glaireOvDay) / 2);
+  return bbtOvDay || glaireOvDay || fallback;
 }
+
+/* Retourne la phase CSS d'un jour donné en absolu (date object) */
+function getPhaseForDate(date) {
+  if (!pastCycles.length) return null;
+  const avg = calcAvgCycle(pastCycles) || 28;
+
+  // Trouver le cycle auquel appartient cette date
+  let cycleStart = null;
+  let cycleEnd   = null;
+  for (let i = pastCycles.length - 1; i >= 0; i--) {
+    if (date >= pastCycles[i]) {
+      cycleStart = pastCycles[i];
+      cycleEnd   = pastCycles[i + 1] || null;
+      break;
+    }
+  }
+  if (!cycleStart) return null;
+
+  const dayOfCycle = Math.round((date - cycleStart) / 86400000) + 1;
+  const cycleLen = cycleEnd ? Math.round((cycleEnd - cycleStart) / 86400000) : avg;
+
+  // Ovulation estimée pour ce cycle
+  const ovDay = computeOvulationEstimate(cycleStart, cycleEnd, calDailyMap);
+
+  if (dayOfCycle <= 5)          return 'phase-menstrual';
+  if (dayOfCycle <= ovDay - 2)  return 'phase-follicular';
+  if (dayOfCycle <= ovDay + 1)  return 'phase-ovulation';
+  if (dayOfCycle <= cycleLen)   return 'phase-luteal';
+  return null;
+}
+
+async function loadCalendarLogs(year, month) {
+  if (!SESSION) return;
+  // Charger tous les logs du mois + mois précédent (pour la vue)
+  const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+  const lastDay  = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const { data } = await db.from('cycle_daily_log')
+    .select('date, temperature, glaire, saignement, spotting')
+    .eq('client_id', SESSION.client_id)
+    .gte('date', firstDay).lte('date', lastDay);
+  // Merge into calDailyMap (keep existing months)
+  (data || []).forEach(r => { calDailyMap[r.date] = r; });
+}
+
+async function buildCycleCalendar() {
+  const grid = document.getElementById('cal-grid');
+  const label = document.getElementById('cal-month-label');
+  if (!grid || !label) return;
+
+  const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  label.textContent = `${monthNames[calViewMonth]} ${calViewYear}`;
+
+  await loadCalendarLogs(calViewYear, calViewMonth);
+
+  calJ1Set.clear();
+  pastCycles.forEach(d => calJ1Set.add(d.toISOString().split('T')[0]));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().split('T')[0];
+  const firstDate = new Date(calViewYear, calViewMonth, 1);
+  const lastDate  = new Date(calViewYear, calViewMonth + 1, 0);
+  let startWd = firstDate.getDay();
+  startWd = startWd === 0 ? 6 : startWd - 1;
+
+  // Construire tableau de cellules (null = vide, objet = jour)
+  const cells = [];
+  for (let e = 0; e < startWd; e++) cells.push(null);
+  for (let d = 1; d <= lastDate.getDate(); d++) {
+    const date = new Date(calViewYear, calViewMonth, d); date.setHours(12,0,0,0);
+    const dateStr = date.toISOString().split('T')[0];
+    cells.push({
+      d, dateStr, date,
+      isFuture: date > today,
+      isToday:  dateStr === todayStr,
+      isJ1:     calJ1Set.has(dateStr),
+      log:      calDailyMap[dateStr] || null,
+      phase:    getPhaseForDate(date) // 'menstrual'|'follicular'|'ovulation'|'luteal'|null
+    });
+  }
+  // Compléter dernière semaine
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  // Découper en semaines
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+
+  // Générer HTML semaine par semaine avec pills
+  let html = '';
+  weeks.forEach(week => {
+    html += '<div class="cal-week">';
+
+    // — Pills (groupes de jours consécutifs de même phase dans cette semaine) —
+    let i = 0;
+    while (i < 7) {
+      const cell = week[i];
+      if (cell && cell.phase) {
+        let j = i + 1;
+        while (j < 7 && week[j]?.phase === cell.phase) j++;
+        const left  = (i / 7 * 100).toFixed(2);
+        const width = ((j - i) / 7 * 100).toFixed(2);
+        const opacity = cell.isFuture ? '0.4' : '1';
+        html += `<div class="cal-pill cal-pill-${cell.phase}" style="left:${left}%;width:${width}%;opacity:${opacity};"></div>`;
+        i = j;
+      } else { i++; }
+    }
+
+    // — Cellules jours —
+    week.forEach(cell => {
+      if (!cell) { html += '<div class="cal-cell"></div>'; return; }
+      const log = cell.log;
+      let dots = '';
+      if (log?.temperature)                             dots += '<span class="cal-dot cal-dot-temp"></span>';
+      if (log?.glaire && log.glaire !== 'absente')      dots += '<span class="cal-dot cal-dot-mucus"></span>';
+      if (log?.saignement && log.saignement !== 'aucun') dots += '<span class="cal-dot cal-dot-saign"></span>';
+      const numCls = cell.isToday ? 'cal-num cal-num-today' : (cell.isFuture ? 'cal-num cal-num-muted' : 'cal-num');
+      html += `<div class="cal-cell">
+        ${cell.isJ1 ? '<div class="cal-j1-dot"></div>' : ''}
+        <span class="${numCls}">${cell.d}</span>
+        ${dots ? `<div class="cal-dots">${dots}</div>` : ''}
+      </div>`;
+    });
+
+    html += '</div>';
+  });
+
+  grid.innerHTML = html;
+}
+
+async function calNavMonth(delta) {
+  calViewMonth += delta;
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  if (calViewMonth > 11) { calViewMonth = 0;  calViewYear++; }
+  await buildCycleCalendar();
+}
+
+function toggleInfoBox(id) {
+  const box = document.getElementById(id);
+  if (box) box.classList.toggle('open');
+}
+
+// ──────────────────────────────────────────────────────────────
 
 function calcAvgCycle(dates) {
   if (dates.length < 2) return null;
@@ -1141,21 +1565,10 @@ function toggleCheck(el) {
 }
 
 function toggleSpotting() {
+  // Gardé pour compatibilité — le toggle est maintenant géré par la checkbox via onchange
   spottingValue = !spottingValue;
-  const btn = document.getElementById('spotting-toggle');
-  if (spottingValue) {
-    btn.innerHTML = '✓ Oui';
-    btn.style.borderColor = '#f97316';
-    btn.style.background  = '#f97316';
-    btn.style.color       = '#fff';
-    btn.style.fontWeight  = '700';
-  } else {
-    btn.innerHTML = 'Non';
-    btn.style.borderColor = 'var(--border)';
-    btn.style.background  = 'var(--surface2)';
-    btn.style.color       = 'var(--text-muted)';
-    btn.style.fontWeight  = '600';
-  }
+  const cb = document.getElementById('spotting-checkbox');
+  if (cb) cb.checked = spottingValue;
 }
 
 function selectSaignement(btn) {
@@ -1198,6 +1611,9 @@ async function saveDailyLog() {
 
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Saisie enregistrée ✓');
+  // Mettre à jour le map local et rafraîchir le calendrier
+  calDailyMap[today] = payload;
+  buildCycleCalendar();
 }
 
 function openLog(metriqueId, name, unit, lastVal) {
@@ -1285,8 +1701,12 @@ async function confirmCycleLog() {
   if (error) { toast('Erreur : ' + error.message); return; }
 
   pastCycles.push(newDate);
+  pastCycles.sort((a, b) => a - b);
   const avg = updateCycleStats();
-  drawCycleRing(1, avg);
+  updateCycleDisplay(1, avg);
+  // Ajouter le J1 au set calendrier et reconstruire
+  calJ1Set.add(dateStr);
+  buildCycleCalendar();
   document.getElementById('modal-cycle').classList.remove('open');
   toast('Nouveau cycle enregistré · Moyenne : ' + (avg || '—') + ' jours');
 }
@@ -1306,11 +1726,6 @@ window.addEventListener('load', () => {
 });
 window.addEventListener('resize', () => {
   drawAllMetricCharts();
-  const avg = updateCycleStats();
-  const today = new Date();
-  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
-  const dayOfCycle = lastCycle ? Math.round((today - lastCycle) / 86400000) + 1 : 1;
-  drawCycleRing(dayOfCycle, avg);
 });
 </script>
 </body>
