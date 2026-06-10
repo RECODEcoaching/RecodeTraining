@@ -768,8 +768,25 @@ async function hashPin(pin) {
           <div class="client-detail-name" id="detail-name">—</div>
           <div class="client-detail-meta" id="detail-meta">—</div>
         </div>
-        <div style="margin-left:auto;">
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <button id="btn-drive-coach" onclick="openDriveEditor()"
+            style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.49"/></svg>
+            <span id="btn-drive-label">Drive</span>
+          </button>
           <button class="btn btn-accent btn-sm" onclick="openAddSeance()">+ Ajouter séance</button>
+        </div>
+      </div>
+
+      <!-- Drive URL editor (inline) -->
+      <div id="drive-editor" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">🔗 Lien Drive de la cliente</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">La cliente pourra déposer ses vidéos directement depuis l'application en ouvrant ce lien.</div>
+        <input id="drive-url-input" type="url" placeholder="https://drive.google.com/drive/folders/…"
+          style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text);background:var(--bg);box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveDriveUrl()" class="btn btn-accent btn-sm" style="font-size:11px;">Enregistrer</button>
+          <button onclick="document.getElementById('drive-editor').style.display='none'" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;">Annuler</button>
         </div>
       </div>
 
@@ -1452,6 +1469,37 @@ function backToClients() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  DRIVE URL
+// ═══════════════════════════════════════════════════════════
+function openDriveEditor() {
+  const editor = document.getElementById('drive-editor');
+  editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveDriveUrl() {
+  if (!currentClientId) return;
+  const url = document.getElementById('drive-url-input').value.trim();
+  const { error } = await db.from('clients').update({ drive_url: url || null }).eq('id', currentClientId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  // Mettre à jour currentClientData
+  if (currentClientData) currentClientData.drive_url = url || null;
+
+  const driveLabel = document.getElementById('btn-drive-label');
+  if (url) {
+    driveLabel.textContent = 'Drive ✓';
+    document.getElementById('btn-drive-coach').style.color = 'var(--accent)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--accent)';
+  } else {
+    driveLabel.textContent = 'Drive';
+    document.getElementById('btn-drive-coach').style.color = 'var(--muted)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--border)';
+  }
+  document.getElementById('drive-editor').style.display = 'none';
+  toast(url ? 'Lien Drive enregistré ✓' : 'Lien Drive supprimé');
+}
+
+// ═══════════════════════════════════════════════════════════
 //  CLIENTS — chargement dynamique Supabase
 // ═══════════════════════════════════════════════════════════
 async function loadClients() {
@@ -1460,7 +1508,7 @@ async function loadClients() {
 
   const { data, error } = await db
     .from('clients')
-    .select('id, email, prenom, created_at, is_first_login')
+    .select('id, email, prenom, created_at, is_first_login, drive_url')
     .order('prenom', { ascending: true });
 
   if (error) {
@@ -1534,6 +1582,20 @@ function openClientFromDB(client, colorIdx) {
   av.style.color   = col.text;
 
   document.getElementById('topbar-title').textContent = client.prenom;
+
+  // Drive URL
+  const driveLabel = document.getElementById('btn-drive-label');
+  if (client.drive_url) {
+    driveLabel.textContent = 'Drive ✓';
+    document.getElementById('btn-drive-coach').style.color = 'var(--accent)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--accent)';
+  } else {
+    driveLabel.textContent = 'Drive';
+    document.getElementById('btn-drive-coach').style.color = 'var(--muted)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--border)';
+  }
+  document.getElementById('drive-editor').style.display = 'none';
+  document.getElementById('drive-url-input').value = client.drive_url || '';
 
   // Reset tabs
   document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));

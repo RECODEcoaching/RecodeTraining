@@ -494,6 +494,18 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   </div>
   <div class="success-title">Séance validée</div>
   <div class="success-sub">Bien joué ! La séance a été enregistrée.</div>
+
+  <!-- Encart Drive — visible uniquement si un lien est configuré -->
+  <div id="drive-upload-block" style="display:none;margin:18px 0;padding:14px 16px;background:rgba(109,40,217,0.06);border:1px solid rgba(109,40,217,0.18);border-radius:14px;text-align:left;">
+    <div style="font-size:12px;font-weight:700;color:#6D28D9;margin-bottom:4px;">📹 Vidéos d'exercices</div>
+    <div style="font-size:11px;color:#666;margin-bottom:10px;line-height:1.5;">Tu peux déposer tes vidéos dans ton Drive personnel pour que ton coach puisse les analyser.</div>
+    <button id="btn-drive-upload" onclick="openClientDrive()"
+      style="width:100%;padding:10px;border-radius:10px;border:none;background:#6D28D9;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Déposer mes vidéos
+    </button>
+  </div>
+
   <button class="btn-secondary" onclick="closeSuccess()">Retour à la semaine</button>
 </div>
 
@@ -536,6 +548,21 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   let weekOffset = 0;
   let currentSeanceId     = null;
   let currentSeanceStatut = null;
+  let clientDriveUrl      = null;
+
+  // ── Chargement Drive URL ─────────────────────────────────
+  async function loadClientDriveUrl() {
+    if (!SESSION) return;
+    try {
+      const { data } = await db.from('clients').select('drive_url').eq('id', SESSION.client_id).single();
+      clientDriveUrl = data?.drive_url || null;
+    } catch(e) {}
+  }
+
+  function openClientDrive() {
+    if (!clientDriveUrl) return;
+    window.open(clientDriveUrl, '_blank', 'noopener');
+  }
 
   // ── Helpers semaine ──────────────────────────────────────
   function getWeekRange(offset) {
@@ -1062,6 +1089,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       alert('Erreur lors de la validation. Réessaie.');
       return;
     }
+    // Afficher le bloc Drive si un lien est configuré
+    const driveBlock = document.getElementById('drive-upload-block');
+    if (driveBlock) driveBlock.style.display = clientDriveUrl ? 'block' : 'none';
     document.getElementById('success-overlay').classList.add('open');
   }
 
@@ -1237,6 +1267,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   }
   updateWeekLabel();
   loadWeekSessions();
+  loadClientDriveUrl();
 </script>
 </body>
 </html>
