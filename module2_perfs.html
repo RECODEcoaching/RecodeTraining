@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
+function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
+function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RECODE Training — Performances</title>
+<style>
+  :root {
+    --bg: #F6F6F8;
+    --surface: #FFFFFF;
+    --surface2: #F2F2F5;
+    --surface3: #E8E8ED;
+    --accent: #6D28D9;
+    --accent-mid: #8B5CF6;
+    --accent-bg: rgba(109,40,217,0.09);
+    --accent-bg-soft: rgba(109,40,217,0.05);
+    --accent-light: rgba(109,40,217,0.08);
+    --text: #111827;
+    --text-muted: #6B7280;
+    --text-dim: #9CA3AF;
+    --success: #16A34A;
+    --danger: #DC2626;
+    --technique: #8B5CF6;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --transition: 0.15s ease;
+    --border: rgba(0,0,0,0.07);
+    --border-md: rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 12px;
+    position: sticky; top: 0; background: var(--surface); z-index: 100;
+    border-bottom: 1px solid var(--border);
+  }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    border: 1px solid rgba(109,40,217,0.15);
+  }
+
+  /* ── PAGE TITLE ── */
+  .page-header { padding: 20px 20px 10px; }
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+  .page-sub { color: var(--text-muted); font-size: 14px; }
+
+  /* ── SEARCH / FILTER ── */
+  .search-wrap { padding: 12px 20px; }
+  .search-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text); font-size: 15px;
+    padding: 12px 16px 12px 40px; outline: none; font-family: inherit;
+    transition: border-color 0.18s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-wrap { position: relative; padding: 12px 20px; }
+  .search-icon {
+    position: absolute; left: 34px; top: 50%; transform: translateY(-50%);
+    color: var(--text-dim); font-size: 16px; pointer-events: none;
+  }
+
+  /* ── MUSCLE GROUP FILTER ── */
+  .group-scroll {
+    display: flex; gap: 8px; padding: 0 20px 16px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .group-scroll::-webkit-scrollbar { display: none; }
+  .group-chip {
+    flex: 0 0 auto; padding: 7px 14px; border-radius: 20px;
+    background: var(--surface); font-size: 13px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; transition: var(--transition);
+    border: 1px solid var(--border);
+  }
+  .group-chip.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+
+  /* ── EXO LIST ── */
+  .exo-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .exo-row {
+    background: var(--surface); border-radius: var(--radius);
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; cursor: pointer; transition: var(--transition);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
+  }
+  .exo-row:active { transform: scale(0.98); }
+  .exo-row.active { border-color: var(--accent); }
+  /* Icon system */
+  .ic { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 9px; }
+  .ic-md { width: 38px; height: 38px; }
+  .icon-primary   { background: var(--accent-bg);      color: var(--accent); }
+  .icon-secondary { background: var(--accent-bg-soft); color: var(--accent-mid); }
+
+  .exo-row-info { flex: 1; }
+  .exo-row-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .exo-row-meta { font-size: 11px; color: var(--text-dim); }
+  .exo-pr { text-align: right; }
+  .pr-value { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .pr-label { font-size: 10px; color: var(--text-dim); font-weight: 500; margin-top: 1px; }
+
+  /* ── SCREEN DETAIL ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .back-btn {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--text-muted); font-size: 13px; font-weight: 500;
+    cursor: pointer; padding: 16px 20px 0; width: fit-content;
+  }
+
+  .detail-header { padding: 14px 20px 20px; }
+  .detail-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .detail-stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .stat-box {
+    background: var(--surface); border-radius: var(--radius-sm);
+    padding: 12px; text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .stat-val { font-size: 17px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+
+  /* ── METRIC TOGGLE ── */
+  .metric-toggle {
+    display: flex; gap: 8px; padding: 0 20px 16px;
+  }
+  .toggle-btn {
+    flex: 1; padding: 10px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 13px; font-weight: 700;
+    cursor: pointer; text-align: center; transition: var(--transition);
+  }
+  .toggle-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+
+  /* ── CHART ── */
+  .chart-wrap {
+    margin: 0 20px 20px;
+    background: var(--surface); border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
+  }
+  .chart-title-row {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  }
+  .chart-label { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+  .legend-wrap { display: flex; gap: 12px; }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-muted); font-weight: 600;
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-dot.normal { background: var(--accent); }
+  .legend-dot.technique { background: var(--technique); }
+
+  canvas#perfChart {
+    width: 100% !important;
+    height: 200px !important;
+    display: block;
+  }
+
+  /* Tooltip */
+  .chart-tooltip {
+    display: none; position: absolute;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 13px; z-index: 50; pointer-events: none;
+    min-width: 150px; box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+  }
+  .chart-tooltip.technique-tip { border-color: var(--technique); }
+  .tooltip-date { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .tooltip-val { font-size: 16px; font-weight: 800; color: var(--text); }
+  .tooltip-badge {
+    display: inline-block; margin-top: 6px;
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    background: var(--accent-light); color: var(--accent); font-weight: 700;
+  }
+  .tooltip-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+
+  /* ── PERIOD SELECTOR ── */
+  .period-row {
+    display: flex; gap: 6px; padding: 0 20px 16px;
+  }
+  .period-btn {
+    flex: 1; padding: 8px 4px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 12px; font-weight: 700;
+    cursor: pointer; text-align: center; transition: var(--transition);
+  }
+  .period-btn.active { background: var(--surface); color: var(--text); border-color: var(--accent); }
+
+  /* ── HISTORY TABLE ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding: 4px 20px 12px;
+  }
+  .history-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+  .history-row {
+    background: var(--surface); border-radius: var(--radius-sm);
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .history-row.technique-row { border-left: 2px solid var(--technique); }
+  .history-date { font-size: 13px; color: var(--text-muted); flex: 1; }
+  .history-date strong { display: block; font-size: 14px; color: var(--text); font-weight: 700; }
+  .history-data { text-align: right; }
+  .history-main { font-size: 16px; font-weight: 600; }
+  .history-sub { font-size: 12px; color: var(--text-muted); }
+  .technique-badge {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--accent-light); color: var(--accent);
+    font-size: 11px; font-weight: 700; padding: 3px 8px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .history-comment {
+    font-size: 12px; color: var(--text-muted); font-style: italic;
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+    grid-column: 1 / -1;
+  }
+  .history-row-inner { width: 100%; }
+  .history-row-top { display: flex; align-items: center; gap: 12px; }
+
+  .pb-nav { height: 110px; }
+
+  /* Bottom nav */
+  .pb-nav { height: 100px; }
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; padding: 6px 0;
+    cursor: pointer; position: relative;
+  }
+  .nav-item.active::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent);
+  }
+  .nav-icon  { width: 22px; height: 22px; color: var(--text-dim); transition: color var(--transition); }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); transition: color var(--transition); }
+  .nav-item.active .nav-icon  { color: var(--accent); }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="app-logo"><img src="Logo.png" alt="RECODE" style="height:32px;width:auto;"></div>
+  <div class="avatar" onclick="window.location.href='login.html'" title="Se déconnecter" style="cursor:pointer;">SM</div>
+</div>
+
+<!-- ═══════════════ SCREEN: LISTE EXO ═══════════════ -->
+<div class="screen active" id="screen-list">
+  <div class="page-header">
+    <div class="page-title">Mes performances</div>
+    <div class="page-sub">Suivi par exercice</div>
+  </div>
+
+  <div class="search-wrap">
+    <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:34px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input class="search-input" placeholder="Rechercher un exercice…" oninput="filterExos(this.value)">
+  </div>
+
+  <div class="group-scroll">
+    <div class="group-chip active" onclick="filterGroup(this,'all')">Tous</div>
+    <div class="group-chip" onclick="filterGroup(this,'dos')">Dos</div>
+    <div class="group-chip" onclick="filterGroup(this,'pec')">Pectoraux</div>
+    <div class="group-chip" onclick="filterGroup(this,'epaules')">Épaules</div>
+    <div class="group-chip" onclick="filterGroup(this,'jambes')">Jambes</div>
+    <div class="group-chip" onclick="filterGroup(this,'bras')">Bras</div>
+    <div class="group-chip" onclick="filterGroup(this,'core')">Core</div>
+  </div>
+
+  <div class="exo-list" id="exo-list">
+    <div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:14px;">Chargement…</div>
+  </div>
+  <div class="pb-nav"></div>
+</div>
+<!-- ═══════════════ SCREEN: DÉTAIL EXERCICE ═══════════════ -->
+<div class="screen" id="screen-detail">
+  <div class="back-btn" onclick="goBack()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Performances
+  </div>
+
+  <div class="detail-header">
+    <div class="detail-title" id="detail-title">Tractions pronation</div>
+    <div class="detail-stats">
+      <div class="stat-box">
+        <div class="stat-val" id="stat-pr">BW+10</div>
+        <div class="stat-label">Meilleur PR</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-seances">12</div>
+        <div class="stat-label">Séances</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-prog">+85%</div>
+        <div class="stat-label">Progression</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Period -->
+  <div class="period-row">
+    <div class="period-btn active" onclick="switchPeriod(this,'4s')">4 sem.</div>
+    <div class="period-btn" onclick="switchPeriod(this,'8s')">8 sem.</div>
+    <div class="period-btn" onclick="switchPeriod(this,'3m')">3 mois</div>
+    <div class="period-btn" onclick="switchPeriod(this,'tout')">Tout</div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrap" style="position:relative;">
+    <div class="chart-title-row">
+      <div class="chart-label" id="chart-label-txt">Volume par séance (reps × charge)</div>
+      <div class="legend-wrap">
+        <div class="legend-item"><div class="legend-dot normal"></div>Normal</div>
+        <div class="legend-item"><div class="legend-dot technique"></div>Technique revue</div>
+      </div>
+    </div>
+    <canvas id="perfChart"></canvas>
+    <div class="chart-tooltip" id="chartTooltip">
+      <div class="tooltip-date" id="tt-date"></div>
+      <div class="tooltip-val" id="tt-val"></div>
+      <span class="tooltip-badge" id="tt-badge" style="display:none">Technique revue</span>
+      <div class="tooltip-note" id="tt-note"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="section-label">Historique</div>
+  <div class="history-list" id="history-list"></div>
+  <div class="pb-nav"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item" onclick="window.location.href='module1_seance.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+    <span class="nav-label">Séances</span>
+  </div>
+  <div class="nav-item active">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span class="nav-label">Perfs</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module3_metriques.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span class="nav-label">Suivi</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module5_profil.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <span class="nav-label">Profil</span>
+  </div>
+</div>
+
+<script>
+// ── Auth ──────────────────────────────────────────────────
+const SESSION = requireAuth();
+if (SESSION) {
+  const av = document.querySelector('.avatar');
+  if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
+}
+
+// ─── DATA SUPABASE ───────────────────────────────────────────────────
+let allPerfsExos  = [];
+let currentExo    = null;
+let currentMetric = 'charge';
+let chart         = null;
+
+// Mapping groupe_musculaire → data-group pour les filtres
+const GROUP_MAP = {
+  'Dos':'dos','Pectoraux':'pec','Épaules':'epaules','Jambes':'jambes',
+  'Bras':'bras','Core':'core',
+  // Nouveaux tags muscles
+  'Grands dorsal':'dos','Rhomboïde - trapèze moyen':'dos',
+  'Deltoïde postérieur':'epaules','Deltoïde antérieur':'epaules','Deltoïde moyen':'epaules',
+  'Biceps':'bras','Triceps':'bras','Pec':'pec',
+  'Quad':'jambes','Ischio':'jambes','Fessiers':'jambes','Mollet':'jambes',
+};
+
+async function loadPerfsExos() {
+  if (!SESSION) return;
+  const list = document.getElementById('exo-list');
+  list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>`;
+
+  // 1. Récupérer toutes les séances du client
+  const { data: seances, error: seancesErr } = await db.from('seances')
+    .select('id')
+    .eq('client_id', SESSION.client_id);
+
+  if (seancesErr || !seances || seances.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucune séance pour le moment.</div>`;
+    return;
+  }
+
+  const seanceIds = seances.map(s => s.id);
+
+  // 2. Récupérer tous les exercices avec toutes les colonnes de charge
+  let rows, rowsErr;
+  ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
+    .select('nom_exo, charge_kg, charge, charge_reelle, reps_reelles, series_data, seance_id, exercice_id')
+    .in('seance_id', seanceIds));
+
+  if (rowsErr) {
+    // Fallback sans les nouvelles colonnes
+    ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
+      .select('nom_exo, charge_kg, charge, seance_id, exercice_id')
+      .in('seance_id', seanceIds));
+  }
+
+  if (!rows || rows.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucun exercice trouvé.</div>`;
+    return;
+  }
+
+  // 3. Récupérer les groupes musculaires séparément (optionnel)
+  const exerciceIds = [...new Set(rows.map(r => r.exercice_id).filter(Boolean))];
+  const groupeMap = {};
+  if (exerciceIds.length) {
+    try {
+      const { data: exos } = await db.from('exercices')
+        .select('id, groupe_musculaire').in('id', exerciceIds);
+      (exos || []).forEach(e => { groupeMap[e.id] = e.groupe_musculaire || ''; });
+    } catch(e) { /* ignore */ }
+  }
+
+  // 4. Grouper par nom_exo — priorité charge_reelle > max(series_data) > charge_kg > charge
+  const grouped = {};
+  rows.forEach(r => {
+    const nom = r.nom_exo || 'Exercice';
+    if (!grouped[nom]) grouped[nom] = {
+      nom,
+      groupe: groupeMap[r.exercice_id] || '',
+      charges: [],
+      seancesSet: new Set()
+    };
+    grouped[nom].seancesSet.add(r.seance_id);
+    // Cherche la meilleure charge disponible
+    let bestCharge = null;
+    if (r.charge_reelle && r.charge_reelle > 0) {
+      bestCharge = r.charge_reelle;
+    } else if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        const max = Math.max(...sd.map(s => parseFloat(s.charge) || 0).filter(v => v > 0));
+        if (max > 0) bestCharge = max;
+      } catch(e) {}
+    }
+    if (!bestCharge && r.charge_kg && r.charge_kg > 0) bestCharge = r.charge_kg;
+    if (!bestCharge && r.charge) { const c = parseFloat(r.charge); if (c > 0) bestCharge = c; }
+    if (bestCharge) grouped[nom].charges.push(bestCharge);
+  });
+
+  allPerfsExos = Object.values(grouped).map(e => ({
+    nom: e.nom, groupe: e.groupe,
+    seancesCount: e.seancesSet.size,
+    pr: e.charges.length > 0 ? Math.max(...e.charges) : null,
+  }));
+
+  renderExoList(allPerfsExos);
+}
+
+function renderExoList(exos) {
+  const list = document.getElementById('exo-list');
+  if (!exos.length) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">Aucun exercice trouvé.</div>`;
+    return;
+  }
+  list.innerHTML = exos.map(e => {
+    const groupKey = GROUP_MAP[e.groupe] || 'autre';
+    const prText   = e.pr ? `${e.pr} kg` : '—';
+    return `
+    <div class="exo-row" data-group="${groupKey}" onclick="openDetail('${e.nom.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+      <div class="ic ic-md icon-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 6.5h11M6.5 17.5h11M3 12h18"/>
+        </svg>
+      </div>
+      <div class="exo-row-info">
+        <div class="exo-row-name">${e.nom}</div>
+        <div class="exo-row-meta">${e.groupe || '—'} · ${e.seancesCount} séance${e.seancesCount > 1 ? 's' : ''}</div>
+      </div>
+      <div class="exo-pr">
+        <div class="pr-value">${prText}</div>
+        <div class="pr-label">PR actuel</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function goBack() { showScreen('screen-list'); }
+
+async function openDetail(nomExo) {
+  currentMetric = 'charge';
+  document.getElementById('detail-title').textContent = nomExo;
+  document.getElementById('stat-pr').textContent      = '…';
+  document.getElementById('stat-seances').textContent = '…';
+  document.getElementById('stat-prog').textContent    = '…';
+  document.getElementById('history-list').innerHTML   = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Chargement…</div>';
+  showScreen('screen-detail');
+
+  // Charger les séances du client
+  const { data: seances } = await db.from('seances').select('id, date').eq('client_id', SESSION.client_id);
+  if (!seances || !seances.length) return;
+
+  const seanceIds    = seances.map(s => s.id);
+  const dateMap      = {};
+  seances.forEach(s => { dateMap[s.id] = s.date; });
+
+  // Charger l'historique — 4 niveaux de fallback selon les colonnes disponibles
+  let rows = null;
+  const baseFilter = (q) => q.in('seance_id', seanceIds).eq('nom_exo', nomExo);
+
+  // Niveau 1 : toutes les colonnes modernes
+  { const { data, error } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, charge_reelle, reps, reps_reelles, series, series_data, notes_client, notes, technique, seance_id'));
+    if (!error) rows = data; }
+
+  // Niveau 2 : sans charge_reelle/reps_reelles mais avec series_data
+  if (!rows) {
+    const { data, error } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, reps, series, series_data, seance_id'));
+    if (!error) rows = data;
+  }
+
+  // Niveau 3 : sans series_data
+  if (!rows) {
+    const { data, error } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, reps, series, seance_id'));
+    if (!error) rows = data;
+  }
+
+  // Niveau 4 : strictement minimal
+  if (!rows) {
+    const { data } = await baseFilter(db.from('seance_exercices')
+      .select('charge_kg, charge, seance_id'));
+    rows = data;
+  }
+
+  if (!rows || !rows.length) {
+    document.getElementById('stat-pr').textContent      = '—';
+    document.getElementById('stat-seances').textContent = '0';
+    document.getElementById('stat-prog').textContent    = '—';
+    document.getElementById('history-list').innerHTML   = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Aucune donnée de performance pour cet exercice.</div>`;
+    return;
+  }
+
+  // Construire l'historique trié du plus récent au plus ancien
+  const history = rows.map(r => {
+    const dateStr = dateMap[r.seance_id] || '';
+    const d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+
+    // Charge : charge_reelle > max(series_data) > charge_kg > parseFloat(charge)
+    let charge = 0;
+    if (r.charge_reelle && r.charge_reelle > 0) {
+      charge = r.charge_reelle;
+    } else if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        const maxC = Math.max(...sd.map(s => parseFloat(s.charge) || 0).filter(v => v > 0));
+        if (maxC > 0) charge = maxC;
+      } catch(e) {}
+    }
+    if (!charge && r.charge_kg && r.charge_kg > 0) charge = r.charge_kg;
+    if (!charge && r.charge) { const c = parseFloat(r.charge); if (c > 0) charge = c; }
+
+    // Reps : reps_reelles > max(series_data.reps) > reps
+    let reps = 0;
+    if (r.reps_reelles && r.reps_reelles > 0) {
+      reps = r.reps_reelles;
+    } else if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        const maxR = Math.max(
+          ...sd.map(s => Math.max(parseFloat(s.reps) || 0, parseFloat(s.reps_g) || 0, parseFloat(s.reps_d) || 0))
+        );
+        if (maxR > 0) reps = maxR;
+      } catch(e) {}
+    }
+    if (!reps && r.reps && r.reps > 0) reps = r.reps;
+
+    let series = r.series || 1;
+    if (!series && r.series_data) { try { const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data); series = sd.length || 1; } catch(e) {} }
+    return {
+      date:      d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
+      short:     d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }),
+      charge,
+      volume: (() => {
+        // Meilleure série = max(reps × charge) depuis series_data uniquement
+        if (r.series_data) {
+          try {
+            const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+            if (sd.length) {
+              const best = Math.max(...sd.map(s => {
+                const c  = parseFloat(s.charge) || 0;
+                const rv = parseFloat(s.reps) || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
+                return c * rv;
+              }).filter(v => v > 0));
+              if (best > 0) return best;
+            }
+          } catch(e) {}
+        }
+        return 0; // Pas de series_data = pas de valeur fiable
+      })(),
+      reps,
+      technique: r.technique || false,
+      comment:   r.notes_client || r.notes || '',
+      seriesData: (() => {
+        if (!r.series_data) return null;
+        try {
+          const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+          return sd.length ? sd : null;
+        } catch(e) { return null; }
+      })(),
+      _ts:       d.getTime(),
+    };
+  }).sort((a, b) => b._ts - a._ts);
+
+  // Métrique unique : volume = reps × charge
+  const scores = history.map(h => h.volume);
+  const best   = scores.filter(v => v > 0);
+  const pr     = best.length ? Math.max(...best) : 0;
+  const first  = scores[scores.length - 1] || 0;
+  const last   = scores[0] || 0;
+  const prog   = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+
+  const prLabel   = pr > 0 ? pr + ' kg' : '—';
+  const progLabel = (prog >= 0 ? '+' : '') + prog + '%';
+
+  currentExo = { name: nomExo, pr: prLabel, seances: history.length, prog: progLabel, history };
+  currentMetric = 'volume';
+
+  document.getElementById('stat-pr').textContent      = prLabel;
+  document.getElementById('stat-seances').textContent = history.length;
+  document.getElementById('stat-prog').textContent    = progLabel;
+  document.getElementById('chart-label-txt').textContent = 'Meilleure série (reps × charge)';
+
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.period-btn')[0].classList.add('active');
+
+  renderChart(history, 'volume');
+  renderHistory(history);
+}
+
+// ─── FILTER ──────────────────────────────────────────────────────────
+const GROUP_REVERSE = { dos:'Dos', pec:'Pectoraux', epaules:'Épaules', jambes:'Jambes', bras:'Bras', core:'Core' };
+
+function filterGroup(chip, group) {
+  document.querySelectorAll('.group-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  const filtered = group === 'all'
+    ? allPerfsExos
+    : allPerfsExos.filter(e => (GROUP_MAP[e.groupe] || 'autre') === group);
+  renderExoList(filtered);
+}
+
+function filterExos(val) {
+  const q        = val.toLowerCase();
+  const filtered = allPerfsExos.filter(e => e.nom.toLowerCase().includes(q));
+  renderExoList(filtered);
+}
+
+// ─── METRIC / PERIOD ─────────────────────────────────────────────────
+
+function switchPeriod(btn, period) {
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (!currentExo) return;
+  const now = new Date();
+  let cutoff = null;
+  if (period === '4s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 28); }
+  if (period === '8s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 56); }
+  if (period === '3m') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); }
+  const data = cutoff
+    ? currentExo.history.filter(h => h._ts >= cutoff.getTime())
+    : [...currentExo.history];
+  renderChart(data, currentMetric);
+  renderHistory(data);
+}
+
+// ─── CHART ───────────────────────────────────────────────────────────
+function renderChart(history, metric) {
+  const canvas = document.getElementById('perfChart');
+  const ctx = canvas.getContext('2d');
+
+  // Reverse so oldest → newest left to right
+  const data = [...history].reverse();
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 200 * dpr;
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth;
+  const H = 200;
+  ctx.clearRect(0, 0, W, H);
+
+  const values = data.map(d => d[metric]);
+  const hasData = values.some(v => v > 0);
+
+  // Si aucune valeur > 0 : afficher message
+  if (!hasData) {
+    ctx.fillStyle = '#AEAEB2';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    const metricNames = { charge: 'charge', volume: 'volume', reps: 'répétitions' };
+    ctx.fillText('Aucune donnée de ' + (metricNames[metric] || metric) + ' enregistrée', W / 2 / dpr, H / 2 / dpr);
+    canvas._points = [];
+    return;
+  }
+
+  const pad = { top: 16, right: 20, bottom: 36, left: 38 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const rawMin = Math.min(...values.filter(v => v > 0));
+  const rawMax = Math.max(...values);
+  const minVal = rawMin * 0.85;
+  const maxVal = rawMax * 1.15;
+  const range  = maxVal - minVal || 1; // Évite division par zéro si toutes égales
+
+  // Cas 1 point : centré horizontalement
+  function xPos(i) {
+    if (data.length <= 1) return pad.left + chartW / 2;
+    return pad.left + (i / (data.length - 1)) * chartW;
+  }
+  function yPos(v) { return pad.top + chartH - ((v - minVal) / range) * chartH; }
+
+  // Grid
+  ctx.strokeStyle = '#E5E5EA';
+  ctx.lineWidth = 1;
+  const gridLines = 4;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = pad.top + (i / gridLines) * chartH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    const val = maxVal - (i / gridLines) * range;
+    ctx.fillStyle = '#AEAEB2';
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(val), pad.left - 6, y + 4);
+  }
+
+  // X labels
+  ctx.fillStyle = '#AEAEB2';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  const step = Math.ceil(data.length / 6);
+  data.forEach((d, i) => {
+    if (i % step === 0 || i === data.length - 1) {
+      ctx.fillText(d.short, xPos(i), H - pad.bottom + 14);
+    }
+  });
+
+  // Shaded area
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+  grad.addColorStop(0, 'rgba(124,58,237,0.18)');
+  grad.addColorStop(1, 'rgba(124,58,237,0)');
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(values[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(xPos(i), yPos(values[i]));
+  ctx.lineTo(xPos(data.length - 1), pad.top + chartH);
+  ctx.lineTo(xPos(0), pad.top + chartH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#7C3AED';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.moveTo(xPos(0), yPos(values[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(xPos(i), yPos(values[i]));
+  ctx.stroke();
+
+  // Points
+  data.forEach((d, i) => {
+    const x = xPos(i), y = yPos(values[i]);
+    if (d.technique) {
+      // Technique marker: violet star-like circle with ring
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(167,139,250,0.25)';
+      ctx.fill();
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#a78bfa';
+      ctx.fill();
+      // Wrench icon text
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText('T', x, y + 3);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      ctx.strokeStyle = '#7C3AED';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+  });
+
+  // Store points for tap detection
+  canvas._points = data.map((d, i) => ({
+    x: xPos(i), y: yPos(values[i]),
+    date: d.date, value: values[i], technique: d.technique, comment: d.comment,
+    metric
+  }));
+}
+
+// ─── TOOLTIP on tap/click ────────────────────────────────────────────
+document.getElementById('perfChart').addEventListener('click', function(e) {
+  const rect = this.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const points = this._points || [];
+  let closest = null, minDist = 30;
+  points.forEach(p => {
+    const dist = Math.sqrt((p.x - cx)**2 + (p.y - cy)**2);
+    if (dist < minDist) { minDist = dist; closest = p; }
+  });
+  const tip = document.getElementById('chartTooltip');
+  if (closest) {
+    const units = { charge: 'kg', volume: 'kg (volume)', reps: 'reps' };
+    document.getElementById('tt-date').textContent = closest.date;
+    document.getElementById('tt-val').textContent = closest.value + ' ' + (units[closest.metric] || '');
+    const badge = document.getElementById('tt-badge');
+    const note = document.getElementById('tt-note');
+    if (closest.technique) {
+      badge.style.display = 'inline-block';
+      note.textContent = closest.comment || '';
+      tip.classList.add('technique-tip');
+    } else {
+      badge.style.display = 'none';
+      note.textContent = closest.comment || '';
+      tip.classList.remove('technique-tip');
+    }
+    // Position tooltip
+    let left = closest.x + 12;
+    const tipW = 170;
+    if (left + tipW > this.offsetWidth) left = closest.x - tipW - 8;
+    let top = closest.y - 10;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    tip.style.display = 'block';
+  } else {
+    tip.style.display = 'none';
+  }
+});
+
+// ─── HISTORY ─────────────────────────────────────────────────────────
+function renderHistory(history) {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  history.forEach(d => {
+    // Construire le détail des séries réalisées
+    let seriesHtml = '';
+    if (d.seriesData && d.seriesData.length) {
+      seriesHtml = `<div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">`;
+      d.seriesData.forEach((s, idx) => {
+        const c  = parseFloat(s.charge) || 0;
+        const rv = parseFloat(s.reps)   || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
+        // Exercice unilatéral ?
+        const isUnilateral = s.reps_g != null || s.reps_d != null;
+        let repsStr;
+        if (isUnilateral) {
+          const g = parseFloat(s.reps_g) || 0;
+          const dd = parseFloat(s.reps_d) || 0;
+          repsStr = `${g}G / ${dd}D reps`;
+        } else {
+          repsStr = rv > 0 ? `${rv} reps` : '—';
+        }
+        const chargeStr = c > 0 ? `${c} kg` : '—';
+        const best = (c > 0 && rv > 0) ? ` <span style="font-size:10px;color:var(--accent);font-weight:600;">(${Math.round(c * rv)} kg)</span>` : '';
+        seriesHtml += `
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--bg);border-radius:8px;font-size:12px;">
+            <span style="width:18px;height:18px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${idx+1}</span>
+            <span style="color:var(--text);font-weight:600;">${chargeStr}</span>
+            <span style="color:var(--text-muted);">×</span>
+            <span style="color:var(--text);">${repsStr}</span>
+            ${best}
+          </div>`;
+      });
+      seriesHtml += `</div>`;
+    } else {
+      // Fallback si pas de series_data
+      const chargeStr = d.charge > 0 ? d.charge + ' kg' : '—';
+      const repsStr   = d.reps > 0 ? d.reps + ' reps' : '—';
+      seriesHtml = `<div style="margin-top:8px;font-size:12px;color:var(--text-muted);">${chargeStr} × ${repsStr}</div>`;
+    }
+
+    const div = document.createElement('div');
+    div.className = 'history-row' + (d.technique ? ' technique-row' : '');
+    div.innerHTML = `
+      <div class="history-row-inner">
+        <div class="history-row-top">
+          <div class="history-date">
+            <strong>${d.date}</strong>
+          </div>
+          <div style="flex:1"></div>
+          ${d.technique ? '<span class="technique-badge">🔧 Technique revue</span>' : ''}
+        </div>
+        ${seriesHtml}
+        ${d.comment ? `<div class="history-comment">${d.comment}</div>` : ''}
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+// Re-render chart on resize
+window.addEventListener('resize', () => {
+  if (currentExo) renderChart(currentExo.history, currentMetric);
+});
+
+window.addEventListener('load', () => { loadPerfsExos(); });
+</script>
+</body>
+</html>
