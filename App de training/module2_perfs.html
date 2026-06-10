@@ -651,6 +651,13 @@ async function openDetail(nomExo) {
       reps,
       technique: r.technique || false,
       comment:   r.notes_client || r.notes || '',
+      seriesData: (() => {
+        if (!r.series_data) return null;
+        try {
+          const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+          return sd.length ? sd : null;
+        } catch(e) { return null; }
+      })(),
       _ts:       d.getTime(),
     };
   }).sort((a, b) => b._ts - a._ts);
@@ -896,6 +903,42 @@ function renderHistory(history) {
   const list = document.getElementById('history-list');
   list.innerHTML = '';
   history.forEach(d => {
+    // Construire le détail des séries réalisées
+    let seriesHtml = '';
+    if (d.seriesData && d.seriesData.length) {
+      seriesHtml = `<div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">`;
+      d.seriesData.forEach((s, idx) => {
+        const c  = parseFloat(s.charge) || 0;
+        const rv = parseFloat(s.reps)   || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
+        // Exercice unilatéral ?
+        const isUnilateral = s.reps_g != null || s.reps_d != null;
+        let repsStr;
+        if (isUnilateral) {
+          const g = parseFloat(s.reps_g) || 0;
+          const dd = parseFloat(s.reps_d) || 0;
+          repsStr = `${g}G / ${dd}D reps`;
+        } else {
+          repsStr = rv > 0 ? `${rv} reps` : '—';
+        }
+        const chargeStr = c > 0 ? `${c} kg` : '—';
+        const best = (c > 0 && rv > 0) ? ` <span style="font-size:10px;color:var(--accent);font-weight:600;">(${Math.round(c * rv)} kg)</span>` : '';
+        seriesHtml += `
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--bg);border-radius:8px;font-size:12px;">
+            <span style="width:18px;height:18px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${idx+1}</span>
+            <span style="color:var(--text);font-weight:600;">${chargeStr}</span>
+            <span style="color:var(--text-muted);">×</span>
+            <span style="color:var(--text);">${repsStr}</span>
+            ${best}
+          </div>`;
+      });
+      seriesHtml += `</div>`;
+    } else {
+      // Fallback si pas de series_data
+      const chargeStr = d.charge > 0 ? d.charge + ' kg' : '—';
+      const repsStr   = d.reps > 0 ? d.reps + ' reps' : '—';
+      seriesHtml = `<div style="margin-top:8px;font-size:12px;color:var(--text-muted);">${chargeStr} × ${repsStr}</div>`;
+    }
+
     const div = document.createElement('div');
     div.className = 'history-row' + (d.technique ? ' technique-row' : '');
     div.innerHTML = `
@@ -906,11 +949,8 @@ function renderHistory(history) {
           </div>
           <div style="flex:1"></div>
           ${d.technique ? '<span class="technique-badge">🔧 Technique revue</span>' : ''}
-          <div class="history-data">
-            <div class="history-main">${d.charge > 0 ? d.charge + ' kg' : 'BW'}</div>
-            <div class="history-sub">${d.reps} reps · vol. ${d.volume} kg</div>
-          </div>
         </div>
+        ${seriesHtml}
         ${d.comment ? `<div class="history-comment">${d.comment}</div>` : ''}
       </div>`;
     list.appendChild(div);
