@@ -1,0 +1,3564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── Supabase ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/*
+  SQL À EXÉCUTER UNE FOIS DANS SUPABASE → SQL Editor :
+  ─────────────────────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS seances (
+    id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    client_id  UUID REFERENCES clients(id) ON DELETE CASCADE,
+    titre      TEXT NOT NULL,
+    date       DATE NOT NULL,
+    statut     TEXT DEFAULT 'planifiée',
+    notes      TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ALTER TABLE seances ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Allow all anon on seances"
+    ON seances FOR ALL TO anon USING (true) WITH CHECK (true);
+*/
+
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin + 'recode_salt_v1');
+  const buf  = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RECODE Training — Coach</title>
+<style>
+  :root {
+    --bg:        #F6F6F8;
+    --surface:   #FFFFFF;
+    --surface2:  #F2F2F5;
+    --surface3:  #E8E8ED;
+    --accent:    #6D28D9;
+    --accent-bg: rgba(109,40,217,0.07);
+    --text:      #111827;
+    --muted:     #6B7280;
+    --dim:       #9CA3AF;
+    --text-dim:  #9CA3AF;
+    --text-muted:#6B7280;
+    --success:   #16A34A;
+    --danger:    #DC2626;
+    --warning:   #D97706;
+    --purple:    #7C3AED;
+    --border:    rgba(0,0,0,0.06);
+    --border-md: rgba(0,0,0,0.10);
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow:    0 4px 20px rgba(0,0,0,0.10);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.16);
+    --r:  12px;
+    --rs: 8px;
+    --rl: 16px;
+    --sidebar: 210px;
+    --t: 0.15s ease;
+    --cycle-menstrual:  #EF4444;
+    --cycle-follicular: #F97316;
+    --cycle-ovulation:  #EAB308;
+    --cycle-luteal:     #A855F7;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    height: 100%; -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── LAYOUT ─────────────────────────────────────────────── */
+  .layout { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ─── SIDEBAR ────────────────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar); flex: 0 0 var(--sidebar);
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-logo {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo img { height: 32px; width: auto; display: block; }
+  .sidebar-role {
+    font-size: 10px; color: var(--dim); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px; margin-top: 8px;
+  }
+  .sidebar-nav { flex: 1; padding: 8px 6px; overflow-y: auto; }
+  .nav-section-label {
+    font-size: 10px; font-weight: 600; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 10px 10px 4px;
+  }
+  .nav-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    border-radius: var(--rs); transition: var(--t);
+    margin-bottom: 1px; line-height: 1;
+  }
+  .nav-link:hover { color: var(--text); background: var(--surface2); }
+  .nav-link.active { color: var(--accent); background: var(--accent-bg); font-weight: 600; }
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; flex: 0 0 auto; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700; border-radius: 20px; padding: 1px 6px;
+  }
+  .sidebar-footer {
+    padding: 12px 16px; border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .coach-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-bg); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700;
+    color: var(--accent); flex: 0 0 auto;
+  }
+  .coach-name  { font-size: 12px; font-weight: 600; }
+  .coach-email { font-size: 10px; color: var(--dim); margin-top: 1px; }
+
+  /* ─── MAIN ───────────────────────────────────────────────── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex: 0 0 auto; min-height: 52px;
+  }
+  .topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .topbar-actions { display: flex; gap: 8px; }
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+  /* ─── BUTTONS ────────────────────────────────────────────── */
+  .btn {
+    padding: 7px 15px; border-radius: var(--rs); font-size: 13px;
+    font-weight: 600; cursor: pointer; border: none; transition: var(--t);
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: inherit; white-space: nowrap; line-height: 1.3;
+  }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { opacity: 0.88; }
+  .btn-ghost {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border-md);
+  }
+  .btn-ghost:hover { color: var(--text); background: var(--surface2); }
+  .btn-danger {
+    background: rgba(220,38,38,0.07); color: var(--danger);
+    border: 1px solid rgba(220,38,38,0.15);
+  }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+
+  /* ─── SCREENS ────────────────────────────────────────────── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ─── STATS ROW ──────────────────────────────────────────── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--surface); border-radius: var(--r);
+    padding: 14px 16px; border: 1px solid var(--border);
+    box-shadow: var(--shadow-xs);
+  }
+  .stat-card-val { font-size: 24px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+  .stat-card-label { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 4px; }
+  .stat-card-sub { font-size: 10px; color: var(--dim); margin-top: 2px; }
+
+  /* ─── CLIENT GRID ────────────────────────────────────────── */
+  .clients-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .client-card {
+    background: var(--surface); border-radius: var(--r);
+    padding: 16px; cursor: pointer; transition: var(--t);
+    border: 1px solid var(--border); box-shadow: var(--shadow-xs);
+    position: relative; overflow: hidden;
+  }
+  .client-card:hover {
+    box-shadow: var(--shadow); border-color: transparent;
+    transform: translateY(-1px);
+  }
+  .client-card-top { display: flex; align-items: center; gap: 11px; margin-bottom: 11px; }
+  .client-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex: 0 0 auto;
+  }
+  .client-name  { font-size: 14px; font-weight: 700; }
+  .client-since { font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .client-tags  { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tag {
+    font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    background: var(--surface2); color: var(--muted); font-weight: 500;
+  }
+  .tag.green  { background: rgba(22,163,74,0.08);  color: var(--success); }
+  .tag.orange { background: rgba(217,119,6,0.08);  color: var(--warning); }
+  .tag.purple { background: rgba(109,40,217,0.08); color: var(--accent); }
+  .client-stats { display: flex; gap: 12px; }
+  .client-stat { font-size: 10px; color: var(--muted); }
+  .client-stat strong { display: block; font-size: 13px; font-weight: 700; color: var(--text); }
+  .client-cycle-badge {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 10px; padding: 2px 6px; border-radius: 20px; font-weight: 600;
+  }
+
+  /* ─── CLIENT DETAIL ──────────────────────────────────────── */
+  .client-detail-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 18px; padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .back-btn {
+    display: flex; align-items: center; gap: 4px;
+    color: var(--muted); font-size: 12px; font-weight: 500; cursor: pointer;
+    padding: 5px 10px; border-radius: var(--rs);
+    border: 1px solid var(--border-md); background: var(--surface);
+    transition: var(--t); flex: 0 0 auto;
+  }
+  .back-btn:hover { color: var(--text); background: var(--surface2); }
+  .client-detail-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; flex: 0 0 auto;
+  }
+  .client-detail-name { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+  .client-detail-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ─── CLIENT TABS ─────────────────────────────────────────── */
+  .client-tabs {
+    display: flex; gap: 0; margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .client-tab {
+    padding: 8px 14px; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer; transition: var(--t);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    white-space: nowrap;
+  }
+  .client-tab:hover { color: var(--text); }
+  .client-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .client-tab-content { display: none; }
+  .client-tab-content.active { display: block; }
+
+  /* ─── PROGRAMME TAB ──────────────────────────────────────── */
+  .week-program { display: flex; flex-direction: column; gap: 7px; }
+  .prog-day {
+    background: var(--surface); border-radius: var(--r);
+    display: flex; align-items: center; gap: 14px; padding: 11px 14px;
+    border: 1px solid var(--border);
+  }
+  .prog-day-name { width: 76px; font-size: 11px; font-weight: 600; color: var(--muted); flex: 0 0 auto; }
+  .prog-day-name.today { color: var(--accent); }
+  .prog-session-name { font-size: 13px; font-weight: 700; }
+  .prog-session-info { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .prog-rest { color: var(--dim); font-size: 12px; }
+  .prog-status { margin-left: auto; }
+
+  /* ─── PERFS TAB ──────────────────────────────────────────── */
+  .perf-ctrl-btn {
+    padding: 5px 11px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .perf-ctrl-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .perfs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .perf-card {
+    background: var(--surface); border-radius: var(--r); padding: 14px;
+    border: 1px solid var(--border);
+  }
+  .perf-card-name { font-size: 12px; font-weight: 600; margin-bottom: 10px; color: var(--text); }
+  .perf-card-canvas { width: 100%; display: block; }
+  .perf-pr { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--muted); }
+  .perf-pr strong { color: var(--accent); font-size: 14px; font-weight: 800; }
+
+  /* ─── MÉTRIQUES & HABITUDES TABS ─────────────────────────── */
+  .metrics-manage { display: flex; flex-direction: column; gap: 7px; }
+  .metric-manage-row {
+    background: var(--surface); border-radius: var(--r);
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+    border: 1px solid var(--border);
+  }
+  .metric-manage-icon { font-size: 17px; width: 26px; text-align: center; flex: 0 0 auto; }
+  .metric-manage-info { flex: 1; }
+  .metric-manage-name { font-size: 13px; font-weight: 600; }
+  .metric-manage-unit { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .metric-manage-val { font-size: 16px; font-weight: 800; color: var(--accent); margin-right: 8px; flex: 0 0 auto; }
+  .metric-manage-val span { font-size: 10px; color: var(--muted); font-weight: 500; }
+
+  /* ─── FORMS ──────────────────────────────────────────────── */
+  .add-form {
+    background: var(--surface); border-radius: var(--r); padding: 14px;
+    display: none; margin-bottom: 10px; border: 1px solid var(--border);
+  }
+  .add-form.open { display: block; }
+  .add-form-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .form-row { display: flex; gap: 7px; margin-bottom: 7px; }
+  .form-label {
+    font-size: 10px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block;
+  }
+  .form-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border-md);
+    border-radius: var(--rs); color: var(--text); font-size: 13px;
+    padding: 8px 11px; outline: none; font-family: inherit; transition: border-color 0.15s;
+    width: 100%;
+  }
+  .form-input:focus { border-color: var(--accent); background: var(--surface); }
+  .form-input::placeholder { color: var(--dim); }
+  .form-select {
+    background: var(--surface2); border: 1px solid var(--border-md);
+    border-radius: var(--rs); color: var(--text); font-size: 13px;
+    padding: 8px 11px; outline: none; font-family: inherit; cursor: pointer;
+    transition: border-color 0.15s; width: 100%;
+  }
+  .form-select:focus { border-color: var(--accent); }
+
+  /* ─── SESSION DETAIL PANEL ───────────────────────────────── */
+  .session-detail-panel {
+    display: none; margin-top: 10px;
+    background: var(--surface); border-radius: var(--r);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .session-detail-panel.open { display: block; }
+  .sdp-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .sdp-title { font-size: 13px; font-weight: 700; }
+  .sdp-meta  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .sdp-close {
+    background: var(--surface3); border: none; color: var(--muted);
+    font-size: 13px; width: 24px; height: 24px; border-radius: 5px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .sdp-exo { border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  .sdp-exo:last-child { border-bottom: none; }
+  .sdp-exo-header { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+  .sdp-exo-num {
+    width: 22px; height: 22px; border-radius: 6px; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex: 0 0 auto;
+  }
+  .sdp-exo-name       { font-size: 13px; font-weight: 700; flex: 1; }
+  .sdp-exo-prescribed { font-size: 10px; color: var(--muted); }
+  .sdp-table { width: 100%; border-collapse: collapse; }
+  .sdp-table th {
+    font-size: 9px; font-weight: 600; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 5px 9px; text-align: left; background: var(--surface2);
+  }
+  .sdp-table td { font-size: 12px; padding: 7px 9px; border-bottom: 1px solid var(--border); }
+  .sdp-table tr:last-child td { border-bottom: none; }
+  .sdp-table .val-done   { font-weight: 700; }
+  .sdp-table .val-charge { font-weight: 700; color: var(--accent); }
+  .sdp-table .val-ok     { color: var(--success); }
+  .sdp-table .val-miss   { color: var(--warning); }
+  .sdp-comment-row {
+    margin-top: 7px; padding: 7px 10px; background: var(--surface2);
+    border-radius: 6px; font-size: 11px; color: var(--muted);
+    border-left: 2px solid var(--purple);
+  }
+  .sdp-history-toggle { font-size: 11px; color: var(--accent); font-weight: 500; cursor: pointer; margin-top: 7px; display: inline-block; }
+  .sdp-history { display: none; margin-top: 7px; }
+  .sdp-history.open { display: block; }
+  .sdp-history-row {
+    display: flex; gap: 9px; align-items: center; padding: 5px 0;
+    border-bottom: 1px solid var(--border); font-size: 10px; color: var(--muted);
+  }
+  .sdp-history-row:last-child { border-bottom: none; }
+  .sdp-history-date  { width: 72px; flex: 0 0 auto; }
+  .sdp-history-series { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+  .sdp-history-serie { background: var(--surface3); border-radius: 4px; padding: 2px 6px; font-weight: 500; }
+
+  /* ─── COMMENTAIRES ───────────────────────────────────────── */
+  .comments-list { display: flex; flex-direction: column; gap: 7px; }
+  .comment-card {
+    background: var(--surface); border-radius: var(--r); padding: 12px 14px;
+    border: 1px solid var(--border); border-left: 2px solid var(--border-md);
+  }
+  .comment-card.coach  { border-left-color: var(--accent); }
+  .comment-card.client { border-left-color: var(--purple); }
+  .comment-meta { display: flex; gap: 7px; margin-bottom: 5px; align-items: center; flex-wrap: wrap; }
+  .comment-author       { font-size: 11px; font-weight: 700; }
+  .comment-author.coach  { color: var(--accent); }
+  .comment-author.client { color: var(--purple); }
+  .comment-date { font-size: 10px; color: var(--dim); }
+  .comment-exo  { font-size: 10px; color: var(--muted); background: var(--surface2); padding: 1px 6px; border-radius: 20px; }
+  .comment-body { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+  /* ─── BIBLIO EXERCICES ───────────────────────────────────── */
+  .library-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .exo-lib-card {
+    background: var(--surface); border-radius: var(--r); padding: 13px;
+    cursor: pointer; transition: var(--t); border: 1px solid var(--border);
+  }
+  .exo-lib-card:hover { box-shadow: var(--shadow); border-color: transparent; }
+  .exo-lib-thumb {
+    width: 100%; aspect-ratio: 16/9; background: var(--surface2);
+    border-radius: var(--rs); display: flex; align-items: center;
+    justify-content: center; font-size: 22px; margin-bottom: 9px;
+    position: relative; overflow: hidden;
+  }
+  .exo-lib-play {
+    width: 30px; height: 30px; background: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .exo-lib-play::after {
+    content: ''; border-style: solid;
+    border-width: 5px 0 5px 9px;
+    border-color: transparent transparent transparent #fff;
+    margin-left: 2px;
+  }
+  .exo-lib-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .exo-lib-meta { font-size: 10px; color: var(--muted); }
+  .exo-lib-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 5px; }
+
+  /* ─── LIB MÉTRIQUES/HABITUDES ────────────────────────────── */
+  .lib-metrics-list { display: flex; flex-direction: column; gap: 6px; }
+  .lib-metric-row {
+    background: var(--surface); border-radius: var(--r);
+    display: flex; align-items: center; gap: 11px; padding: 11px 14px;
+    border: 1px solid var(--border);
+  }
+  .lib-metric-icon { font-size: 16px; width: 22px; text-align: center; flex: 0 0 auto; }
+  .lib-metric-info { flex: 1; }
+  .lib-metric-name { font-size: 13px; font-weight: 600; }
+  .lib-metric-unit { font-size: 10px; color: var(--muted); }
+  .assign-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .assign-pill {
+    font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    background: var(--surface2); color: var(--muted); font-weight: 500;
+  }
+
+  /* ─── MODAL ──────────────────────────────────────────────── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); backdrop-filter: blur(6px);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border-radius: var(--rl);
+    width: 448px; max-width: 95vw; max-height: 88vh;
+    overflow-y: auto; box-shadow: var(--shadow-lg);
+    animation: modal-in 0.18s ease;
+  }
+  @keyframes modal-in { from { opacity:0; transform:scale(0.97) translateY(4px); } to { opacity:1; transform:none; } }
+  .modal-header {
+    padding: 18px 20px 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-header-title { font-size: 15px; font-weight: 700; }
+  .modal-close {
+    background: var(--surface2); border: none; color: var(--muted);
+    font-size: 15px; width: 26px; height: 26px; border-radius: 7px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: var(--surface3); }
+  .modal-body { padding: 16px 20px 20px; }
+
+  /* ─── TOAST ──────────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: #fff; padding: 9px 18px;
+    border-radius: 10px; font-weight: 600; font-size: 13px;
+    z-index: 999; white-space: nowrap; pointer-events: none;
+    box-shadow: var(--shadow); animation: toast-in 0.2s ease;
+  }
+  @keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(6px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+
+  /* ─── UTILS ──────────────────────────────────────────────── */
+  .divider { height: 1px; background: var(--border); margin: 12px 0; }
+  .section-title {
+    font-size: 13px; font-weight: 700; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--text);
+  }
+  .loading-text {
+    color: var(--dim); font-size: 13px;
+    animation: pulse 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { from { opacity:0.5; } to { opacity:1; } }
+
+  /* ─── CODE BLOCK ─────────────────────────────────────────── */
+  .sql-block {
+    font-size: 11px; background: var(--surface2); border: 1px solid var(--border-md);
+    padding: 10px 12px; border-radius: var(--rs); line-height: 1.7;
+    white-space: pre; font-family: 'SF Mono', 'Fira Code', monospace;
+    overflow-x: auto; color: var(--muted);
+  }
+
+  /* ─── SESSION CARDS CLIQUABLES ───────────────────────────── */
+  .seance-card {
+    background: var(--surface); border-radius: var(--r);
+    border: 1px solid var(--border); margin-bottom: 7px; overflow: hidden;
+  }
+  .seance-card-top {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+    cursor: pointer; transition: background 0.12s;
+  }
+  .seance-card-top:hover { background: var(--surface2); }
+  .seance-card.expanded > .seance-card-top { background: var(--surface2); }
+  .seance-card-date { width: 68px; font-size: 10px; font-weight: 600; color: var(--muted); flex: 0 0 auto; line-height: 1.4; }
+  .seance-card-name { flex: 1; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seance-card-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; flex: 0 0 auto; }
+  .seance-card-chevron { color: var(--dim); flex: 0 0 auto; transition: transform 0.2s; }
+  .seance-card.expanded .seance-card-chevron { transform: rotate(180deg); }
+  .seance-exo-panel { display: none; border-top: 1px solid var(--border); }
+  .seance-card.expanded .seance-exo-panel { display: block; }
+  .seance-exo-row {
+    display: flex; align-items: center; gap: 11px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .seance-exo-num {
+    width: 22px; height: 22px; border-radius: 6px; background: transparent;
+    color: var(--text-dim); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 500; display: flex; align-items: center;
+    justify-content: center; flex: 0 0 auto;
+  }
+  .seance-exo-info { flex: 1; min-width: 0; }
+  .seance-exo-name { font-size: 13px; font-weight: 600; }
+  .seance-exo-params { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .seance-exo-del {
+    background: none; border: none; color: var(--dim); font-size: 15px;
+    cursor: pointer; padding: 4px; line-height: 1; border-radius: 4px; transition: var(--t);
+  }
+  .seance-exo-del:hover { color: var(--danger); background: rgba(220,38,38,0.07); }
+  .seance-exo-add {
+    display: flex; align-items: center; gap: 7px; padding: 10px 14px;
+    color: var(--accent); font-size: 12px; font-weight: 600;
+    cursor: pointer; background: none; border: none; font-family: inherit;
+    width: 100%; text-align: left; transition: background 0.12s;
+  }
+  .seance-exo-add:hover { background: var(--accent-bg); }
+  .seance-exo-empty { padding: 12px 14px; font-size: 12px; color: var(--dim); }
+
+  /* ─── EXO PICKER MODAL ───────────────────────────────────── */
+  .exo-picker-search {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border-md);
+    border-radius: var(--rs); color: var(--text); font-size: 13px;
+    padding: 8px 11px; outline: none; font-family: inherit; transition: border-color 0.15s; margin-bottom: 8px;
+  }
+  .exo-picker-search:focus { border-color: var(--accent); }
+  .exo-picker-list {
+    max-height: 200px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: var(--rs); margin-bottom: 12px;
+  }
+  .exo-picker-item {
+    padding: 9px 12px; font-size: 13px; cursor: pointer;
+    border-bottom: 1px solid var(--border); transition: background 0.1s;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .exo-picker-item:last-child { border-bottom: none; }
+  .exo-picker-item:hover { background: var(--surface2); }
+  .exo-picker-item.selected { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .ep-muscle { font-size: 10px; color: var(--dim); }
+  .exo-params-form { display: none; border-top: 1px solid var(--border); padding-top: 10px; }
+  .exo-params-form.open { display: block; }
+  .params-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-bottom: 10px; }
+  .param-block label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 3px; }
+  .param-block input { width: 100%; background: var(--surface2); border: 1px solid var(--border-md); border-radius: var(--rs); color: var(--text); font-size: 14px; font-weight: 700; padding: 6px 8px; outline: none; font-family: inherit; text-align: center; }
+  .param-block input:focus { border-color: var(--accent); }
+  .uni-toggle-row { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+  .uni-toggle-row label { font-size: 12px; color: var(--muted); }
+  .uni-extra { display: none; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+  .uni-extra.open { display: grid; }
+
+  /* ─── HISTORIQUE MODAL ───────────────────────────────────── */
+  .history-list { display: flex; flex-direction: column; gap: 5px; }
+  .history-row {
+    display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+    background: var(--surface2); border-radius: var(--rs);
+  }
+  .history-date { font-size: 11px; color: var(--muted); width: 62px; flex: 0 0 auto; }
+  .history-val { font-size: 15px; font-weight: 700; color: var(--accent); flex: 1; }
+  .history-delta { font-size: 11px; font-weight: 600; }
+  .history-delta.up { color: var(--success); }
+  .history-delta.down { color: var(--danger); }
+  .history-delta.eq { color: var(--dim); }
+
+  /* ─── PROGRAMMATION 4 SEMAINES ───────────────────────────── */
+  .prog-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+  }
+  .prog-nav-group { display: flex; align-items: center; gap: 6px; }
+  .prog-nav-btn {
+    padding: 6px 11px; border-radius: var(--rs); border: 1px solid var(--border-md);
+    background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer;
+    font-family: inherit; transition: var(--t); display: flex; align-items: center; gap: 3px;
+  }
+  .prog-nav-btn:hover { color: var(--text); background: var(--surface2); }
+  .prog-period-label { font-size: 13px; font-weight: 600; color: var(--text); min-width: 130px; text-align: center; }
+  .prog-client-select {
+    background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--rs);
+    color: var(--text); font-size: 13px; padding: 6px 10px; outline: none;
+    font-family: inherit; cursor: pointer; min-width: 150px;
+  }
+  .prog-client-select:focus { border-color: var(--accent); }
+
+  .prog-grid-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); }
+  .prog-grid { display: grid; grid-template-columns: 96px repeat(7,1fr); min-width: 620px; }
+  .prog-grid-th {
+    font-size: 10px; font-weight: 600; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 8px 4px; text-align: center; background: var(--surface2);
+    border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+  .prog-grid-th:last-child { border-right: none; }
+  .prog-grid-th:first-child { text-align: left; padding-left: 10px; }
+  .prog-week-cell {
+    padding: 8px 10px; background: var(--surface); border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); display: flex; flex-direction: column;
+    justify-content: space-between; gap: 5px;
+  }
+  .prog-week-cell:last-of-type { border-bottom: none; }
+  .prog-week-num { font-size: 11px; font-weight: 700; color: var(--text); }
+  .prog-week-range { font-size: 10px; color: var(--muted); line-height: 1.3; }
+  .prog-dup-btn {
+    font-size: 10px; font-weight: 600; color: var(--accent);
+    background: var(--accent-bg); border: 1px solid rgba(109,40,217,0.2);
+    border-radius: 5px; padding: 3px 6px; cursor: pointer;
+    font-family: inherit; transition: var(--t); white-space: nowrap;
+  }
+  .prog-dup-btn:hover { background: rgba(109,40,217,0.16); }
+  .prog-day-cell {
+    padding: 4px 3px; min-height: 72px; border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); background: var(--surface);
+    position: relative; cursor: pointer; transition: background 0.1s;
+    vertical-align: top;
+  }
+  .prog-grid > .prog-day-cell:nth-last-child(-n+7) { border-bottom: none; }
+  .prog-day-cell:last-child { border-right: none; }
+  .prog-day-cell:hover { background: rgba(109,40,217,0.02); }
+  .prog-day-cell.today-col { background: rgba(109,40,217,0.03); }
+  .prog-day-cell.today-col::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent);
+  }
+  .prog-day-num {
+    font-size: 10px; font-weight: 600; color: var(--text-dim);
+    text-align: center; margin-bottom: 3px;
+  }
+  .prog-day-num.today-num { color: var(--accent); font-weight: 700; }
+  .prog-chip {
+    display: block; font-size: 10px; font-weight: 600; color: var(--accent);
+    background: var(--accent-bg); border-radius: 4px; padding: 2px 4px;
+    margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .prog-chip.validée { color: var(--success); background: rgba(22,163,74,0.09); }
+  .prog-chip.annulée { color: var(--danger); background: rgba(220,38,38,0.08); text-decoration: line-through; }
+  .prog-add-hint {
+    font-size: 10px; color: var(--dim); text-align: center;
+    padding-top: 4px; display: none; pointer-events: none;
+  }
+  .prog-day-cell:hover .prog-add-hint { display: block; }
+  .prog-empty-state {
+    grid-column: 1 / -1; padding: 40px 20px; text-align: center;
+    font-size: 13px; color: var(--muted);
+  }
+
+  /* ─── METRIC LIB PICKER PILLS ────────────────────────────── */
+  .cm-lib-pill {
+    font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 20px;
+    border: 1px solid var(--border-md); background: var(--surface2); color: var(--muted);
+    cursor: pointer; transition: var(--t); display: inline-flex; align-items: center; gap: 4px;
+  }
+  .cm-lib-pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .cm-lib-pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <img src="Logo.png" alt="RECODE">
+    <div class="sidebar-role">Espace coach</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Clientes</div>
+    <div class="nav-link active" onclick="showScreen('clients',this)">
+      <span class="nav-icon">👥</span> Mes clientes
+      <span class="nav-badge" id="badge-clients">—</span>
+    </div>
+    <div class="nav-section-label">Planning</div>
+    <div class="nav-link" onclick="showScreen('prog',this)">
+      <span class="nav-icon">📅</span> Programmation
+    </div>
+    <div class="nav-section-label">Contenu</div>
+    <div class="nav-link" onclick="showScreen('biblio-exos',this)">
+      <span class="nav-icon">🏋️</span> Exercices
+    </div>
+    <div class="nav-link" onclick="showScreen('biblio-metrics',this)">
+      <span class="nav-icon">📊</span> Métriques
+    </div>
+    <div class="nav-link" onclick="showScreen('biblio-habits',this)">
+      <span class="nav-icon">🌿</span> Habitudes
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="coach-avatar">KG</div>
+    <div>
+      <div class="coach-name">Kevin G.</div>
+      <div class="coach-email">Indiana Afit</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Mes clientes</div>
+    <div class="topbar-actions" id="topbar-actions">
+      <button class="btn btn-accent btn-sm" onclick="openAddClient()">+ Nouvelle cliente</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══════════════════════════════════════
+         SCREEN : CLIENTES
+    ══════════════════════════════════════ -->
+    <div class="screen active" id="screen-clients">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-val" id="stat-total">—</div>
+          <div class="stat-card-label">Clientes totales</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-val" id="stat-active">—</div>
+          <div class="stat-card-label">Connectées</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-val" id="stat-new">—</div>
+          <div class="stat-card-label">Jamais connectées</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-val">—</div>
+          <div class="stat-card-label">Séances cette semaine</div>
+        </div>
+      </div>
+
+      <div class="section-title">Toutes les clientes</div>
+      <div class="clients-grid" id="clients-grid">
+        <div style="grid-column:1/-1;padding:30px 0" class="loading-text">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREEN : CLIENT DETAIL
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-client-detail">
+      <div class="client-detail-header">
+        <div class="back-btn" onclick="backToClients()">← Retour</div>
+        <div class="client-detail-avatar" id="detail-avatar"></div>
+        <div>
+          <div class="client-detail-name" id="detail-name">—</div>
+          <div class="client-detail-meta" id="detail-meta">—</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <button id="btn-drive-coach" onclick="openDriveEditor()"
+            style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.49"/></svg>
+            <span id="btn-drive-label">Drive</span>
+          </button>
+          <button class="btn btn-accent btn-sm" onclick="openAddSeance()">+ Ajouter séance</button>
+        </div>
+      </div>
+
+      <!-- Drive URL editor (inline) -->
+      <div id="drive-editor" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">🔗 Lien Drive de la cliente</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">La cliente pourra déposer ses vidéos directement depuis l'application en ouvrant ce lien.</div>
+        <input id="drive-url-input" type="url" placeholder="https://drive.google.com/drive/folders/…"
+          style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text);background:var(--bg);box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveDriveUrl()" class="btn btn-accent btn-sm" style="font-size:11px;">Enregistrer</button>
+          <button onclick="document.getElementById('drive-editor').style.display='none'" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;">Annuler</button>
+        </div>
+      </div>
+
+      <div class="client-tabs">
+        <div class="client-tab active"  onclick="switchClientTab(this,'programme')">Programme</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'perfs')">Perfs</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'metrics')">Métriques</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'habits')">Habitudes</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'cycle')">Cycle</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'comments')">Commentaires</div>
+      </div>
+
+      <!-- Programme -->
+      <div class="client-tab-content active" id="ctab-programme">
+        <div id="seances-list">
+          <div class="loading-text" style="padding:30px 0">Chargement des séances…</div>
+        </div>
+      </div>
+
+      <!-- Perfs -->
+      <div class="client-tab-content" id="ctab-perfs">
+        <div class="section-title">Évolution des performances</div>
+        <!-- Contrôles : période uniquement -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;" id="perf-period-btns">
+          <button class="perf-ctrl-btn active" onclick="setCoachPerfPeriod(this,'4s')">4 sem.</button>
+          <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'8s')">8 sem.</button>
+          <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'3m')">3 mois</button>
+          <button class="perf-ctrl-btn" onclick="setCoachPerfPeriod(this,'tout')">Tout</button>
+        </div>
+        <div class="perfs-grid" id="coach-perfs-grid"></div>
+      </div>
+
+      <!-- Métriques -->
+      <div class="client-tab-content" id="ctab-metrics">
+        <div class="section-title">
+          Métriques assignées
+          <button class="btn btn-accent btn-sm" onclick="toggleAddForm('metrics-add-form')">+ Ajouter</button>
+        </div>
+        <div class="add-form" id="metrics-add-form">
+          <div class="add-form-title">Assigner une métrique</div>
+          <label class="form-label" style="display:block;margin-bottom:5px;">Depuis la bibliothèque</label>
+          <div id="cm-lib-picker" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--dim);margin-bottom:6px;margin-top:2px;">ou créer une métrique spécifique</div>
+          <div class="form-row">
+            <div style="flex:2">
+              <label class="form-label">Nom</label>
+              <input class="form-input" id="cm-nom" placeholder="ex : Tour de hanches">
+            </div>
+            <div>
+              <label class="form-label">Unité</label>
+              <input class="form-input" id="cm-unite" placeholder="cm, kg…">
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex:1">
+              <label class="form-label">Fréquence</label>
+              <select class="form-select" id="cm-freq">
+                <option value="Quotidien">Chaque jour</option>
+                <option value="Hebdomadaire">Chaque semaine</option>
+                <option value="Mensuel">Chaque mois</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-accent" onclick="addMetric()">Assigner</button>
+            <button class="btn btn-ghost" onclick="toggleAddForm('metrics-add-form')">Annuler</button>
+          </div>
+        </div>
+        <div class="metrics-manage" id="coach-metrics-list">
+          <div id="coach-metrics-empty" style="padding:18px 0;font-size:12px;color:var(--dim);text-align:center;">Aucune métrique assignée</div>
+        </div>
+      </div>
+
+      <!-- Habitudes -->
+      <div class="client-tab-content" id="ctab-habits">
+        <div class="section-title">
+          Habitudes assignées
+          <button class="btn btn-accent btn-sm" onclick="toggleAddForm('habits-add-form')">+ Ajouter</button>
+        </div>
+        <div class="add-form" id="habits-add-form">
+          <div class="add-form-title">Assigner une habitude</div>
+          <div class="form-row">
+            <div style="flex:2">
+              <label class="form-label">Nom *</label>
+              <input class="form-input" id="ch-nom" placeholder="ex : Méditation, Hydratation…">
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex:1">
+              <label class="form-label">Type de suivi</label>
+              <select class="form-select" id="ch-type">
+                <option value="oui-non">Oui / Non</option>
+                <option value="note">Note 1→4</option>
+                <option value="valeur">Valeur numérique</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-accent" onclick="addHabit()">Assigner</button>
+            <button class="btn btn-ghost" onclick="toggleAddForm('habits-add-form')">Annuler</button>
+          </div>
+        </div>
+        <div class="metrics-manage" id="coach-habits-list">
+          <div id="coach-habits-empty" style="padding:18px 0;font-size:12px;color:var(--dim);text-align:center;">Aucune habitude assignée</div>
+        </div>
+      </div>
+
+      <!-- Cycle -->
+      <div class="client-tab-content" id="ctab-cycle">
+        <div id="cycle-coach-loading" style="padding:24px 0;text-align:center;color:var(--muted);font-size:13px;">Chargement…</div>
+        <div id="cycle-coach-content" style="display:none;">
+          <!-- Résumé -->
+          <div class="section-title">Résumé du cycle</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:12px;">
+            <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;border:1px solid var(--border);">
+              <div id="cc-avg" style="font-size:20px;font-weight:800;color:var(--accent)">—</div>
+              <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Durée moy.</div>
+            </div>
+            <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;border:1px solid var(--border);">
+              <div id="cc-day" style="font-size:20px;font-weight:800;color:var(--cycle-follicular)">—</div>
+              <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Jour actuel</div>
+            </div>
+            <div style="text-align:center;background:var(--surface2);border-radius:var(--rs);padding:10px;border:1px solid var(--border);">
+              <div id="cc-count" style="font-size:20px;font-weight:800;">0</div>
+              <div style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px;">Cycles enreg.</div>
+            </div>
+          </div>
+          <div id="cc-phase-box" style="display:none;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:var(--rs);padding:10px;margin-bottom:16px;">
+            <div id="cc-phase-label" style="font-size:10px;font-weight:700;color:var(--cycle-follicular);margin-bottom:3px;"></div>
+            <div id="cc-phase-desc" style="font-size:13px;font-weight:700;"></div>
+          </div>
+          <div id="cc-no-data" style="display:none;color:var(--muted);font-size:12px;margin-bottom:16px;">Aucun cycle enregistré par la cliente.</div>
+
+          <!-- Journal quotidien -->
+          <div class="section-title">Journal quotidien (30 derniers jours)</div>
+          <div id="cc-daily-empty" style="display:none;color:var(--muted);font-size:12px;padding:8px 0;">Aucune saisie quotidienne.</div>
+          <div id="cc-daily-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+      </div>
+
+      <!-- Commentaires -->
+      <div class="client-tab-content" id="ctab-comments">
+        <div class="section-title">Commentaires clientes</div>
+        <div id="comments-loading" style="padding:20px 0;color:var(--muted);font-size:13px">Chargement…</div>
+        <div class="comments-list" id="comments-list" style="display:none"></div>
+        <div class="divider" style="margin-top:14px"></div>
+        <div style="display:flex;gap:7px;margin-top:12px">
+          <textarea class="form-input" id="coach-comment-input" rows="2" placeholder="Écrire un commentaire coach…" style="flex:1;resize:none;"></textarea>
+          <button class="btn btn-accent" style="align-self:flex-end" onclick="sendCoachComment()">Envoyer</button>
+        </div>
+      </div>
+
+    </div><!-- end screen-client-detail -->
+
+    <!-- ══════════════════════════════════════
+         SCREEN : BIBLIOTHÈQUE EXERCICES
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-biblio-exos">
+      <div class="section-title">
+        Bibliothèque d'exercices
+        <button class="btn btn-accent btn-sm" onclick="openAddExo()">+ Ajouter</button>
+      </div>
+      <div style="display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm filtre-groupe" style="border-color:var(--accent);color:var(--accent);font-weight:600" onclick="filtrerExos('Tous',this)">Tous</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Grands dorsal',this)">Grands dorsal</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Rhomboïde - trapèze moyen',this)">Rhomboïde</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Deltoïde postérieur',this)">Delt. post.</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Deltoïde antérieur',this)">Delt. ant.</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Deltoïde moyen',this)">Delt. moyen</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Biceps',this)">Biceps</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Triceps',this)">Triceps</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Pec',this)">Pec</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Quad',this)">Quad</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Ischio',this)">Ischio</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Fessiers',this)">Fessiers</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Core',this)">Core</button>
+        <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Mollet',this)">Mollet</button>
+      </div>
+      <div class="library-grid" id="exo-grid">
+        <div style="grid-column:1/-1;padding:30px 0" class="loading-text">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREEN : MÉTRIQUES
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-biblio-metrics">
+      <div class="section-title">
+        Bibliothèque de métriques
+        <button class="btn btn-accent btn-sm" onclick="toggleAddForm('new-metric-form')">+ Créer</button>
+      </div>
+      <div class="add-form" id="new-metric-form">
+        <div class="add-form-title">Créer une métrique</div>
+        <div class="form-row">
+          <div style="flex:2">
+            <label class="form-label">Nom *</label>
+            <input class="form-input" id="nm-nom" placeholder="ex : Tour de hanches">
+          </div>
+          <div>
+            <label class="form-label">Unité</label>
+            <input class="form-input" id="nm-unite" placeholder="cm, kg…">
+          </div>
+        </div>
+        <div class="form-row">
+          <div style="flex:1">
+            <label class="form-label">Type</label>
+            <select class="form-select" id="nm-type">
+              <option value="valeur">Valeur numérique</option>
+              <option value="note10">Note 1→10</option>
+              <option value="oui-non">Oui / Non</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-accent" onclick="saveNewMetric()">Créer</button>
+          <button class="btn btn-ghost" onclick="toggleAddForm('new-metric-form')">Annuler</button>
+        </div>
+      </div>
+      <div class="lib-metrics-list" id="lib-metrics-list">
+        <div class="lib-metric-row"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Poids','kg',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Tour de taille','cm',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/10 · Note</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Énergie subjective','/10',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Heures de sommeil','h',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Pas quotidiens','pas',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREEN : HABITUDES
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-biblio-habits">
+      <div class="section-title">
+        Bibliothèque d'habitudes
+        <button class="btn btn-accent btn-sm" onclick="toggleAddForm('new-habit-form')">+ Créer</button>
+      </div>
+      <div class="add-form" id="new-habit-form">
+        <div class="add-form-title">Nouvelle habitude</div>
+        <input class="form-input" id="nh-nom" placeholder="Nom de l'habitude (ex: Méditation, Sommeil…)" style="width:100%;margin-bottom:8px;">
+        <div class="form-row" style="margin-bottom:0">
+          <input class="form-input" id="nh-icone" placeholder="🌿 Emoji" style="width:80px;flex:none">
+          <select class="form-select" id="nh-type" style="flex:1">
+            <option value="oui-non">Oui / Non</option>
+            <option value="note">Note 1→4</option>
+            <option value="valeur">Valeur numérique</option>
+          </select>
+          <button class="btn btn-accent" onclick="saveNewHabitLib()">Créer</button>
+        </div>
+      </div>
+      <div class="lib-metrics-list" id="habit-lib-list">
+        <div style="padding:20px;color:var(--muted);font-size:13px;">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SCREEN : PROGRAMMATION 4 SEMAINES
+    ══════════════════════════════════════ -->
+    <div class="screen" id="screen-prog">
+      <div class="prog-topbar">
+        <div class="prog-nav-group">
+          <button class="prog-nav-btn" onclick="shiftProg(-1)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Sem. préc.
+          </button>
+          <div class="prog-period-label" id="prog-period-label">—</div>
+          <button class="prog-nav-btn" onclick="shiftProg(1)">
+            Sem. suiv.
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <select class="prog-client-select" id="prog-client-select" onchange="onProgClientChange()">
+          <option value="">— Sélectionner une cliente —</option>
+        </select>
+      </div>
+
+      <div class="prog-grid-wrap">
+        <div class="prog-grid" id="prog-grid">
+          <div class="prog-empty-state">Sélectionne une cliente pour voir sa programmation.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:var(--rs);font-size:11px;color:var(--muted);">
+        <strong style="color:var(--text)">SQL requis</strong> — si tu ne vois pas les séances, exécute dans Supabase → SQL Editor :
+        <pre class="sql-block" style="margin-top:6px;">CREATE TABLE IF NOT EXISTS seance_exercices (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  seance_id   UUID REFERENCES seances(id) ON DELETE CASCADE,
+  exercice_id UUID REFERENCES exercices(id) ON DELETE SET NULL,
+  nom_exo     TEXT NOT NULL,
+  ordre       INTEGER DEFAULT 0,
+  series      INTEGER DEFAULT 3,
+  reps        TEXT DEFAULT '10',
+  charge      TEXT,
+  rir         INTEGER DEFAULT 2,
+  repos_serie INTEGER DEFAULT 90,
+  repos_cote  INTEGER,
+  unilateral  BOOLEAN DEFAULT false,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE seance_exercices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all anon on seance_exercices"
+  ON seance_exercices FOR ALL TO anon USING (true) WITH CHECK (true);</pre>
+      </div>
+    </div>
+
+  </div><!-- end .content -->
+</div><!-- end .main -->
+</div><!-- end .layout -->
+
+
+<!-- ═══════════════ MODAL : DÉTAIL SÉANCE (depuis prog) ═══════════════ -->
+<div class="modal-overlay" id="modal-prog-detail">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-header-title" id="psd-titre">—</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="psd-meta">—</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('modal-prog-detail').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body" style="padding-top:10px;">
+      <div id="psd-exo-list" style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:12px;">
+        <div style="padding:14px;font-size:12px;color:var(--dim);">Chargement…</div>
+      </div>
+      <div style="display:flex;gap:7px;">
+        <button class="btn btn-accent btn-sm" id="psd-add-exo-btn" onclick="">+ Exercice</button>
+        <button class="btn btn-danger btn-sm" id="psd-delete-btn" onclick="">Supprimer</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="document.getElementById('modal-prog-detail').classList.remove('open')">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : GÉRER MÉTRIQUE ═══════════════ -->
+<div class="modal-overlay" id="modal-gerer-metric">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title" id="gm-title">Gérer la métrique</div>
+      <button class="modal-close" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="gm-body" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : EXERCICE PICKER (séance) ═══════════════ -->
+<div class="modal-overlay" id="modal-exo-picker">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Ajouter un exercice</div>
+      <button class="modal-close" onclick="document.getElementById('modal-exo-picker').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input class="exo-picker-search" id="picker-search" placeholder="Rechercher un exercice…" oninput="filterPickerList()">
+      <div class="exo-picker-list" id="picker-list"></div>
+      <div class="exo-params-form" id="exo-params-form">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;" id="picker-selected-name">—</div>
+        <div class="params-grid">
+          <div class="param-block">
+            <label>Séries</label>
+            <input type="number" id="p-series" value="3" min="1" max="10">
+          </div>
+          <div class="param-block">
+            <label>Reps</label>
+            <input type="text" id="p-reps" value="10" placeholder="10-12">
+          </div>
+          <div class="param-block">
+            <label>RIR</label>
+            <input type="number" id="p-rir" value="2" min="0" max="5">
+          </div>
+          <div class="param-block">
+            <label>Repos (s)</label>
+            <input type="number" id="p-repos" value="90" step="15">
+          </div>
+        </div>
+        <div class="uni-toggle-row">
+          <input type="checkbox" id="p-uni" onchange="toggleUniExtra()">
+          <label for="p-uni">Exercice unilatéral (G/D séparés)</label>
+        </div>
+        <div class="uni-extra" id="uni-extra">
+          <div class="param-block">
+            <label>Repos côté (s)</label>
+            <input type="number" id="p-repos-cote" value="40" step="5">
+          </div>
+          <div class="param-block">
+            <label>Repos série (s)</label>
+            <input type="number" id="p-repos-serie-uni" value="60" step="15">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Charge prévue (optionnel)</label>
+          <input class="form-input" id="p-charge" placeholder="ex : 40 kg, BW, élastique…">
+        </div>
+      </div>
+      <div id="picker-error" style="display:none;font-size:12px;color:var(--danger);padding:7px 0;"></div>
+      <div style="display:flex;gap:7px;margin-top:12px;">
+        <button class="btn btn-accent" id="btn-save-picker" onclick="savePickerExo()" style="flex:1">Ajouter à la séance</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-exo-picker').classList.remove('open')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : HISTORIQUE MÉTRIQUE ═══════════════ -->
+<div class="modal-overlay" id="modal-metric-history">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title" id="mh-title">Historique</div>
+      <button class="modal-close" onclick="document.getElementById('modal-metric-history').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="history-list" id="mh-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : AJOUTER SÉANCE DEPUIS PROG ═══════════════ -->
+<div class="modal-overlay" id="modal-prog-seance">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Nouvelle séance</div>
+      <button class="modal-close" onclick="document.getElementById('modal-prog-seance').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label class="form-label">Titre *</label>
+          <input class="form-input" id="ps-titre" placeholder="ex : Séance Push A">
+        </div>
+        <div>
+          <label class="form-label">Date</label>
+          <input class="form-input" id="ps-date" type="date">
+        </div>
+        <div>
+          <label class="form-label">Cliente</label>
+          <select class="form-select" id="ps-client"></select>
+        </div>
+        <div>
+          <label class="form-label">Statut</label>
+          <select class="form-select" id="ps-statut">
+            <option value="planifiée">Planifiée</option>
+            <option value="validée">Validée</option>
+            <option value="annulée">Annulée</option>
+          </select>
+        </div>
+        <div id="ps-error" style="display:none;font-size:12px;color:var(--danger);background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:var(--rs);padding:10px;"></div>
+        <button class="btn btn-accent" id="btn-save-ps" onclick="saveProgSeance()">Créer →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : EXERCICE ═══════════════ -->
+<div class="modal-overlay" id="modal-exo">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title" id="modal-exo-title">Nouvel exercice</div>
+      <button class="modal-close" onclick="document.getElementById('modal-exo').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label class="form-label">Nom *</label>
+          <input class="form-input" id="exo-nom" placeholder="ex : Développé couché haltères">
+        </div>
+        <div>
+          <label class="form-label">Muscles ciblés <span style="font-weight:400;color:var(--dim)">(multi-sélection)</span></label>
+          <div id="muscle-tag-picker" style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+            <!-- généré par JS -->
+          </div>
+          <input type="hidden" id="exo-groupe">
+          <input type="hidden" id="exo-tags">
+        </div>
+        <div>
+          <label class="form-label">URL Vimeo (optionnel)</label>
+          <input class="form-input" id="exo-video" placeholder="https://vimeo.com/…">
+        </div>
+        <div>
+          <label class="form-label">Consignes d'exécution</label>
+          <textarea class="form-input" id="exo-consignes" rows="3" placeholder="Visibles par la cliente pendant la séance…"></textarea>
+        </div>
+        <button class="btn btn-accent" id="btn-save-exo" onclick="saveExercice()" style="margin-top:2px">Ajouter à la bibliothèque</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : VIDÉO EXERCICE COACH ═══════════════ -->
+<div class="modal-overlay" id="modal-coach-video" onclick="if(event.target===this)closeCoachVideo()" style="align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:14px;width:640px;max-width:96vw;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.18);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);">
+      <div id="coach-video-title" style="font-size:14px;font-weight:700;color:var(--text)"></div>
+      <button onclick="closeCoachVideo()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div id="coach-video-zone" style="width:100%;aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : ASSIGNER HABITUDE ═══════════════ -->
+<div class="modal-overlay" id="modal-assign-habit">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-header-title" id="assign-habit-title">Assigner l'habitude</div>
+      <button class="modal-close" onclick="document.getElementById('modal-assign-habit').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Sélectionne la cliente à qui assigner cette habitude :</p>
+      <select class="form-select" id="assign-habit-client" style="width:100%;margin-bottom:14px;">
+        <option value="">— Choisir une cliente —</option>
+      </select>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-assign-habit').classList.remove('open')">Annuler</button>
+        <button class="btn btn-accent btn-sm" onclick="confirmAssignHabit()">Assigner</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : SUPPRIMER CLIENTE ═══════════════ -->
+<div class="modal-overlay" id="modal-delete-client">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-header-title">Supprimer la cliente</div>
+      <button class="modal-close" onclick="document.getElementById('modal-delete-client').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Supprimer <strong id="delete-client-name"></strong> ? Cette action supprime toutes ses séances, métriques et habitudes. Elle est <strong>irréversible</strong>.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-delete-client').classList.remove('open')">Annuler</button>
+        <button class="btn btn-sm" id="btn-confirm-delete-client"
+          onclick="deleteClientConfirmed()"
+          style="background:rgba(220,38,38,0.09);color:var(--danger);border:none;font-weight:600;">Supprimer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : CLIENTE ═══════════════ -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Nouvelle cliente</div>
+      <button class="modal-close" onclick="document.getElementById('modal-client').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1">
+            <label class="form-label">Prénom *</label>
+            <input class="form-input" id="new-client-prenom" placeholder="Prénom">
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Nom</label>
+            <input class="form-input" id="new-client-nom" placeholder="Nom">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Email *</label>
+          <input class="form-input" id="new-client-email" type="email" placeholder="adresse@email.com">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1">
+            <label class="form-label">Objectif</label>
+            <select class="form-select" id="new-client-objectif">
+              <option>Prise de masse</option><option>Perte de poids</option>
+              <option>Rééquilibrage</option><option>Performance</option><option>Tonification</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Fréquence</label>
+            <select class="form-select" id="new-client-freq">
+              <option>2×/sem.</option><option>3×/sem.</option>
+              <option>4×/sem.</option><option>5×/sem.</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Code PIN temporaire *</label>
+          <div style="display:flex;gap:7px;">
+            <input class="form-input" id="new-client-pin" type="text" inputmode="numeric"
+              maxlength="4" pattern="[0-9]{4}" placeholder="4 chiffres"
+              style="font-size:20px;font-weight:800;letter-spacing:8px;text-align:center;flex:1">
+            <button class="btn btn-ghost btn-sm" onclick="generatePin()">🎲 Générer</button>
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-top:5px;">La cliente changera ce PIN à sa première connexion.</div>
+        </div>
+        <div id="client-recap" style="display:none;background:rgba(109,40,217,0.05);border:1px solid rgba(109,40,217,0.14);border-radius:var(--rs);padding:11px;font-size:12px;color:var(--muted);line-height:1.65;"></div>
+        <button class="btn btn-accent" id="btn-create-client" onclick="createClient()" style="margin-top:2px">Créer le profil →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : SÉANCE ═══════════════ -->
+<div class="modal-overlay" id="modal-seance">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Nouvelle séance</div>
+      <button class="modal-close" onclick="document.getElementById('modal-seance').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label class="form-label">Titre *</label>
+          <input class="form-input" id="seance-titre" placeholder="ex : Séance Push A — Pectoraux/Épaules">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1">
+            <label class="form-label">Date *</label>
+            <input class="form-input" id="seance-date" type="date">
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Statut</label>
+            <select class="form-select" id="seance-statut">
+              <option value="planifiée">Planifiée</option>
+              <option value="validée">Validée</option>
+              <option value="annulée">Annulée</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Notes (optionnel)</label>
+          <textarea class="form-input" id="seance-notes" rows="2" placeholder="Objectifs, consignes particulières…" style="resize:none;"></textarea>
+        </div>
+        <div id="seance-error" style="display:none;font-size:12px;color:var(--danger);background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:var(--rs);padding:10px;"></div>
+        <button class="btn btn-accent" id="btn-save-seance" onclick="saveSeance()" style="margin-top:2px">Créer la séance</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let currentClientId   = null;
+let currentClientData = null;
+let allExercices      = [];
+let filtreGroupe      = 'Tous';
+
+const CLIENT_COLORS = [
+  { bg:'rgba(109,40,217,0.10)', text:'#6D28D9' },
+  { bg:'rgba(16,163,74,0.10)',  text:'#16A34A' },
+  { bg:'rgba(249,115,22,0.10)', text:'#F97316' },
+  { bg:'rgba(220,38,38,0.10)',  text:'#DC2626' },
+  { bg:'rgba(168,85,247,0.10)', text:'#A855F7' },
+  { bg:'rgba(234,179,8,0.10)',  text:'#CA8A04' },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function showScreen(id, navEl) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  if (navEl) {
+    document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+    navEl.classList.add('active');
+  }
+  const titles = {
+    clients:         'Mes clientes',
+    'client-detail': currentClientData?.prenom || '',
+    'biblio-exos':   'Exercices',
+    'biblio-metrics':'Métriques',
+    'biblio-habits': 'Habitudes',
+    prog:            'Programmation',
+  };
+  document.getElementById('topbar-title').textContent = titles[id] || '';
+  if (id === 'biblio-exos')    loadExercices();
+  if (id === 'biblio-habits')  loadBiblioHabits();
+  if (id === 'clients')        loadClients();
+  if (id === 'prog')           initProgScreen();
+}
+
+function backToClients() {
+  showScreen('clients', document.querySelector('.nav-link'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRIVE URL
+// ═══════════════════════════════════════════════════════════
+function openDriveEditor() {
+  const editor = document.getElementById('drive-editor');
+  editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveDriveUrl() {
+  if (!currentClientId) return;
+  const url = document.getElementById('drive-url-input').value.trim();
+  const { error } = await db.from('clients').update({ drive_url: url || null }).eq('id', currentClientId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  // Mettre à jour currentClientData
+  if (currentClientData) currentClientData.drive_url = url || null;
+
+  const driveLabel = document.getElementById('btn-drive-label');
+  if (url) {
+    driveLabel.textContent = 'Drive ✓';
+    document.getElementById('btn-drive-coach').style.color = 'var(--accent)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--accent)';
+  } else {
+    driveLabel.textContent = 'Drive';
+    document.getElementById('btn-drive-coach').style.color = 'var(--muted)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--border)';
+  }
+  document.getElementById('drive-editor').style.display = 'none';
+  toast(url ? 'Lien Drive enregistré ✓' : 'Lien Drive supprimé');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CLIENTS — chargement dynamique Supabase
+// ═══════════════════════════════════════════════════════════
+async function loadClients() {
+  const grid = document.getElementById('clients-grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;padding:30px 0" class="loading-text">Chargement…</div>';
+
+  const { data, error } = await db
+    .from('clients')
+    .select('id, email, prenom, created_at, is_first_login, drive_url')
+    .order('prenom', { ascending: true });
+
+  if (error) {
+    grid.innerHTML = `<div style="grid-column:1/-1;color:var(--danger);padding:16px;font-size:13px;">
+      Erreur : ${error.message}</div>`;
+    return;
+  }
+
+  const clients = data || [];
+  const neverConnected = clients.filter(c => c.is_first_login).length;
+
+  // Stats
+  document.getElementById('stat-total').textContent  = clients.length || '0';
+  document.getElementById('stat-active').textContent = (clients.length - neverConnected) || '0';
+  document.getElementById('stat-new').textContent    = neverConnected || '0';
+  document.getElementById('badge-clients').textContent = clients.length;
+
+  if (clients.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:60px 20px;">
+        <div style="font-size:32px;opacity:0.25;margin-bottom:14px;">👥</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Aucune cliente pour le moment</div>
+        <div style="font-size:12px;color:var(--muted);">Clique sur <strong>+ Nouvelle cliente</strong> pour commencer.</div>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = clients.map((c, i) => {
+    const col      = CLIENT_COLORS[i % CLIENT_COLORS.length];
+    const initials = c.prenom.slice(0,2).toUpperCase();
+    const since    = new Date(c.created_at).toLocaleDateString('fr-FR', { month:'short', year:'numeric' });
+    const isNew    = c.is_first_login;
+    return `
+      <div class="client-card">
+        <div onclick='openClientFromDB(${JSON.stringify(c)}, ${i})' style="cursor:pointer">
+          <div class="client-card-top">
+            <div class="client-avatar" style="background:${col.bg};color:${col.text}">${initials}</div>
+            <div>
+              <div class="client-name">${c.prenom}</div>
+              <div class="client-since">Depuis ${since}</div>
+            </div>
+          </div>
+          <div class="client-tags">
+            <span class="tag ${isNew ? 'orange' : 'green'}">${isNew ? 'Jamais connectée' : 'Connectée'}</span>
+          </div>
+          <div style="font-size:11px;color:var(--dim);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.email}</div>
+        </div>
+        <button onclick="confirmDeleteClient('${c.id}','${c.prenom}')" title="Supprimer cette cliente"
+          style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;color:var(--dim);transition:color 0.15s,background 0.15s;"
+          onmouseover="this.style.color='var(--danger)';this.style.background='rgba(220,38,38,0.07)'"
+          onmouseout="this.style.color='var(--dim)';this.style.background='none'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function openClientFromDB(client, colorIdx) {
+  currentClientId   = client.id;
+  currentClientData = client;
+  const col      = CLIENT_COLORS[colorIdx % CLIENT_COLORS.length];
+  const initials = client.prenom.slice(0,2).toUpperCase();
+  const since    = new Date(client.created_at).toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+
+  document.getElementById('detail-name').textContent = client.prenom;
+  document.getElementById('detail-meta').textContent = client.email + ' · Depuis ' + since;
+
+  const av = document.getElementById('detail-avatar');
+  av.textContent   = initials;
+  av.style.background = col.bg;
+  av.style.color   = col.text;
+
+  document.getElementById('topbar-title').textContent = client.prenom;
+
+  // Drive URL
+  const driveLabel = document.getElementById('btn-drive-label');
+  if (client.drive_url) {
+    driveLabel.textContent = 'Drive ✓';
+    document.getElementById('btn-drive-coach').style.color = 'var(--accent)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--accent)';
+  } else {
+    driveLabel.textContent = 'Drive';
+    document.getElementById('btn-drive-coach').style.color = 'var(--muted)';
+    document.getElementById('btn-drive-coach').style.borderColor = 'var(--border)';
+  }
+  document.getElementById('drive-editor').style.display = 'none';
+  document.getElementById('drive-url-input').value = client.drive_url || '';
+
+  // Reset tabs
+  document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.client-tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector('.client-tab').classList.add('active');
+  document.getElementById('ctab-programme').classList.add('active');
+
+  showScreen('client-detail', null);
+  loadSeances(client.id);
+  loadClientMetrics(client.id);
+  loadClientHabits(client.id);
+  loadComments(client.id);
+  drawCoachPerfs();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMMENTAIRES
+// ═══════════════════════════════════════════════════════════
+async function loadComments(clientId) {
+  const loading = document.getElementById('comments-loading');
+  const list    = document.getElementById('comments-list');
+  loading.style.display = 'block';
+  list.style.display    = 'none';
+  list.innerHTML        = '';
+
+  // 1. Commentaires training : notes sur les seance_exercices
+  const { data: seances } = await db.from('seances').select('id, date, titre').eq('client_id', clientId);
+  const trainingComments = [];
+  if (seances && seances.length) {
+    const seanceIds  = seances.map(s => s.id);
+    const dateMap    = {}; seances.forEach(s => { dateMap[s.id] = { date: s.date, titre: s.titre }; });
+    const { data: exoRows } = await db.from('seance_exercices')
+      .select('id, nom_exo, notes_client, reponse_coach, messages_thread, seance_id').in('seance_id', seanceIds);
+    (exoRows || []).forEach(r => {
+      if (r.notes_client && r.notes_client.trim()) {
+        let thread = [];
+        try { thread = Array.isArray(r.messages_thread) ? r.messages_thread : (r.messages_thread ? JSON.parse(r.messages_thread) : []); } catch(e) {}
+        trainingComments.push({
+          exoId:     r.id,
+          auteur:    'client',
+          categorie: 'Training',
+          reference: r.nom_exo || 'Exercice',
+          contenu:   r.notes_client,
+          reponse:   r.reponse_coach || null,
+          thread,
+          date:      dateMap[r.seance_id]?.date || '',
+        });
+      }
+    });
+  }
+
+  // 2. Commentaires coach/client depuis table commentaires (si elle existe)
+  const { data: commentRows } = await db.from('commentaires')
+    .select('*').eq('client_id', clientId).order('date', { ascending: false });
+  const allComments = [
+    ...(commentRows || []).map(c => ({ auteur: c.auteur, categorie: c.categorie, reference: c.reference_nom, contenu: c.contenu, date: c.date })),
+    ...trainingComments,
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  loading.style.display = 'none';
+  list.style.display    = 'flex';
+
+  if (!allComments.length) {
+    list.innerHTML = `<div style="padding:20px 0;color:var(--muted);font-size:13px;text-align:center">Aucun commentaire pour le moment.</div>`;
+    return;
+  }
+
+  const CAT_COLORS = { Training: '#6D28D9', Métrique: '#0891B2', Habitude: '#16A34A', Coach: '#6D28D9' };
+  const clientPrenom = currentClientData?.prenom || 'Cliente';
+
+  list.innerHTML = allComments.map(c => {
+    const isCoach  = c.auteur === 'coach';
+    const catColor = CAT_COLORS[c.categorie] || '#6B7280';
+    const dateStr  = c.date ? new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : '';
+    const safeExoId = c.exoId ? c.exoId.replace(/[^a-zA-Z0-9-]/g,'') : '';
+
+    // Thread de conversation (Training uniquement, avec exoId)
+    let threadHtml = '';
+    if (!isCoach && c.exoId) {
+      const thread = Array.isArray(c.thread) ? c.thread : [];
+      // Bulles de conversation
+      const bubbles = thread.map(msg => {
+        const isC = msg.auteur === 'coach';
+        const ts  = msg.ts ? new Date(msg.ts).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+        return `<div style="display:flex;flex-direction:column;align-items:${isC?'flex-end':'flex-start'};margin-bottom:5px;">
+          <div style="max-width:85%;padding:7px 11px;border-radius:${isC?'12px 12px 4px 12px':'12px 12px 12px 4px'};
+            background:${isC?'var(--accent)':'var(--surface2)'};color:${isC?'#fff':'var(--text)'};
+            font-size:12px;line-height:1.45;">${msg.contenu}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">${isC?'Coach':clientPrenom}${ts?' · '+ts:''}</div>
+        </div>`;
+      }).join('');
+
+      threadHtml = `
+        <div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:10px;display:flex;flex-direction:column;gap:2px;" id="thread-${safeExoId}">
+          ${thread.length ? bubbles : '<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0;">Commencer la conversation…</div>'}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:7px;">
+          <input id="thread-input-${safeExoId}" type="text" placeholder="Répondre à ${clientPrenom}…"
+            style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;"
+            onkeydown="if(event.key==='Enter')appendThreadMsg('${safeExoId}','${c.exoId}')">
+          <button onclick="appendThreadMsg('${safeExoId}','${c.exoId}')"
+            style="padding:7px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">↩</button>
+        </div>`;
+    }
+
+    return `
+    <div class="comment-card ${isCoach ? 'coach' : 'client'}">
+      <div class="comment-meta">
+        <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Coach' : clientPrenom}</span>
+        ${c.categorie ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:${catColor}1a;color:${catColor};font-weight:600">${c.categorie}</span>` : ''}
+        ${c.reference ? `<span class="comment-exo">${c.reference}</span>` : ''}
+        ${dateStr ? `<span class="comment-date">${dateStr}</span>` : ''}
+      </div>
+      <div class="comment-body">${c.contenu}</div>
+      ${threadHtml}
+    </div>`;
+  }).join('');
+}
+
+// Ajouter un message coach dans le thread d'un exercice
+async function appendThreadMsg(safeExoId, exoId) {
+  const input   = document.getElementById('thread-input-' + safeExoId);
+  const contenu = input?.value?.trim();
+  if (!contenu) return;
+  input.value = '';
+
+  // Lire le thread actuel
+  const { data: exoRow } = await db.from('seance_exercices')
+    .select('messages_thread').eq('id', exoId).single();
+
+  let thread = [];
+  try { thread = Array.isArray(exoRow?.messages_thread) ? exoRow.messages_thread : (exoRow?.messages_thread ? JSON.parse(exoRow.messages_thread) : []); } catch(e) {}
+
+  thread.push({ auteur: 'coach', contenu, ts: new Date().toISOString() });
+
+  const { error } = await db.from('seance_exercices')
+    .update({ messages_thread: thread, reponse_lue: false, reponse_coach: contenu })
+    .eq('id', exoId);
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Message envoyé ✓');
+  await loadComments(currentClientId);
+}
+
+async function sendCoachComment() {
+  const input   = document.getElementById('coach-comment-input');
+  const contenu = input.value.trim();
+  if (!contenu || !currentClientId) return;
+
+  const { error } = await db.from('commentaires').insert({
+    client_id: currentClientId,
+    auteur:    'coach',
+    categorie: 'Coach',
+    reference_nom: null,
+    contenu,
+    date:      new Date().toISOString().split('T')[0],
+  });
+  if (error) {
+    // Table n'existe peut-être pas encore — afficher le SQL
+    toast('Crée la table commentaires d\'abord (voir SQL ci-dessous)');
+    return;
+  }
+  input.value = '';
+  toast('Commentaire envoyé ✓');
+  await loadComments(currentClientId);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SÉANCES + EXERCICES DANS SÉANCES
+// ═══════════════════════════════════════════════════════════
+async function loadSeances(clientId) {
+  const list = document.getElementById('seances-list');
+  list.innerHTML = '<div class="loading-text" style="padding:28px 0">Chargement des séances…</div>';
+
+  const { data, error } = await db
+    .from('seances').select('*')
+    .eq('client_id', clientId)
+    .order('date', { ascending: false });
+
+  if (error) {
+    list.innerHTML = `
+      <div style="padding:16px 0;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+          Exécute ce SQL dans <strong>Supabase → SQL Editor</strong> pour activer les séances :
+        </div>
+        <pre class="sql-block">CREATE TABLE IF NOT EXISTS seances (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id  UUID REFERENCES clients(id) ON DELETE CASCADE,
+  titre      TEXT NOT NULL,
+  date       DATE NOT NULL,
+  statut     TEXT DEFAULT 'planifiée',
+  notes      TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE seances ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all anon on seances"
+  ON seances FOR ALL TO anon USING (true) WITH CHECK (true);</pre>
+      </div>`;
+    return;
+  }
+
+  const seances = data || [];
+
+  if (seances.length === 0) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:50px 20px;">
+        <div style="font-size:28px;opacity:0.25;margin-bottom:12px;">📅</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:5px;">Aucune séance planifiée</div>
+        <div style="font-size:12px;color:var(--muted);">Clique sur <strong>+ Ajouter séance</strong> pour commencer.</div>
+      </div>`;
+    return;
+  }
+
+  const statutStyle = {
+    planifiée: 'background:var(--surface2);color:var(--muted)',
+    validée:   'background:rgba(22,163,74,0.09);color:var(--success)',
+    annulée:   'background:rgba(220,38,38,0.08);color:var(--danger)',
+  };
+
+  // Sauvegarder le statut des séances pour y accéder dans loadSeanceExercices
+  window._seanceStatuts = {};
+  seances.forEach(s => { window._seanceStatuts[s.id] = s.statut; });
+
+  list.innerHTML = seances.map(s => {
+    const st = statutStyle[s.statut] || statutStyle.planifiée;
+    const d  = new Date(s.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+    const isValidee = s.statut === 'validée';
+    return `
+      <div class="seance-card" id="seance-${s.id}">
+        <div class="seance-card-top" onclick="toggleSeanceDetail('${s.id}')">
+          <div class="seance-card-date">${dateStr}</div>
+          <div class="seance-card-name">${s.titre}</div>
+          <span class="seance-card-badge" style="${st}">${s.statut}</span>
+          <svg class="seance-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="seance-exo-panel" id="exo-panel-${s.id}">
+          <div id="exo-list-${s.id}" class="seance-exo-empty">Chargement…</div>
+          ${!isValidee ? `<button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Ajouter un exercice
+          </button>` : ''}
+          <div style="padding:8px 14px 10px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center;">
+            ${s.notes ? `<span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.notes}</span>` : '<span style="flex:1"></span>'}
+            <button class="btn btn-danger btn-sm" onclick="deleteSeance('${s.id}')">Supprimer la séance</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleSeanceDetail(seanceId) {
+  const card = document.getElementById('seance-' + seanceId);
+  const isExpanded = card.classList.contains('expanded');
+  // Collapse all first
+  document.querySelectorAll('.seance-card.expanded').forEach(c => c.classList.remove('expanded'));
+  if (!isExpanded) {
+    card.classList.add('expanded');
+    await loadSeanceExercices(seanceId);
+  }
+}
+
+async function loadSeanceExercices(seanceId) {
+  const container = document.getElementById('exo-list-' + seanceId);
+  container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
+
+  // Fallback à 3 niveaux : on essaie du plus complet au plus basique
+  const COLS_V3 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
+  const COLS_V2 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
+  const COLS_V1 = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
+
+  let { data, error } = await db.from('seance_exercices').select(COLS_V3)
+    .eq('seance_id', seanceId).order('ordre', { ascending: true });
+
+  if (error) {
+    ({ data, error } = await db.from('seance_exercices').select(COLS_V2)
+      .eq('seance_id', seanceId).order('ordre', { ascending: true }));
+  }
+  if (error) {
+    ({ data, error } = await db.from('seance_exercices').select(COLS_V1)
+      .eq('seance_id', seanceId).order('ordre', { ascending: true }));
+  }
+
+  if (error) {
+    container.innerHTML = `<div class="seance-exo-empty" style="color:var(--warning);">Erreur : ${error.message}</div>`;
+    return;
+  }
+
+  const isValidee = (window._seanceStatuts || {})[seanceId] === 'validée';
+
+  const exos = data || [];
+  if (exos.length === 0) {
+    container.innerHTML = '<div class="seance-exo-empty">Aucun exercice — ajoutes-en un ci-dessous.</div>';
+    return;
+  }
+
+  container.innerHTML = exos.map((e, i) => {
+    // Paramètres programmés
+    let planned = `${e.series}×${e.reps}`;
+    if (e.charge_kg)  planned += ` · ${e.charge_kg} kg`;
+    else if (e.charge) planned += ` · ${e.charge}`;
+    if (e.rir !== null && e.rir !== undefined) planned += ` · RIR ${e.rir}`;
+    if (e.repos_serie) planned += ` · Repos ${Math.floor(e.repos_serie/60)}'${e.repos_serie%60 ? String(e.repos_serie%60).padStart(2,'0') : ''}`;
+    if (e.unilateral) planned += ' · Uni';
+
+    // Réalisé (si la cliente a saisi)
+    const seriesArr = (() => {
+      try {
+        if (!e.series_data) return null;
+        return Array.isArray(e.series_data) ? e.series_data : JSON.parse(e.series_data);
+      } catch(err) { return null; }
+    })();
+    let realiséHtml = '';
+    if (seriesArr && seriesArr.length) {
+      // Charge globale de fallback si aucune série n'a de charge individuelle
+      const globalCharge = e.charge_reelle || null;
+      const rows = seriesArr.map(s => {
+        const isUni = s.reps_g !== undefined || s.reps_d !== undefined;
+        // charge individuelle ou fallback sur charge_reelle
+        const chg = (s.charge !== null && s.charge !== undefined) ? s.charge : globalCharge;
+        if (isUni) {
+          return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
+            <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
+            ${(s.reps_g !== null && s.reps_g !== undefined) || (s.reps_d !== null && s.reps_d !== undefined) ? `<span style="color:var(--success);">G:${s.reps_g ?? '—'} D:${s.reps_d ?? '—'}</span>` : ''}
+            ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
+          </div>`;
+        }
+        return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
+          <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
+          ${(s.reps !== null && s.reps !== undefined) ? `<span style="color:var(--success);">${s.reps} reps</span>` : ''}
+          ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
+        </div>`;
+      }).join('');
+      realiséHtml = `<div style="margin-top:5px;background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.15);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;">
+        <span style="font-size:9px;font-weight:700;color:var(--success);letter-spacing:0.05em;margin-bottom:2px;">RÉALISÉ</span>
+        ${rows}
+        ${e.notes_client ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;border-top:1px solid rgba(22,163,74,0.15);padding-top:3px;">${e.notes_client}</div>` : ''}
+      </div>`;
+    } else if (e.charge_reelle || e.reps_reelles || e.notes_client) {
+      realiséHtml = `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--success);background:rgba(22,163,74,0.08);border-radius:20px;padding:1px 7px">Réalisé (résumé)</span>
+        ${e.charge_reelle ? `<span style="font-size:11px;font-weight:700;color:var(--success)">${e.charge_reelle} kg</span>` : ''}
+        ${e.reps_reelles  ? `<span style="font-size:11px;color:var(--success)">${e.reps_reelles} reps</span>` : ''}
+        ${e.notes_client  ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${e.notes_client}</span>` : ''}
+        <div style="font-size:9px;color:#aaa;">[pas de series_data]</div>
+      </div>`;
+    }
+
+    return `
+      <div class="seance-exo-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
+        <div style="display:flex;width:100%;align-items:center;gap:8px">
+          <div class="seance-exo-num">${i+1}</div>
+          <div class="seance-exo-info" style="flex:1">
+            <div class="seance-exo-name">${e.nom_exo}</div>
+            <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
+            ${realiséHtml}
+          </div>
+          ${!isValidee ? `<button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function deleteSeance(seanceId) {
+  if (!confirm('Supprimer définitivement cette séance et tous ses exercices ?')) return;
+  // Supprimer exercices liés d'abord
+  await db.from('seance_exercices').delete().eq('seance_id', seanceId);
+  const { error } = await db.from('seances').delete().eq('id', seanceId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Séance supprimée');
+  await loadSeances(currentClientId);
+  // Mettre à jour la prog si visible
+  if (progClientId === currentClientId) await loadProgSeances();
+}
+
+async function deleteSeanceExo(exoId, seanceId) {
+  if (!confirm('Retirer cet exercice de la séance ?')) return;
+  await db.from('seance_exercices').delete().eq('id', exoId);
+  await loadSeanceExercices(seanceId);
+}
+
+// ─── EXO PICKER ──────────────────────────────────────────────
+let pickerSeanceId   = null;
+let pickerSelectedId = null;
+let pickerSelectedNom= null;
+
+async function openExoPicker(seanceId) {
+  pickerSeanceId    = seanceId;
+  pickerSelectedId  = null;
+  pickerSelectedNom = null;
+  document.getElementById('picker-search').value = '';
+  document.getElementById('exo-params-form').classList.remove('open');
+  document.getElementById('picker-error').style.display = 'none';
+  document.getElementById('p-uni').checked = false;
+  document.getElementById('uni-extra').classList.remove('open');
+  document.getElementById('modal-exo-picker').classList.add('open');
+  // Charger les exercices si pas encore fait
+  if (allExercices.length === 0) {
+    document.getElementById('picker-list').innerHTML =
+      '<div style="padding:12px;font-size:12px;color:var(--dim);text-align:center;">Chargement…</div>';
+    await loadExercices();
+  }
+  renderPickerList('');
+}
+
+function renderPickerList(query) {
+  const list = document.getElementById('picker-list');
+  const q = query.toLowerCase();
+  const filtered = allExercices.filter(e =>
+    e.nom.toLowerCase().includes(q) || (e.groupe_musculaire||'').toLowerCase().includes(q)
+  );
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--dim);text-align:center;">Aucun résultat</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(e => `
+    <div class="exo-picker-item" data-id="${e.id}" data-nom="${e.nom.replace(/"/g,'&quot;')}" onclick="selectPickerExo(this)">
+      <span>${e.nom}</span>
+      <span class="ep-muscle">${e.groupe_musculaire||''}</span>
+    </div>`).join('');
+}
+
+function filterPickerList() {
+  renderPickerList(document.getElementById('picker-search').value);
+}
+
+function selectPickerExo(el) {
+  document.querySelectorAll('.exo-picker-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  pickerSelectedId  = el.dataset.id;
+  pickerSelectedNom = el.dataset.nom;
+  document.getElementById('picker-selected-name').textContent = pickerSelectedNom;
+  document.getElementById('exo-params-form').classList.add('open');
+}
+
+function toggleUniExtra() {
+  const c = document.getElementById('p-uni').checked;
+  document.getElementById('uni-extra').classList.toggle('open', c);
+}
+
+async function savePickerExo() {
+  const errEl = document.getElementById('picker-error');
+  errEl.style.display = 'none';
+  if (!pickerSeanceId || !pickerSelectedNom) {
+    errEl.style.display = 'block'; errEl.textContent = 'Sélectionne un exercice d\'abord.'; return;
+  }
+  // Get next ordre
+  const { data: existing } = await db.from('seance_exercices').select('ordre').eq('seance_id', pickerSeanceId).order('ordre', {ascending:false}).limit(1);
+  const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
+
+  const uni = document.getElementById('p-uni').checked;
+  const chargeText = document.getElementById('p-charge').value.trim();
+  const chargeKg   = parseFloat(chargeText); // NaN si texte type "BW+10"
+  const payload = {
+    seance_id:   pickerSeanceId,
+    exercice_id: pickerSelectedId || null,
+    nom_exo:     pickerSelectedNom,
+    ordre:       nextOrdre,
+    series:      parseInt(document.getElementById('p-series').value) || 3,
+    reps:        document.getElementById('p-reps').value || '10',
+    rir:         parseInt(document.getElementById('p-rir').value) ?? 2,
+    repos_serie: parseInt(document.getElementById('p-repos').value) || 90,
+    charge:      chargeText || null,
+    charge_kg:   (!isNaN(chargeKg) && chargeKg > 0) ? chargeKg : null,
+    unilateral:  uni,
+    repos_cote:  uni ? (parseInt(document.getElementById('p-repos-cote').value)||40) : null,
+  };
+
+  const btn = document.getElementById('btn-save-picker');
+  btn.disabled = true; btn.textContent = 'Ajout…';
+
+  let { error } = await db.from('seance_exercices').insert(payload);
+
+  // Si charge_kg n'existe pas encore → réessayer sans ce champ
+  if (error && error.message && error.message.includes('charge_kg')) {
+    const { charge_kg, ...payloadSansChargeKg } = payload;
+    ({ error } = await db.from('seance_exercices').insert(payloadSansChargeKg));
+  }
+
+  btn.disabled = false; btn.textContent = 'Ajouter à la séance';
+
+  if (error) {
+    errEl.style.display = 'block'; errEl.textContent = 'Erreur : ' + error.message; return;
+  }
+  document.getElementById('modal-exo-picker').classList.remove('open');
+  toast('Exercice ajouté ✓');
+  await loadSeanceExercices(pickerSeanceId);
+}
+
+function openAddSeance() {
+  if (!currentClientId) return;
+  document.getElementById('seance-titre').value  = '';
+  document.getElementById('seance-date').value   = new Date().toISOString().slice(0,10);
+  document.getElementById('seance-statut').value = 'planifiée';
+  document.getElementById('seance-notes').value  = '';
+  document.getElementById('seance-error').style.display = 'none';
+  document.getElementById('modal-seance').classList.add('open');
+}
+
+async function saveSeance() {
+  const titre  = document.getElementById('seance-titre').value.trim();
+  const date   = document.getElementById('seance-date').value;
+  const statut = document.getElementById('seance-statut').value;
+  const notes  = document.getElementById('seance-notes').value.trim();
+  const errEl  = document.getElementById('seance-error');
+
+  if (!titre || !date) {
+    errEl.style.display = 'block';
+    errEl.textContent   = 'Le titre et la date sont obligatoires.';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('btn-save-seance');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+  try {
+    const { error } = await db.from('seances').insert({
+      client_id: currentClientId, titre, date, statut, notes: notes || null
+    });
+    if (error) {
+      errEl.style.display = 'block';
+      errEl.textContent   = 'Erreur Supabase : ' + error.message;
+      return;
+    }
+    document.getElementById('modal-seance').classList.remove('open');
+    toast('Séance ajoutée ✓');
+    await loadSeances(currentClientId);
+  } catch(e) {
+    errEl.style.display = 'block';
+    errEl.textContent   = 'Erreur : ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Créer la séance';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXERCICES
+// ═══════════════════════════════════════════════════════════
+const MUSCLE_TAGS = [
+  'Grands dorsal','Rhomboïde - trapèze moyen',
+  'Deltoïde postérieur','Deltoïde antérieur','Deltoïde moyen',
+  'Biceps','Triceps','Pec',
+  'Quad','Ischio','Fessiers','Core','Mollet'
+];
+
+function buildMusclePicker(selectedTags = []) {
+  const picker = document.getElementById('muscle-tag-picker');
+  if (!picker) return;
+  picker.innerHTML = MUSCLE_TAGS.map(m => {
+    const active = selectedTags.includes(m);
+    return `<button type="button"
+      class="muscle-tag-btn${active ? ' active' : ''}"
+      onclick="toggleMuscleTag(this,'${m}')"
+      style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid var(--border-md);
+             cursor:pointer;background:${active?'var(--accent)':'var(--surface)'};
+             color:${active?'#fff':'var(--text-muted)'};transition:0.15s;">${m}</button>`;
+  }).join('');
+  syncMuscleHiddenInputs();
+}
+
+function toggleMuscleTag(btn, tag) {
+  btn.classList.toggle('active');
+  const isActive = btn.classList.contains('active');
+  btn.style.background = isActive ? 'var(--accent)' : 'var(--surface)';
+  btn.style.color      = isActive ? '#fff' : 'var(--text-muted)';
+  syncMuscleHiddenInputs();
+}
+
+function syncMuscleHiddenInputs() {
+  const active = [...document.querySelectorAll('.muscle-tag-btn.active')].map(b => b.textContent.trim());
+  document.getElementById('exo-groupe').value = active[0] || '';      // premier tag = groupe principal
+  document.getElementById('exo-tags').value   = active.join(', ');   // tous les tags
+}
+
+let editingExoId = null; // null = création, sinon = ID de l'exercice en édition
+
+function openAddExo() {
+  editingExoId = null;
+  ['exo-nom','exo-video','exo-consignes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  buildMusclePicker([]);
+  document.getElementById('modal-exo-title').textContent = 'Nouvel exercice';
+  document.getElementById('btn-save-exo').textContent = 'Ajouter à la bibliothèque';
+  document.getElementById('modal-exo').classList.add('open');
+}
+
+function openEditExo(exo) {
+  editingExoId = exo.id;
+  document.getElementById('exo-nom').value       = exo.nom || '';
+  document.getElementById('exo-video').value     = exo.url_video || '';
+  document.getElementById('exo-consignes').value = exo.consignes || '';
+  // Repeupler les tags muscles
+  const activeTags = exo.tags ? exo.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+  buildMusclePicker(activeTags);
+  document.getElementById('modal-exo-title').textContent = 'Modifier — ' + exo.nom;
+  document.getElementById('btn-save-exo').textContent = 'Enregistrer les modifications';
+  document.getElementById('modal-exo').classList.add('open');
+}
+
+async function saveExercice() {
+  const nom               = document.getElementById('exo-nom').value.trim();
+  const url_video         = document.getElementById('exo-video').value.trim();
+  const groupe_musculaire = document.getElementById('exo-groupe').value;
+  const tags              = document.getElementById('exo-tags').value.trim();
+  const consignes         = document.getElementById('exo-consignes').value.trim();
+
+  if (!nom) { alert('Le nom de l\'exercice est obligatoire.'); return; }
+
+  const btn = document.getElementById('btn-save-exo');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+  try {
+    let error;
+    if (editingExoId) {
+      // Mode édition — UPDATE
+      ({ error } = await db.from('exercices')
+        .update({ nom, groupe_musculaire, tags, url_video: url_video || null, consignes: consignes || null })
+        .eq('id', editingExoId));
+    } else {
+      // Mode création — INSERT
+      ({ error } = await db.from('exercices')
+        .insert({ nom, groupe_musculaire, tags, url_video: url_video || null, consignes: consignes || null }));
+    }
+    if (error) { alert('Erreur Supabase : ' + error.message); return; }
+    document.getElementById('modal-exo').classList.remove('open');
+    toast(editingExoId ? 'Exercice modifié ✓' : 'Exercice ajouté ✓');
+    await loadExercices();
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingExoId ? 'Enregistrer les modifications' : 'Ajouter à la bibliothèque';
+  }
+}
+
+async function loadExercices() {
+  const { data } = await db.from('exercices').select('*').order('nom', { ascending: true });
+  allExercices = data || [];
+  renderExoGrid(filtreGroupe);
+}
+
+function filtrerExos(groupe, btn) {
+  filtreGroupe = groupe;
+  document.querySelectorAll('.filtre-groupe').forEach(b => {
+    b.style.borderColor = ''; b.style.color = ''; b.style.fontWeight = '';
+  });
+  btn.style.borderColor = 'var(--accent)';
+  btn.style.color       = 'var(--accent)';
+  btn.style.fontWeight  = '600';
+  renderExoGrid(groupe);
+}
+
+function toEmbedUrlCoach(url) {
+  if (!url) return null;
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+  if (yt) return 'https://www.youtube.com/embed/' + yt[1] + '?rel=0&modestbranding=1';
+  if (url.includes('youtube.com/embed/')) return url;
+  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+  if (vimeo) {
+    const base = 'https://player.vimeo.com/video/' + vimeo[1] + '?badge=0&autopause=0';
+    return vimeo[2] ? base + '&h=' + vimeo[2] : base;
+  }
+  if (url.includes('player.vimeo.com/video/')) return url;
+  return null;
+}
+
+function openExoVideo(nom, url) {
+  const embedUrl = toEmbedUrlCoach(url);
+  const zone     = document.getElementById('coach-video-zone');
+  document.getElementById('coach-video-title').textContent = nom;
+  if (embedUrl) {
+    zone.innerHTML = `<iframe src="${embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" style="border-radius:8px;"></iframe>`;
+  } else {
+    zone.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px;">Ouvrir la vidéo ↗</a>`;
+  }
+  document.getElementById('modal-coach-video').classList.add('open');
+}
+
+function closeCoachVideo() {
+  document.getElementById('modal-coach-video').classList.remove('open');
+  document.getElementById('coach-video-zone').innerHTML = '';
+}
+
+function renderExoGrid(groupe) {
+  const grid = document.getElementById('exo-grid');
+  // Filtre : "Tous" → tout, sinon cherche dans tags (multi) ET groupe_musculaire
+  const filtered = groupe === 'Tous'
+    ? allExercices
+    : allExercices.filter(e => {
+        const allTags = [e.groupe_musculaire, ...(e.tags ? e.tags.split(',').map(t => t.trim()) : [])];
+        return allTags.some(t => t === groupe);
+      });
+  const hasVideo = url => url && (url.includes('vimeo') || url.includes('youtube') || url.includes('youtu.be'));
+
+  const cardsHTML = filtered.map(e => {
+    const tagList = e.tags
+      ? e.tags.split(',').map(t => `<span class="tag" style="font-size:9px;padding:1px 6px">${t.trim()}</span>`).join('')
+      : '';
+    const safeNom = e.nom.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const videoBtn = hasVideo(e.url_video)
+      ? `<button onclick="event.stopPropagation();openExoVideo('${safeNom}','${e.url_video}')"
+           style="background:rgba(109,40,217,0.12);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-size:9px;font-weight:700">
+           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>Vidéo
+         </button>`
+      : '';
+    return `
+      <div class="exo-lib-card" style="position:relative;">
+        <div class="exo-lib-thumb" style="${hasVideo(e.url_video)?'cursor:pointer':''}" ${hasVideo(e.url_video)?`onclick="openExoVideo('${safeNom}','${e.url_video}')"`:''}">
+          ${hasVideo(e.url_video)
+            ? '<div class="exo-lib-play"></div>'
+            : '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 12h18"/></svg>'}
+        </div>
+        <div class="exo-lib-name">${e.nom}</div>
+        <div class="exo-lib-meta">${e.groupe_musculaire || '—'}</div>
+        <div class="exo-lib-tags">${tagList}</div>
+        <div style="display:flex;gap:5px;margin-top:8px;align-items:center;">
+          ${videoBtn}
+          <button onclick="event.stopPropagation();openEditExo(${JSON.stringify(e).replace(/"/g,'&quot;')})"
+            style="margin-left:auto;background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:5px;color:var(--dim);display:inline-flex;align-items:center;"
+            title="Modifier" onmouseover="this.style.color='var(--accent)';this.style.background='var(--accent-bg)'" onmouseout="this.style.color='var(--dim)';this.style.background='none'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button onclick="event.stopPropagation();deleteExoLib('${e.id}','${safeNom}')"
+            style="background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:5px;color:var(--dim);display:inline-flex;align-items:center;"
+            title="Supprimer" onmouseover="this.style.color='var(--danger)';this.style.background='rgba(220,38,38,0.07)'" onmouseout="this.style.color='var(--dim)';this.style.background='none'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const addCard = `
+    <div class="exo-lib-card" onclick="openAddExo()"
+      style="border:1px dashed var(--border-md);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;min-height:130px;">
+      <div style="font-size:20px;color:var(--dim)">+</div>
+      <div style="font-size:11px;color:var(--dim);font-weight:600;">Ajouter</div>
+    </div>`;
+
+  const emptyMsg = filtered.length === 0
+    ? `<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:36px;font-size:12px;">
+         Aucun exercice dans cette catégorie.<br>Clique sur + pour en ajouter un.
+       </div>`
+    : '';
+
+  grid.innerHTML = emptyMsg + cardsHTML + addCard;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SUPPRESSION CLIENTE
+// ═══════════════════════════════════════════════════════════
+function confirmDeleteClient(clientId, prenom) {
+  const modal = document.getElementById('modal-delete-client');
+  document.getElementById('delete-client-name').textContent = prenom;
+  modal.dataset.clientId = clientId;
+  modal.classList.add('open');
+}
+
+async function deleteClientConfirmed() {
+  const modal    = document.getElementById('modal-delete-client');
+  const clientId = modal.dataset.clientId;
+  const btn      = document.getElementById('btn-confirm-delete-client');
+  btn.disabled   = true; btn.textContent = 'Suppression…';
+
+  const { error } = await db.from('clients').delete().eq('id', clientId);
+  if (error) { alert('Erreur : ' + error.message); btn.disabled = false; btn.textContent = 'Supprimer'; return; }
+
+  modal.classList.remove('open');
+  btn.disabled = false; btn.textContent = 'Supprimer';
+  toast('Cliente supprimée');
+  await loadClients();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FORM CLIENTE
+// ═══════════════════════════════════════════════════════════
+function openAddClient() {
+  ['new-client-prenom','new-client-nom','new-client-email','new-client-pin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('client-recap').style.display = 'none';
+  document.getElementById('modal-client').classList.add('open');
+}
+
+function generatePin() {
+  document.getElementById('new-client-pin').value = String(Math.floor(1000 + Math.random() * 9000));
+}
+
+async function createClient() {
+  const prenom = document.getElementById('new-client-prenom').value.trim();
+  const nom    = document.getElementById('new-client-nom').value.trim();
+  const email  = document.getElementById('new-client-email').value.trim();
+  const pin    = document.getElementById('new-client-pin').value.trim();
+
+  if (!prenom || !email || pin.length !== 4) {
+    alert('Remplis le prénom, l\'e-mail et un PIN à 4 chiffres.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-create-client');
+  btn.disabled = true; btn.textContent = 'Création…';
+
+  try {
+    const pinHash = await hashPin(pin);
+    const { data, error } = await db
+      .from('clients')
+      .insert({ prenom, email: email.toLowerCase().trim(), pin_hash: pinHash, is_first_login: true })
+      .select('id, email, prenom').single();
+
+    btn.disabled = false; btn.textContent = 'Créer le profil →';
+
+    if (error) { alert('Erreur Supabase : ' + error.message); return; }
+
+    const recap = document.getElementById('client-recap');
+    recap.style.display = 'block';
+    recap.innerHTML = `
+      <strong style="color:var(--accent)">✓ Profil créé</strong><br>
+      <b>${prenom}${nom ? ' ' + nom : ''}</b> · ${email}<br>
+      PIN temporaire : <b style="letter-spacing:4px;font-size:14px">${pin}</b><br>
+      <span style="font-size:10px;">Communique ce PIN à ${prenom} pour sa première connexion.</span>`;
+
+    setTimeout(() => {
+      document.getElementById('modal-client').classList.remove('open');
+      toast('✓ Profil de ' + prenom + ' créé');
+      loadClients();
+    }, 2000);
+
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Créer le profil →';
+    alert('Erreur : ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function switchClientTab(btn, id) {
+  document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.client-tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ctab-' + id).classList.add('active');
+  if (id === 'perfs')  drawCoachPerfs();
+  if (id === 'cycle')  loadClientCycleData();
+}
+
+// ─── CYCLE : vue coach ─────────────────────────────────────────
+async function loadClientCycleData() {
+  if (!currentClientId) return;
+  document.getElementById('cycle-coach-loading').style.display = 'block';
+  document.getElementById('cycle-coach-content').style.display  = 'none';
+
+  // 1. Charger les débuts de cycle
+  const { data: logs } = await db.from('cycle_logs')
+    .select('date')
+    .eq('client_id', currentClientId)
+    .eq('notes', 'J1')
+    .order('date', { ascending: true });
+
+  const cycles = (logs || []).map(l => new Date(l.date + 'T12:00:00'));
+
+  // Calcul durée moyenne
+  let avgLen = null;
+  if (cycles.length >= 2) {
+    let total = 0;
+    for (let i = 1; i < cycles.length; i++) total += Math.round((cycles[i] - cycles[i-1]) / 86400000);
+    avgLen = Math.round(total / (cycles.length - 1));
+  }
+
+  // Jour actuel dans le cycle
+  const today   = new Date();
+  const lastCyc = cycles.length ? cycles[cycles.length - 1] : null;
+  const dayOfCyc = lastCyc ? Math.round((today - lastCyc) / 86400000) + 1 : null;
+
+  // Afficher résumé
+  document.getElementById('cc-avg').textContent   = avgLen   ? avgLen + 'j'  : '—';
+  document.getElementById('cc-day').textContent   = dayOfCyc ? 'J' + dayOfCyc : '—';
+  document.getElementById('cc-count').textContent = cycles.length;
+
+  // Phase
+  const phaseBox = document.getElementById('cc-phase-box');
+  if (dayOfCyc && avgLen) {
+    phaseBox.style.display = 'block';
+    document.getElementById('cc-no-data').style.display = 'none';
+    const { label, color, desc } = getCyclePhase(dayOfCyc, avgLen);
+    document.getElementById('cc-phase-label').textContent = label;
+    document.getElementById('cc-phase-label').style.color = color;
+    document.getElementById('cc-phase-desc').textContent  = desc;
+    phaseBox.style.borderColor  = color.replace(')', ',0.3)').replace('rgb', 'rgba');
+    phaseBox.style.background   = color.replace(')', ',0.06)').replace('rgb', 'rgba');
+  } else {
+    phaseBox.style.display = 'none';
+    document.getElementById('cc-no-data').style.display = cycles.length === 0 ? 'block' : 'none';
+  }
+
+  // 2. Charger le journal quotidien (30 derniers jours)
+  const { data: daily } = await db.from('cycle_daily_log')
+    .select('date, glaire, temperature, saignement, spotting')
+    .eq('client_id', currentClientId)
+    .order('date', { ascending: false })
+    .limit(30);
+
+  const dailyList = document.getElementById('cc-daily-list');
+  dailyList.innerHTML = '';
+  if (!daily || daily.length === 0) {
+    document.getElementById('cc-daily-empty').style.display = 'block';
+  } else {
+    document.getElementById('cc-daily-empty').style.display = 'none';
+    daily.forEach(row => {
+      const d = document.createElement('div');
+      d.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
+      const dateStr = new Date(row.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'short' });
+      const glaireIcon = { absente:'🔴', collante:'🟡', crémeuse:'🟠', filante:'🟢' }[row.glaire] || '';
+      const saigColor  = { aucun:'var(--muted)', léger:'#fb923c', modéré:'#ef4444', abondant:'#b91c1c' }[row.saignement] || 'var(--muted)';
+      d.innerHTML = `
+        <span style="font-size:11px;font-weight:700;color:var(--muted);min-width:46px;">${dateStr}</span>
+        ${row.glaire     ? `<span style="font-size:11px;">${glaireIcon} <span style="color:var(--text-muted)">${row.glaire}</span></span>` : ''}
+        ${row.saignement ? `<span style="font-size:11px;color:${saigColor};">🩸 ${row.saignement}</span>` : ''}
+        ${row.temperature ? `<span style="font-size:11px;">🌡️ ${row.temperature}°C</span>` : ''}
+        ${row.spotting   ? `<span style="font-size:11px;color:#f97316;">✦ spotting</span>` : ''}
+        ${(!row.glaire && !row.saignement && !row.temperature && !row.spotting) ? '<span style="font-size:11px;color:var(--muted);">—</span>' : ''}
+      `;
+      dailyList.appendChild(d);
+    });
+  }
+
+  document.getElementById('cycle-coach-loading').style.display = 'none';
+  document.getElementById('cycle-coach-content').style.display  = 'block';
+}
+
+function getCyclePhase(day, avgLen) {
+  const ovul = Math.round(avgLen * 0.5);
+  if (day <= 5)             return { label:'🩸 MENSTRUATION',   color:'#EF4444', desc:`Jour ${day} · règles` };
+  if (day <= ovul - 2)      return { label:'🌱 PHASE FOLLICULAIRE', color:'#F97316', desc:`Jour ${day} · énergie en hausse` };
+  if (day <= ovul + 1)      return { label:'🥚 OVULATION',       color:'#EAB308', desc:`Jour ${day} · pic de fertilité` };
+  return                           { label:'🌙 PHASE LUTÉALE',   color:'#A855F7', desc:`Jour ${day} · phase de récupération` };
+}
+
+// Bibliothèque de métriques et habitudes (source de vérité côté JS)
+const LIB_METRICS = [
+  { icon:'⚖️', nom:'Poids',              unite:'kg',   freq:'Hebdomadaire' },
+  { icon:'📏', nom:'Tour de taille',      unite:'cm',   freq:'Mensuel' },
+  { icon:'⚡', nom:'Énergie subjective',  unite:'/10',  freq:'Quotidien' },
+  { icon:'😴', nom:'Heures de sommeil',   unite:'h',    freq:'Quotidien' },
+  { icon:'👟', nom:'Pas quotidiens',      unite:'pas',  freq:'Quotidien' },
+];
+const LIB_HABITS = [
+  { icon:'😴', nom:'Qualité du sommeil',  type:'note' },
+  { icon:'🧘', nom:'Niveau de stress',    type:'note' },
+  { icon:'🚶', nom:'Marche active',       type:'oui-non' },
+];
+let selectedLibMetric = null;
+
+function toggleAddForm(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  // Peupler le picker si c'est le form métriques client
+  if (id === 'metrics-add-form' && el.classList.contains('open')) {
+    buildMetricLibPicker();
+  }
+}
+
+function buildMetricLibPicker() {
+  // Récupérer les métriques existantes dans la bibliothèque (depuis le DOM)
+  const libRows = document.querySelectorAll('#lib-metrics-list .lib-metric-row');
+  const libMetrics = [];
+  libRows.forEach(r => {
+    const nom   = r.querySelector('.lib-metric-name')?.textContent || '';
+    const unite = r.querySelector('.lib-metric-unit')?.textContent.split('·')[0].trim() || '';
+    const icon  = r.querySelector('.lib-metric-icon')?.textContent || '📊';
+    libMetrics.push({ icon, nom, unite, freq:'Quotidien' });
+  });
+  // Fusionner avec LIB_METRICS pour les fréquences
+  LIB_METRICS.forEach(lm => {
+    const existing = libMetrics.find(m => m.nom === lm.nom);
+    if (existing) existing.freq = lm.freq;
+  });
+
+  selectedLibMetric = null;
+  const container = document.getElementById('cm-lib-picker');
+  container.innerHTML = libMetrics.map(m =>
+    `<span class="cm-lib-pill" data-nom="${m.nom}" data-unite="${m.unite}" data-freq="${m.freq||'Quotidien'}" onclick="selectLibMetricPill(this)">
+      ${m.icon} ${m.nom}
+    </span>`
+  ).join('');
+  // Reset custom fields
+  if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
+  if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
+}
+
+function selectLibMetricPill(el) {
+  document.querySelectorAll('.cm-lib-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedLibMetric = { nom: el.dataset.nom, unite: el.dataset.unite, freq: el.dataset.freq };
+  // Autofill les champs custom
+  if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = selectedLibMetric.nom;
+  if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = selectedLibMetric.unite;
+  const freqSel = document.getElementById('cm-freq');
+  if (freqSel) freqSel.value = selectedLibMetric.freq;
+}
+
+async function addMetric() {
+  const nom  = (document.getElementById('cm-nom')?.value||'').trim();
+  const unit = (document.getElementById('cm-unite')?.value||'').trim();
+  const freq = document.getElementById('cm-freq')?.value || 'Hebdomadaire';
+  if (!nom) { toast('Sélectionne une métrique ou saisis un nom'); return; }
+  if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
+
+  const libEntry = LIB_METRICS.find(m => m.nom === nom);
+  const icon = libEntry?.icon || '📊';
+
+  const { data, error } = await db.from('client_metriques').insert({
+    client_id: currentClientId, nom, unite: unit||null, icone: icon, frequence: freq
+  }).select().single();
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
+  if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
+  selectedLibMetric = null;
+  document.getElementById('metrics-add-form').classList.remove('open');
+  toast('Métrique assignée ✓');
+  await loadClientMetrics(currentClientId);
+}
+
+async function addHabit() {
+  const nom  = (document.getElementById('ch-nom')?.value||'').trim();
+  const type = document.getElementById('ch-type')?.value || 'oui-non';
+  if (!nom) { toast('Saisis un nom d\'habitude'); return; }
+  if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
+
+  const { error } = await db.from('client_habitudes').insert({
+    client_id: currentClientId, nom, type
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  if (document.getElementById('ch-nom')) document.getElementById('ch-nom').value = '';
+  document.getElementById('habits-add-form').classList.remove('open');
+  toast('Habitude assignée ✓');
+  await loadClientHabits(currentClientId);
+}
+
+// Charger les métriques d'une cliente depuis Supabase
+async function loadClientMetrics(clientId) {
+  const list    = document.getElementById('coach-metrics-list');
+  const emptyEl = document.getElementById('coach-metrics-empty');
+  if (!list) return;
+
+  const { data: metriques } = await db
+    .from('client_metriques')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true });
+
+  list.querySelectorAll('.metric-manage-row').forEach(r => r.remove());
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  if (!metriques || metriques.length === 0) {
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+
+  metriques.forEach(m => {
+    // Charger la dernière valeur
+    db.from('metrique_valeurs').select('valeur,date').eq('metrique_id', m.id)
+      .order('date', { ascending: false }).limit(1)
+      .then(({ data: vals }) => {
+        const lastVal  = vals && vals[0] ? vals[0].valeur : '—';
+        const lastDate = vals && vals[0]
+          ? new Date(vals[0].date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+          : '—';
+        const row = document.createElement('div');
+        row.className = 'metric-manage-row';
+        row.dataset.metriqueId = m.id;
+        row.innerHTML = `<div class="metric-manage-icon">${m.icone||'📊'}</div>
+          <div class="metric-manage-info">
+            <div class="metric-manage-name">${m.nom}</div>
+            <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence}</div>
+          </div>
+          <div class="metric-manage-val">${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small></div>
+          <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
+          <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
+        list.appendChild(row);
+      });
+  });
+}
+
+// Charger les habitudes d'une cliente
+async function loadClientHabits(clientId) {
+  const list    = document.getElementById('coach-habits-list');
+  const emptyEl2 = document.getElementById('coach-habits-empty');
+  if (!list) return;
+
+  const { data: habitudes } = await db
+    .from('client_habitudes')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true });
+
+  list.querySelectorAll('.metric-manage-row').forEach(r => r.remove());
+  if (emptyEl2) emptyEl2.style.display = 'none';
+
+  if (!habitudes || habitudes.length === 0) {
+    if (emptyEl2) emptyEl2.style.display = '';
+    return;
+  }
+
+  const typeLabel = { 'oui-non':'Oui / Non', 'note':'Note 1→4', 'valeur':'Valeur numérique' };
+  habitudes.forEach(h => {
+    const row = document.createElement('div');
+    row.className = 'metric-manage-row';
+    row.dataset.habitudeId = h.id;
+    row.innerHTML = `<div class="metric-manage-icon">${h.icone||'🌿'}</div>
+      <div class="metric-manage-info">
+        <div class="metric-manage-name">${h.nom}</div>
+        <div class="metric-manage-unit">${typeLabel[h.type]||h.type} · Quotidien</div>
+      </div>
+      <div class="metric-manage-val">—</div>
+      <button class="btn btn-ghost btn-sm" onclick="showHabitHistory('${h.id}','${h.nom}','${h.type}')">Gérer</button>
+      <button class="btn btn-danger btn-sm" onclick="removeHabitDB('${h.id}',this)">Retirer</button>`;
+    list.appendChild(row);
+  });
+}
+
+async function removeMetricDB(id, btn) {
+  if (!confirm('Retirer cette métrique et toutes ses valeurs ?')) return;
+  await db.from('client_metriques').delete().eq('id', id);
+  btn.closest('.metric-manage-row').remove();
+  toast('Métrique retirée');
+}
+
+async function removeHabitDB(id, btn) {
+  if (!confirm('Retirer cette habitude ?')) return;
+  await db.from('client_habitudes').delete().eq('id', id);
+  btn.closest('.metric-manage-row').remove();
+  toast('Habitude retirée');
+}
+
+function saveNewMetric() {
+  const nom  = (document.getElementById('nm-nom')?.value||'').trim();
+  const unit = (document.getElementById('nm-unite')?.value||'').trim();
+  if (!nom) { toast('Saisis un nom'); return; }
+  // Add to lib list
+  const list = document.querySelector('#screen-biblio-metrics .lib-metrics-list');
+  if (!list) { toast('Erreur interne'); return; }
+  const row = document.createElement('div');
+  row.className = 'lib-metric-row';
+  row.innerHTML = `<div class="lib-metric-icon">📊</div>
+    <div class="lib-metric-info"><div class="lib-metric-name">${nom}</div><div class="lib-metric-unit">${unit}</div></div>
+    <div class="assign-pills"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button>
+    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button>`;
+  list.appendChild(row);
+  if (document.getElementById('nm-nom')) document.getElementById('nm-nom').value = '';
+  if (document.getElementById('nm-unite')) document.getElementById('nm-unite').value = '';
+  document.getElementById('new-metric-form').classList.remove('open');
+  toast('Métrique créée ✓');
+}
+
+function removeMetric(btn) {
+  if (confirm('Retirer ?')) {
+    btn.closest('.metric-manage-row, .lib-metric-row').remove();
+    toast('Retiré');
+  }
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+// ─── HISTORIQUE MÉTRIQUES ────────────────────────────────────
+const DEMO_HISTORY = {
+  'Poids':              [{d:'15/05',v:'62.6',unit:'kg',delta:'-0.2',dir:'down'},{d:'08/05',v:'62.8',unit:'kg',delta:'-0.3',dir:'down'},{d:'01/05',v:'63.1',unit:'kg',delta:'+0.1',dir:'up'},{d:'24/04',v:'63.0',unit:'kg',delta:'—',dir:'eq'},{d:'17/04',v:'63.0',unit:'kg',delta:'—',dir:'eq'}],
+  'Tour de taille':     [{d:'15/05',v:'71.2',unit:'cm',delta:'-0.8',dir:'down'},{d:'01/05',v:'72.0',unit:'cm',delta:'-0.5',dir:'down'},{d:'01/04',v:'72.5',unit:'cm',delta:'-0.5',dir:'down'},{d:'01/03',v:'73.0',unit:'cm',delta:'—',dir:'eq'}],
+  'Énergie subjective': [{d:'22/05',v:'7',unit:'/10',delta:'+1',dir:'up'},{d:'15/05',v:'6',unit:'/10',delta:'—',dir:'eq'},{d:'08/05',v:'6',unit:'/10',delta:'+1',dir:'up'},{d:'01/05',v:'5',unit:'/10',delta:'-1',dir:'down'}],
+  'Heures de sommeil':  [{d:'21/05',v:'7.5',unit:'h',delta:'—',dir:'eq'},{d:'20/05',v:'7.5',unit:'h',delta:'+1',dir:'up'},{d:'19/05',v:'6.5',unit:'h',delta:'-1',dir:'down'},{d:'18/05',v:'7.5',unit:'h',delta:'+0.5',dir:'up'}],
+  'Qualité du sommeil': [{d:'22/05',v:'1',unit:'/4',delta:'-1',dir:'down'},{d:'21/05',v:'2',unit:'/4',delta:'+1',dir:'up'},{d:'20/05',v:'1',unit:'/4',delta:'-1',dir:'down'},{d:'19/05',v:'2',unit:'/4',delta:'—',dir:'eq'}],
+  'Niveau de stress':   [{d:'22/05',v:'2',unit:'/4',delta:'—',dir:'eq'},{d:'21/05',v:'2',unit:'/4',delta:'+1',dir:'down'},{d:'20/05',v:'1',unit:'/4',delta:'-1',dir:'up'},{d:'19/05',v:'2',unit:'/4',delta:'—',dir:'eq'}],
+  'Marche active':      [{d:'22/05',v:'✗',unit:'',delta:'',dir:'eq'},{d:'21/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'20/05',v:'✓',unit:'',delta:'',dir:'eq'},{d:'19/05',v:'✓',unit:'',delta:'',dir:'eq'}],
+};
+// ═══════════════════════════════════════════════════════════
+//  BIBLIOTHÈQUE HABITUDES
+// ═══════════════════════════════════════════════════════════
+async function loadBiblioHabits() {
+  const list = document.getElementById('habit-lib-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Chargement…</div>';
+
+  let { data, error } = await db.from('habitudes').select('id, nom, type').order('nom', { ascending: true });
+
+  if (error) {
+    // Si problème de cache Supabase (colonne inconnue), on essaie sans ORDER
+    if (error.message && (error.message.includes('schema cache') || error.message.includes('column'))) {
+      const { data: d2, error: e2 } = await db.from('habitudes').select('id, nom, type');
+      if (!e2 && d2) {
+        data = d2.sort((a, b) => a.nom.localeCompare(b.nom));
+      } else {
+        list.innerHTML = `<div style="padding:16px;background:#fef9c3;border-radius:8px;border:1px solid #fde68a;font-size:12px;color:#92400e;">
+          ⚠️ Cache Supabase pas encore rafraîchi.<br><br>
+          Va dans <b>Supabase → Project Settings → API</b> et clique<br>
+          <b>"Reload schema cache"</b>, puis reviens ici.<br><br>
+          Erreur : ${e2?.message || error.message}
+        </div>`;
+        return;
+      }
+    } else {
+      list.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px;">Erreur : ${error.message}</div>`;
+      return;
+    }
+  }
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Aucune habitude dans la bibliothèque.<br>Clique sur "+ Créer" pour en ajouter une.</div>';
+    return;
+  }
+
+  const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
+  const typeEmoji = { 'oui-non': '✅', 'note': '⭐', 'valeur': '📊' };
+  list.innerHTML = data.map(h => `
+    <div class="lib-metric-row">
+      <div class="lib-metric-icon">${typeEmoji[h.type] || '🌿'}</div>
+      <div class="lib-metric-info">
+        <div class="lib-metric-name">${h.nom}</div>
+        <div class="lib-metric-unit">${typeLabel[h.type] || h.type}</div>
+      </div>
+      <div class="assign-pills"></div>
+      <button class="btn btn-accent btn-sm" onclick="openAssignHabit('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Assigner</button>
+      <button class="btn btn-ghost btn-sm" onclick="openLibHabitGerer('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Gérer</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteHabitLib('${h.id}','${h.nom.replace(/'/g,"\\'")}',this)">Supprimer</button>
+    </div>`).join('');
+}
+
+async function saveNewHabitLib() {
+  const nom   = (document.getElementById('nh-nom')?.value || '').trim();
+  const icone = (document.getElementById('nh-icone')?.value || '🌿').trim();
+  const type  = document.getElementById('nh-type')?.value || 'oui-non';
+  if (!nom) { toast('Saisis un nom pour l\'habitude'); return; }
+
+  const { error } = await db.from('habitudes').insert({ nom, type });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  document.getElementById('nh-nom').value = '';
+  document.getElementById('nh-icone').value = '';
+  document.getElementById('new-habit-form').classList.remove('open');
+  toast('Habitude créée ✓');
+  await loadBiblioHabits();
+}
+
+function openLibHabitGerer(id, nom, type) {
+  const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
+  document.getElementById('gm-title').textContent = 'Gérer — ' + nom;
+  document.getElementById('gm-body').innerHTML = `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Type</div>
+      <div style="font-size:13px;font-weight:600;">${typeLabel[type] || type}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+      Pour assigner cette habitude à une cliente, ouvre sa fiche → onglet Habitudes → "+ Ajouter".
+    </div>
+    <div style="display:flex;gap:7px;margin-top:14px;">
+      <button class="btn btn-danger btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open');deleteHabitLibById('${id}','${nom.replace(/'/g,"\\'")}')">Supprimer de la bibliothèque</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">Fermer</button>
+    </div>`;
+  document.getElementById('modal-gerer-metric').classList.add('open');
+}
+
+async function deleteHabitLib(id, nom, btn) {
+  if (!confirm(`Supprimer "${nom}" de la bibliothèque ?`)) return;
+  const { error } = await db.from('habitudes').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  btn.closest('.lib-metric-row').remove();
+  toast('Habitude supprimée');
+}
+
+async function deleteHabitLibById(id, nom) {
+  const { error } = await db.from('habitudes').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Habitude supprimée');
+  await loadBiblioHabits();
+}
+
+let assignHabitData = null;
+
+async function openAssignHabit(id, nom, type) {
+  assignHabitData = { id, nom, type };
+  document.getElementById('assign-habit-title').textContent = 'Assigner — ' + nom;
+
+  // Charger la liste des clientes
+  const { data: clients } = await db.from('clients').select('id, prenom').order('prenom');
+  const sel = document.getElementById('assign-habit-client');
+  sel.innerHTML = '<option value="">— Choisir une cliente —</option>' +
+    (clients || []).map(c => `<option value="${c.id}">${c.prenom}</option>`).join('');
+
+  document.getElementById('modal-assign-habit').classList.add('open');
+}
+
+async function confirmAssignHabit() {
+  const clientId = document.getElementById('assign-habit-client').value;
+  if (!clientId) { toast('Sélectionne une cliente'); return; }
+  if (!assignHabitData) return;
+
+  // Vérifier si déjà assignée
+  const { data: existing } = await db.from('client_habitudes')
+    .select('id').eq('client_id', clientId).eq('nom', assignHabitData.nom).limit(1);
+  if (existing && existing.length) {
+    toast('Cette habitude est déjà assignée à cette cliente');
+    return;
+  }
+
+  const { error } = await db.from('client_habitudes').insert({
+    client_id: clientId,
+    nom: assignHabitData.nom,
+    type: assignHabitData.type,
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  document.getElementById('modal-assign-habit').classList.remove('open');
+  toast('Habitude assignée ✓');
+}
+
+async function deleteExoLib(id, nom) {
+  if (!confirm(`Supprimer l'exercice "${nom}" de la bibliothèque ?`)) return;
+  const { error } = await db.from('exercices').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Exercice supprimé ✓');
+  await loadExercices();
+}
+
+async function showMetricHistory(metriqueId, nom, unit) {
+  document.getElementById('mh-title').textContent = 'Historique — ' + nom;
+  const list = document.getElementById('mh-list');
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Chargement…</div>';
+  document.getElementById('modal-metric-history').classList.add('open');
+
+  const { data: valeurs } = await db
+    .from('metrique_valeurs')
+    .select('valeur, date')
+    .eq('metrique_id', metriqueId)
+    .order('date', { ascending: false })
+    .limit(10);
+
+  if (!valeurs || valeurs.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée.</div>';
+    return;
+  }
+
+  list.innerHTML = valeurs.map((v, i) => {
+    const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    let delta = '—', dir = 'eq';
+    if (i < valeurs.length - 1) {
+      const diff = v.valeur - valeurs[i + 1].valeur;
+      if (diff !== 0) {
+        dir   = diff > 0 ? 'up' : 'down';
+        delta = (diff > 0 ? '▲ +' : '▼ ') + Math.abs(diff).toFixed(1);
+      }
+    }
+    return `<div class="history-row">
+      <div class="history-date">${dateStr}</div>
+      <div class="history-val">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
+      <div class="history-delta ${dir}">${delta}</div>
+    </div>`;
+  }).join('');
+}
+
+async function showHabitHistory(habitudeId, nom, type) {
+  document.getElementById('mh-title').textContent = 'Gérer — ' + nom;
+  const list = document.getElementById('mh-list');
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Chargement…</div>';
+  document.getElementById('modal-metric-history').classList.add('open');
+
+  const { data: valeurs } = await db
+    .from('habitude_valeurs')
+    .select('valeur, date')
+    .eq('habitude_id', habitudeId)
+    .order('date', { ascending: false })
+    .limit(20);
+
+  if (!valeurs || valeurs.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée pour cette habitude.</div>';
+    return;
+  }
+
+  list.innerHTML = valeurs.map(v => {
+    const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' });
+    let display = v.valeur;
+    if (type === 'oui-non') {
+      display = v.valeur == 1 || v.valeur === 'oui' || v.valeur === true
+        ? '<span style="color:var(--success);font-weight:600;">✓ Oui</span>'
+        : '<span style="color:var(--danger);font-weight:600;">✗ Non</span>';
+    } else if (type === 'note') {
+      const n = parseInt(v.valeur);
+      const stars = ['','★','★★','★★★','★★★★'][n] || v.valeur;
+      display = `<span style="color:var(--accent);font-weight:600;">${stars}</span> <span style="font-size:11px;color:var(--muted)">${n}/4</span>`;
+    } else {
+      display = `<span style="font-weight:600;">${v.valeur}</span>`;
+    }
+    return `<div class="history-row">
+      <div class="history-date">${dateStr}</div>
+      <div class="history-val">${display}</div>
+      <div class="history-delta eq"></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PROGRAMMATION 4 SEMAINES
+// ═══════════════════════════════════════════════════════════
+let progOffset     = 0;   // décalage en semaines depuis aujourd'hui
+let progClients    = [];
+let progClientId   = null;
+let progSeancesAll = [];
+let progClickDate  = null;
+
+async function initProgScreen() {
+  // Charger la liste des clientes pour le select
+  const sel = document.getElementById('prog-client-select');
+  if (progClients.length === 0) {
+    const { data } = await db.from('clients').select('id,prenom').order('prenom');
+    progClients = data || [];
+    sel.innerHTML = '<option value="">— Sélectionner une cliente —</option>' +
+      progClients.map(c => `<option value="${c.id}">${c.prenom}</option>`).join('');
+    // Pré-sélectionner la cliente courante si disponible
+    if (currentClientId) { sel.value = currentClientId; progClientId = currentClientId; }
+  }
+  if (progClientId) await loadProgSeances();
+  renderProgGrid();
+}
+
+async function onProgClientChange() {
+  progClientId = document.getElementById('prog-client-select').value || null;
+  progSeancesAll = [];
+  if (progClientId) await loadProgSeances();
+  renderProgGrid();
+}
+
+async function loadProgSeances() {
+  if (!progClientId) return;
+  // Charger un intervalle large (±8 semaines autour du bloc actuel)
+  const today = new Date();
+  const start = new Date(today); start.setDate(start.getDate() - 7 + progOffset * 7);
+  const end   = new Date(start); end.setDate(end.getDate() + 6 * 7);
+  const startStr = start.toISOString().slice(0,10);
+  const endStr   = end.toISOString().slice(0,10);
+
+  const { data } = await db.from('seances').select('id,titre,date,statut')
+    .eq('client_id', progClientId)
+    .gte('date', startStr).lte('date', endStr)
+    .order('date');
+  progSeancesAll = data || [];
+  renderProgGrid();
+}
+
+function shiftProg(dir) {
+  progOffset += dir;
+  loadProgSeances();
+}
+
+function getWeekStart(weekOffset) {
+  // Lundi de la semaine courante + weekOffset semaines
+  const today = new Date();
+  const dow = (today.getDay() + 6) % 7; // 0=lundi
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - dow + weekOffset * 7 + progOffset * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function renderProgGrid() {
+  const grid = document.getElementById('prog-grid');
+  if (!progClientId) {
+    grid.innerHTML = '<div class="prog-empty-state">Sélectionne une cliente pour voir sa programmation.</div>';
+    return;
+  }
+
+  const JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Update period label
+  const w0 = getWeekStart(0);
+  const w3end = new Date(w0); w3end.setDate(w0.getDate() + 27);
+  document.getElementById('prog-period-label').textContent =
+    w0.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) + ' – ' +
+    w3end.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+
+  // Build seances map: date string → [seances]
+  const seanceMap = {};
+  progSeancesAll.forEach(s => {
+    if (!seanceMap[s.date]) seanceMap[s.date] = [];
+    seanceMap[s.date].push(s);
+  });
+
+  // Header
+  let html = `<div class="prog-grid-th">Semaine</div>` +
+    JOURS.map(j => `<div class="prog-grid-th">${j}</div>`).join('');
+
+  // 4 semaines
+  for (let w = 0; w < 4; w++) {
+    const wStart = getWeekStart(w);
+    const wEnd   = new Date(wStart); wEnd.setDate(wStart.getDate() + 6);
+    const rangeStr = wStart.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) +
+                   ' – ' + wEnd.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+
+    // Count sessions this week
+    const wSeances = [];
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(wStart); dt.setDate(wStart.getDate() + d);
+      const key = dt.toISOString().slice(0,10);
+      (seanceMap[key]||[]).forEach(s => wSeances.push(s));
+    }
+
+    html += `<div class="prog-week-cell">
+      <div>
+        <div class="prog-week-num">Sem. ${w+1}</div>
+        <div class="prog-week-range">${rangeStr}</div>
+      </div>
+      <button class="prog-dup-btn" onclick="duplicateWeek(${w})" title="Dupliquer vers la semaine suivante">Dupliquer →</button>
+    </div>`;
+
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(wStart); dt.setDate(wStart.getDate() + d);
+      const key = dt.toISOString().slice(0,10);
+      const dayNum = dt.getDate();
+      const isToday = dt.getTime() === today.getTime();
+      const daySeances = seanceMap[key] || [];
+      const chips = daySeances.map(s =>
+        `<span class="prog-chip ${s.statut}" title="${s.titre}"
+          onclick="event.stopPropagation();openProgSeanceDetail('${s.id}','${s.titre.replace(/'/g,"\\'")}','${s.date}','${s.statut}')"
+         >${s.titre}</span>`
+      ).join('');
+      html += `<div class="prog-day-cell${isToday?' today-col':''}" onclick="openProgAddSeance('${key}')">
+        <div class="prog-day-num${isToday?' today-num':''}">${dayNum}</div>
+        ${chips}
+        <div class="prog-add-hint">+</div>
+      </div>`;
+    }
+  }
+
+  grid.innerHTML = html;
+}
+
+async function duplicateWeek(weekIndex) {
+  if (!progClientId) return;
+  const wStart = getWeekStart(weekIndex);
+  const wEnd   = new Date(wStart); wEnd.setDate(wStart.getDate() + 6);
+  const startStr = wStart.toISOString().slice(0,10);
+  const endStr   = wEnd.toISOString().slice(0,10);
+
+  // Fetch sessions of this week
+  const { data: weekSeances, error } = await db.from('seances').select('*')
+    .eq('client_id', progClientId)
+    .gte('date', startStr).lte('date', endStr);
+
+  if (error || !weekSeances || weekSeances.length === 0) {
+    toast('Aucune séance dans cette semaine à dupliquer'); return;
+  }
+
+  // Clone to next week
+  const inserts = weekSeances.map(s => {
+    const origDate = new Date(s.date + 'T12:00:00');
+    const newDate  = new Date(origDate);
+    newDate.setDate(origDate.getDate() + 7);
+    return {
+      client_id: progClientId,
+      titre:     s.titre,
+      date:      newDate.toISOString().slice(0,10),
+      statut:    'planifiée',
+      notes:     s.notes || null,
+    };
+  });
+
+  const { error: insErr } = await db.from('seances').insert(inserts);
+  if (insErr) { toast('Erreur : ' + insErr.message); return; }
+
+  toast(`✓ ${inserts.length} séance(s) dupliquée(s) vers la semaine suivante`);
+  await loadProgSeances();
+}
+
+function openProgAddSeance(dateStr) {
+  // Ouvrir le modal séance depuis la vue prog
+  document.getElementById('ps-date').value = dateStr;
+  document.getElementById('ps-titre').value = '';
+  document.getElementById('ps-statut').value = 'planifiée';
+  document.getElementById('ps-error').style.display = 'none';
+  // Peupler le select client
+  const sel = document.getElementById('ps-client');
+  sel.innerHTML = progClients.map(c =>
+    `<option value="${c.id}"${c.id===progClientId?' selected':''}>${c.prenom}</option>`
+  ).join('');
+  document.getElementById('modal-prog-seance').classList.add('open');
+}
+
+// ─── DÉTAIL SÉANCE DEPUIS PROG ──────────────────────────────
+let progDetailSeanceId = null;
+
+async function openProgSeanceDetail(seanceId, titre, date, statut) {
+  progDetailSeanceId = seanceId;
+  const d = new Date(date + 'T12:00:00');
+  const dateStr = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('psd-titre').textContent = titre;
+  document.getElementById('psd-meta').textContent  = dateStr + ' · ' + statut;
+
+  // Wire up buttons
+  document.getElementById('psd-add-exo-btn').onclick = () => {
+    document.getElementById('modal-prog-detail').classList.remove('open');
+    openExoPicker(seanceId);
+  };
+  document.getElementById('psd-delete-btn').onclick = async () => {
+    if (!confirm('Supprimer cette séance ?')) return;
+    document.getElementById('modal-prog-detail').classList.remove('open');
+    await db.from('seance_exercices').delete().eq('seance_id', seanceId);
+    await db.from('seances').delete().eq('id', seanceId);
+    toast('Séance supprimée');
+    await loadProgSeances();
+    if (currentClientId) await loadSeances(currentClientId);
+  };
+
+  document.getElementById('modal-prog-detail').classList.add('open');
+  await loadProgDetailExos(seanceId);
+}
+
+async function loadProgDetailExos(seanceId) {
+  const container = document.getElementById('psd-exo-list');
+  container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Chargement…</div>';
+
+  const { data, error } = await db
+    .from('seance_exercices').select('*')
+    .eq('seance_id', seanceId)
+    .order('ordre', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Aucun exercice pour le moment.</div>';
+    return;
+  }
+
+  container.innerHTML = data.map((e, i) => {
+    let params = `${e.series}×${e.reps}`;
+    if (e.rir !== null && e.rir !== undefined) params += ` · RIR ${e.rir}`;
+    if (e.charge) params += ` · ${e.charge}`;
+    if (e.unilateral) params += ' · Uni';
+    return `
+      <div style="display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <div style="width:22px;height:22px;border-radius:6px;background:transparent;color:var(--text-dim);border:1px solid var(--border);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${i+1}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;">${e.nom_exo}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${params}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── GÉRER MÉTRIQUE ─────────────────────────────────────────
+function openMetricGerer(nom, unite, assignees) {
+  document.getElementById('gm-title').textContent = 'Gérer — ' + nom;
+  document.getElementById('gm-body').innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Assignée à</div>
+      ${assignees.length > 0
+        ? assignees.map(a => `<span style="display:inline-block;font-size:12px;padding:3px 9px;background:var(--accent-bg);color:var(--accent);border-radius:20px;margin:2px;font-weight:600;">${a}</span>`).join('')
+        : '<span style="font-size:12px;color:var(--dim);">Aucune cliente</span>'}
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Détails</div>
+      <div style="font-size:13px;font-weight:600;">${nom} <span style="font-weight:400;color:var(--muted);">(${unite})</span></div>
+    </div>
+    <div style="display:flex;gap:7px;margin-top:14px;">
+      <button class="btn btn-danger btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open');removeMetricFromLib('${nom}')">Supprimer de la bibliothèque</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">Fermer</button>
+    </div>`;
+  document.getElementById('modal-gerer-metric').classList.add('open');
+}
+
+function removeMetricFromLib(nom) {
+  const rows = document.querySelectorAll('#screen-biblio-metrics .lib-metric-row');
+  rows.forEach(r => {
+    if (r.querySelector('.lib-metric-name')?.textContent === nom) r.remove();
+  });
+  toast('Métrique supprimée de la bibliothèque');
+}
+
+async function saveProgSeance() {
+  const titre    = document.getElementById('ps-titre').value.trim();
+  const date     = document.getElementById('ps-date').value;
+  const clientId = document.getElementById('ps-client').value;
+  const statut   = document.getElementById('ps-statut').value;
+  const errEl    = document.getElementById('ps-error');
+  errEl.style.display = 'none';
+  if (!titre || !date || !clientId) {
+    errEl.style.display = 'block'; errEl.textContent = 'Titre, date et cliente sont obligatoires.'; return;
+  }
+  const btn = document.getElementById('btn-save-ps');
+  btn.disabled = true; btn.textContent = 'Création…';
+  const { error } = await db.from('seances').insert({ client_id:clientId, titre, date, statut, notes:null });
+  btn.disabled = false; btn.textContent = 'Créer →';
+  if (error) { errEl.style.display='block'; errEl.textContent='Erreur : '+error.message; return; }
+  document.getElementById('modal-prog-seance').classList.remove('open');
+  toast('Séance créée ✓');
+  await loadProgSeances();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PERF CHARTS (Supabase) — Charge max / Volume / Reps
+// ═══════════════════════════════════════════════════════════
+let _coachPerfPeriod = '4s';
+let _coachPerfRows   = null;
+let _coachPerfDates  = null;
+
+function setCoachPerfPeriod(btn, period) {
+  document.querySelectorAll('#perf-period-btns .perf-ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _coachPerfPeriod = period;
+  _renderCoachPerfs();
+}
+
+async function drawCoachPerfs() {
+  if (!currentClientId) return;
+  _coachPerfRows  = null;
+  _coachPerfDates = null;
+
+  const grid = document.getElementById('coach-perfs-grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:13px;text-align:center;">Chargement…</div>';
+
+  // 1. Toutes les séances du client
+  const { data: seances, error: seancesErr } = await db.from('seances')
+    .select('id, date').eq('client_id', currentClientId)
+    .order('date', { ascending: true });
+
+  if (seancesErr || !seances || !seances.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">Aucune séance trouvée pour cette cliente.</div>`;
+    return;
+  }
+
+  const dateMap = {};
+  seances.forEach(s => { dateMap[s.id] = s.date; });
+  const seanceIds = seances.map(s => s.id);
+
+  // 2. Données : charge_reelle, reps_reelles, series (+ charge/charge_kg legacy)
+  let rows, rowsErr;
+  ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
+    .select('nom_exo, charge_kg, charge, charge_reelle, reps_reelles, series, series_data, seance_id')
+    .in('seance_id', seanceIds));
+
+  if (rowsErr) {
+    ({ data: rows, error: rowsErr } = await db.from('seance_exercices')
+      .select('nom_exo, charge_kg, charge, series_data, seance_id').in('seance_id', seanceIds));
+  }
+
+  if (rowsErr || !rows || !rows.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">
+      ${rowsErr ? 'Impossible de charger les données.' : 'Aucun exercice enregistré.'}</div>`;
+    return;
+  }
+
+  _coachPerfRows  = rows;
+  _coachPerfDates = dateMap;
+  _renderCoachPerfs();
+}
+
+function _renderCoachPerfs() {
+  const grid = document.getElementById('coach-perfs-grid');
+  if (!_coachPerfRows) return;
+
+  const rows    = _coachPerfRows;
+  const dateMap = _coachPerfDates;
+  const period  = _coachPerfPeriod;
+
+  // Cutoff selon la période
+  const now = new Date();
+  let cutoff = null;
+  if (period === '4s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 28); }
+  if (period === '8s') { cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 56); }
+  if (period === '3m') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); }
+
+  // Grouper par exercice
+  const grouped = {};
+  rows.forEach(r => {
+    const nom = r.nom_exo;
+    if (!nom) return;
+    const date = dateMap[r.seance_id];
+    if (!date) return;
+    if (cutoff && new Date(date + 'T12:00:00') < cutoff) return;
+
+    let charge = r.charge_reelle;
+    if (!charge && r.charge_kg) charge = r.charge_kg;
+    if (!charge && r.charge)    charge = parseFloat(r.charge);
+    charge = charge || 0;
+
+    const reps   = r.reps_reelles || r.reps || 0;
+    const series = r.series || 1;
+    // Meilleure série = max(reps × charge) depuis series_data uniquement
+    let volume = null;
+    if (r.series_data) {
+      try {
+        const sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+        if (sd.length) {
+          const best = Math.max(...sd.map(s => {
+            const c  = parseFloat(s.charge) || 0;
+            const rv = parseFloat(s.reps) || parseFloat(s.reps_g) || parseFloat(s.reps_d) || 0;
+            return c * rv;
+          }).filter(v => v > 0));
+          if (best > 0) volume = best;
+        }
+      } catch(e) {}
+    }
+
+    if (volume === null) return; // Pas de series_data → séance ignorée
+    if (!grouped[nom]) grouped[nom] = [];
+    grouped[nom].push({ date, charge, reps, volume });
+  });
+
+  const COLORS = ['#6D28D9','#16A34A','#F97316','#A855F7','#0891B2','#DC2626','#D97706','#059669'];
+
+  const exos = Object.entries(grouped).map(([name, pts], i) => {
+    const sorted = pts
+      .filter(p => p.volume > 0)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    if (!sorted.length) return null;
+
+    const vals  = sorted.map(p => p.volume);
+    const dates = sorted.map(p => new Date(p.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
+    const best  = Math.max(...vals);
+    const first = vals[0], last = vals[vals.length - 1];
+    const prog  = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+
+    return { name, vals, dates, best, prog, unit: 'kg', label: 'Volume', color: COLORS[i % COLORS.length] };
+  }).filter(Boolean);
+
+  if (!exos.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);font-size:13px;">
+      Aucune donnée pour cette période.</div>`;
+    return;
+  }
+
+  const metricLabel = 'Volume (reps × charge)';
+
+  grid.innerHTML = exos.map((e, i) => {
+    const trLabel = getTechRevueLabel(e.name);
+    return `
+    <div class="perf-card">
+      <div class="perf-card-name">${e.name}</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${e.label}</div>
+      <canvas class="perf-card-canvas" id="pfc-${i}" height="80"></canvas>
+      <div class="perf-pr" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;">
+        <span style="font-size:11px;color:var(--muted);">Best <strong style="color:var(--accent);font-size:14px;font-weight:800;">${e.best} ${e.unit}</strong></span>
+        <span style="font-size:11px;font-weight:700;color:${e.prog >= 0 ? 'var(--success)' : 'var(--danger)'}">${e.prog >= 0 ? '+' : ''}${e.prog}%</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px;">${e.vals.length} séance${e.vals.length > 1 ? 's' : ''}</div>
+      <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span id="tr-label-${i}" style="font-size:9px;color:var(--muted);font-style:italic;">${trLabel}</span>
+        <button data-exo-name="${e.name.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" data-card-idx="${i}"
+          onclick="markTechniqueRevue(this.dataset.exoName, parseInt(this.dataset.cardIdx))"
+          style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--accent);color:var(--accent);background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;">✓ Technique revue</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  requestAnimationFrame(() => {
+    exos.forEach((e, i) => {
+      const c = document.getElementById('pfc-' + i);
+      if (!c) return;
+      if (e.vals.length >= 2) {
+        drawMiniLineChart(c, e.vals, e.dates, e.color, 80);
+      } else {
+        const ctx = c.getContext('2d');
+        c.width  = (c.offsetWidth || 200) * (window.devicePixelRatio || 1);
+        c.height = 80 * (window.devicePixelRatio || 1);
+        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '12px Inter,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('1 séance — ' + e.vals[0] + ' ' + e.unit, (c.offsetWidth || 200) / 2, 44);
+      }
+    });
+  });
+}
+
+function _techRevueKey(exoName) {
+  return 'tr_' + (currentClientId || 'x') + '_' + encodeURIComponent(exoName);
+}
+
+function getTechRevueLabel(exoName) {
+  try {
+    const raw = localStorage.getItem(_techRevueKey(exoName));
+    if (!raw) return '';
+    const dates = JSON.parse(raw);
+    if (!dates.length) return '';
+    const last = new Date(dates[dates.length - 1]);
+    return 'Revue le ' + last.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch(e) { return ''; }
+}
+
+function markTechniqueRevue(exoName, cardIdx) {
+  try {
+    const key = _techRevueKey(exoName);
+    const raw = localStorage.getItem(key);
+    const dates = raw ? JSON.parse(raw) : [];
+    dates.push(new Date().toISOString());
+    localStorage.setItem(key, JSON.stringify(dates));
+    const el = document.getElementById('tr-label-' + cardIdx);
+    if (el) el.textContent = 'Revue le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    toast('Technique revue enregistrée ✓');
+  } catch(e) { toast('Erreur : ' + e.message); }
+}
+
+function drawMiniLineChart(canvas, vals, dates, color, H) {
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth || 280;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const pad  = { top:6, right:8, bottom:20, left:28 };
+  const cW   = W - pad.left - pad.right;
+  const cH   = H - pad.top - pad.bottom;
+  const min  = Math.min(...vals), max = Math.max(...vals);
+  const rng  = (max - min) || 1;
+  const minD = min - rng*0.1, maxD = max + rng*0.1, rngD = maxD - minD;
+  const xp   = i => vals.length <= 1 ? pad.left + cW/2 : pad.left + (i / (vals.length-1)) * cW;
+  const yp   = v => pad.top + cH - ((v - minD) / rngD) * cH;
+
+  ctx.fillStyle = '#9CA3AF'; ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(max, pad.left-4, pad.top+5);
+  ctx.fillText(min, pad.left-4, pad.top+cH+4);
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.05)'; ctx.lineWidth = 1;
+  [0, 0.5, 1].forEach(f => {
+    const y = pad.top + f*cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W-pad.right, y); ctx.stroke();
+  });
+
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top+cH);
+  grad.addColorStop(0, color+'20'); grad.addColorStop(1, color+'00');
+  ctx.beginPath();
+  ctx.moveTo(xp(0), yp(vals[0]));
+  vals.forEach((v,i) => { if(i>0) ctx.lineTo(xp(i), yp(v)); });
+  ctx.lineTo(xp(vals.length-1), pad.top+cH); ctx.lineTo(xp(0), pad.top+cH);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.moveTo(xp(0), yp(vals[0]));
+  vals.forEach((v,i) => { if(i>0) ctx.lineTo(xp(i), yp(v)); });
+  ctx.stroke();
+
+  ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'center';
+  vals.forEach((v,i) => {
+    const x = xp(i), y = yp(v);
+    ctx.beginPath(); ctx.arc(x, y, i===vals.length-1 ? 3.5 : 2.5, 0, Math.PI*2);
+    ctx.fillStyle = i===vals.length-1 ? color : '#FFF'; ctx.fill();
+    if (i !== vals.length-1) { ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke(); }
+    if (i === 0 || i === vals.length-1 || i === Math.floor(vals.length/2)) {
+      ctx.fillStyle = i === vals.length-1 ? color : '#9CA3AF';
+      ctx.fillText(dates[i], x, H-3);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+loadClients();
+</script>
+</body>
+</html>
