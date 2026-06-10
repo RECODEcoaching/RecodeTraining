@@ -238,6 +238,58 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   .check-day.today { border-color: var(--accent); }
   .check-day.today .cd-check { color: var(--text-muted); }
 
+  /* ═══════ BILAN ═══════ */
+  .bilan-gauges {
+    display: flex; gap: 12px; padding: 0 20px 4px;
+  }
+  .bilan-gauge-card {
+    flex: 1; background: var(--surface); border-radius: var(--radius);
+    padding: 16px 12px 14px; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .bilan-gauge-title { font-size: 12px; font-weight: 700; color: var(--text); text-align: center; }
+  .bilan-gauge-sub   { font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.4; min-height: 16px; }
+
+  .bilan-action-card {
+    margin: 0 20px; background: var(--surface); border-radius: var(--radius);
+    padding: 18px; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .bilan-done-badge {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    background: rgba(22,163,74,0.06); border: 1px solid rgba(22,163,74,0.18); border-radius: 10px;
+  }
+  .bilan-done-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(22,163,74,0.12); display: flex; align-items: center;
+    justify-content: center; flex: 0 0 auto;
+  }
+  .bilan-done-main { font-size: 13px; font-weight: 600; color: var(--success); }
+  .bilan-done-sub  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .btn-bilan {
+    width: 100%; padding: 14px; border-radius: var(--radius);
+    background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 14px rgba(109,40,217,0.28); transition: opacity 0.15s;
+  }
+  .btn-bilan:active { opacity: 0.85; }
+
+  .bilan-history-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
+  .bilan-history-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border-radius: var(--radius-sm);
+    padding: 12px 14px; border: 1px solid var(--border);
+  }
+  .bilan-hist-dot {
+    width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bilan-hist-dot.done   { background: rgba(22,163,74,0.12); }
+  .bilan-hist-dot.missed { background: rgba(220,38,38,0.07); }
+  .bilan-hist-period { font-size: 13px; font-weight: 600; color: var(--text); }
+  .bilan-hist-sub    { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
   /* ═══════ CYCLE ═══════ */
   /* ── HERO CARD CYCLE ── */
   .cycle-hero {
@@ -489,6 +541,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <div class="tab-bar">
   <div class="tab-btn active" onclick="switchTab(this,'metrics')">Métriques</div>
   <div class="tab-btn" onclick="switchTab(this,'habits')">Habitudes</div>
+  <div class="tab-btn" onclick="switchTab(this,'bilan')">Bilan</div>
   <div class="tab-btn" onclick="switchTab(this,'cycle')">Cycle</div>
 </div>
 
@@ -513,7 +566,37 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="pb-nav"></div>
 </div>
 
-<!-- ═══════ TAB 3 : CYCLE ═══════ -->
+<!-- ═══════ TAB 3 : BILAN ═══════ -->
+<div class="tab-content" id="tab-bilan">
+
+  <div class="section-label">Vue d'ensemble</div>
+  <div class="bilan-gauges">
+    <div class="bilan-gauge-card">
+      <div id="gauge-bilans-svg" style="line-height:0"></div>
+      <div class="bilan-gauge-title">Bilans</div>
+      <div class="bilan-gauge-sub" id="gauge-bilans-sub">—</div>
+    </div>
+    <div class="bilan-gauge-card">
+      <div id="gauge-seances-svg" style="line-height:0"></div>
+      <div class="bilan-gauge-title">Séances</div>
+      <div class="bilan-gauge-sub" id="gauge-seances-sub">—</div>
+    </div>
+  </div>
+
+  <div class="section-label">Mon bilan</div>
+  <div class="bilan-action-card" id="bilan-action-card">
+    <div style="text-align:center;padding:12px 0;color:var(--text-dim);font-size:13px">Chargement…</div>
+  </div>
+
+  <div class="section-label">Historique</div>
+  <div class="bilan-history-list" id="bilan-history-list">
+    <div style="text-align:center;padding:24px 0;color:var(--text-dim);font-size:13px">Chargement…</div>
+  </div>
+
+  <div class="pb-nav"></div>
+</div>
+
+<!-- ═══════ TAB 4 : CYCLE ═══════ -->
 <div class="tab-content" id="tab-cycle">
 
   <!-- Hero Card -->
@@ -921,6 +1004,7 @@ function switchTab(btn, id) {
   document.getElementById('tab-' + id).classList.add('active');
   window.scrollTo(0, 0);
   if (id === 'metrics') drawAllMetricCharts();
+  if (id === 'bilan')   loadBilan();
 }
 
 // ─── METRIC CHARTS WITH DATES ────────────────────────────────
@@ -1717,6 +1801,186 @@ function toast(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2400);
+}
+
+// ─── BILAN ────────────────────────────────────────────────────
+
+const FREQ_LABELS = { semaine:'1×/semaine', deux_semaines:'1×/2 semaines', mois:'1×/mois' };
+
+function renderArcGauge(pct, valueLabel, color) {
+  const r = 44, cx = 55, cy = 55;
+  const C = 2 * Math.PI * r;           // ≈ 276.5
+  const arcLen = C * 0.75;             // 270° arc
+  const fillLen = Math.min(Math.max(pct, 0), 1) * arcLen;
+  const c = color || '#6D28D9';
+  return `<svg viewBox="0 0 110 110" width="110" height="110" style="display:block">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EDE9FE" stroke-width="10"
+      stroke-dasharray="${arcLen.toFixed(1)} ${(C-arcLen).toFixed(1)}"
+      stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="10"
+      stroke-dasharray="${fillLen.toFixed(1)} ${(C-fillLen).toFixed(1)}"
+      stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+      font-size="20" font-weight="800" fill="#111827"
+      font-family="Inter,-apple-system,sans-serif">${valueLabel}</text>
+  </svg>`;
+}
+
+function getBilanPeriods(freq) {
+  const now = new Date();
+  const N = 4;
+  const periods = [];
+
+  if (freq === 'semaine' || freq === 'deux_semaines') {
+    const step = freq === 'semaine' ? 7 : 14;
+    const day = now.getDay() || 7; // 1=Lun … 7=Dim
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + 1);
+    monday.setHours(0, 0, 0, 0);
+    for (let i = N - 1; i >= 0; i--) {
+      const start = new Date(monday);
+      start.setDate(monday.getDate() - i * step);
+      const end = new Date(start);
+      end.setDate(start.getDate() + step - 1);
+      end.setHours(23, 59, 59, 999);
+      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
+    }
+  } else { // mois
+    for (let i = N - 1; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      end.setHours(23, 59, 59, 999);
+      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
+    }
+  }
+  return periods;
+}
+
+function formatPeriodLabel(start, end) {
+  const opts = { day:'numeric', month:'short' };
+  const s = start.toLocaleDateString('fr-FR', opts);
+  const e = end.toLocaleDateString('fr-FR', opts);
+  return s === e ? s : s + ' – ' + e;
+}
+
+async function loadBilan() {
+  if (!SESSION) return;
+
+  // 1. Fréquence configurée par le coach
+  const { data: clientData } = await db.from('clients')
+    .select('bilan_frequence').eq('id', SESSION.client_id).single();
+  const freq = clientData?.bilan_frequence || 'semaine';
+
+  // 2. Logs bilans (3 derniers mois)
+  const since = new Date();
+  since.setMonth(since.getMonth() - 3);
+  const { data: logs } = await db.from('bilan_logs')
+    .select('date').eq('client_id', SESSION.client_id)
+    .gte('date', since.toISOString().split('T')[0])
+    .order('date', { ascending: false });
+  const bilanDates = (logs || []).map(l => l.date); // tri desc
+
+  // 3. Séances passées pour le % de validation
+  const today = new Date().toISOString().split('T')[0];
+  const { data: seances } = await db.from('seances')
+    .select('date,statut').eq('client_id', SESSION.client_id).lte('date', today);
+  const past  = (seances || []).filter(s => s.date <= today);
+  const total = past.length;
+  const valid = past.filter(s => s.statut === 'validée').length;
+
+  // 4. Calcul % bilans sur les périodes
+  const periods = getBilanPeriods(freq);
+  let bilanDone = 0;
+  periods.forEach(p => {
+    const s = p.start.toISOString().split('T')[0];
+    const e = p.end.toISOString().split('T')[0];
+    if (bilanDates.some(d => d >= s && d <= e)) bilanDone++;
+  });
+  const bilanPct   = periods.length ? bilanDone / periods.length : 0;
+  const seancesPct = total ? valid / total : 0;
+
+  // 5. Gauges
+  document.getElementById('gauge-bilans-svg').innerHTML  = renderArcGauge(bilanPct,   Math.round(bilanPct*100)+'%', '#6D28D9');
+  document.getElementById('gauge-bilans-sub').textContent = `${bilanDone}/${periods.length} périodes`;
+  document.getElementById('gauge-seances-svg').innerHTML  = renderArcGauge(seancesPct, Math.round(seancesPct*100)+'%', '#8B5CF6');
+  document.getElementById('gauge-seances-sub').textContent = total ? `${valid}/${total} séances` : 'Aucune séance';
+
+  // 6. Carte action (bilan de la période courante)
+  const curPeriod = periods[periods.length - 1];
+  const curStart  = curPeriod?.start.toISOString().split('T')[0] || today;
+  const doneCur   = bilanDates.some(d => d >= curStart && d <= today);
+  const lastDate  = bilanDates[0] || null; // premier = le plus récent (tri desc)
+  renderBilanAction(doneCur, lastDate, freq);
+
+  // 7. Historique des périodes
+  renderBilanHistory(periods, bilanDates);
+}
+
+function renderBilanAction(done, lastDate, freq) {
+  const card = document.getElementById('bilan-action-card');
+  const fLbl = FREQ_LABELS[freq] || freq;
+  if (done && lastDate) {
+    const d   = new Date(lastDate + 'T12:00:00');
+    const fmt = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+    card.innerHTML = `
+      <div class="bilan-done-badge">
+        <div class="bilan-done-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+          <div class="bilan-done-main">Bilan effectué ✓</div>
+          <div class="bilan-done-sub">Le ${fmt}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-dim);text-align:center">Fréquence · ${fLbl}</div>`;
+  } else {
+    card.innerHTML = `
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.55">
+        Marque ton bilan quand tu l'as effectué.<br>
+        Fréquence définie par ton coach : <strong>${fLbl}</strong>
+      </div>
+      <button class="btn-bilan" onclick="markBilanDone()">Marquer le bilan comme fait</button>`;
+  }
+}
+
+function renderBilanHistory(periods, bilanDates) {
+  const list = document.getElementById('bilan-history-list');
+  if (!periods.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px">Aucune donnée</div>';
+    return;
+  }
+  list.innerHTML = [...periods].reverse().map(p => {
+    const s     = p.start.toISOString().split('T')[0];
+    const e     = p.end.toISOString().split('T')[0];
+    const match = bilanDates.find(d => d >= s && d <= e);
+    const label = formatPeriodLabel(p.start, p.end);
+    const sub   = match
+      ? 'Fait le ' + new Date(match + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' })
+      : 'Non effectué';
+    const dotCls = match ? 'done' : 'missed';
+    const icon   = match
+      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+      : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    return `<div class="bilan-history-item">
+      <div class="bilan-hist-dot ${dotCls}">${icon}</div>
+      <div>
+        <div class="bilan-hist-period">${label}</div>
+        <div class="bilan-hist-sub">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function markBilanDone() {
+  if (!SESSION) return;
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await db.from('bilan_logs').upsert(
+    { client_id: SESSION.client_id, date: today },
+    { onConflict: 'client_id,date' }
+  );
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Bilan enregistré ✓');
+  await loadBilan();
 }
 
 window.addEventListener('load', () => {

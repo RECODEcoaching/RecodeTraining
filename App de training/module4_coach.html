@@ -862,6 +862,30 @@ async function hashPin(pin) {
 
       <!-- Habitudes -->
       <div class="client-tab-content" id="ctab-habits">
+
+        <!-- ─── Configuration Bilan ─── -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px;margin-bottom:14px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+            Configuration Bilan
+            <button class="btn btn-accent btn-sm" style="font-size:11px" onclick="saveBilanFreq()">Enregistrer</button>
+          </div>
+          <div style="margin-bottom:12px">
+            <label class="form-label" style="margin-bottom:5px">Fréquence de bilan</label>
+            <select class="form-select" id="bilan-freq-select">
+              <option value="semaine">1× / semaine</option>
+              <option value="deux_semaines">1× / 2 semaines</option>
+              <option value="mois">1× / mois</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Compliance bilans (4 dernières périodes)</div>
+            <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:5px">
+              <div id="bilan-coach-bar" style="height:100%;border-radius:3px;background:var(--accent);width:0%;transition:width 0.5s ease"></div>
+            </div>
+            <div id="bilan-coach-text" style="font-size:12px;font-weight:600;color:var(--text)">—</div>
+          </div>
+        </div>
+
         <div class="section-title">
           Habitudes assignées
           <button class="btn btn-accent btn-sm" onclick="toggleAddForm('habits-add-form')">+ Ajouter</button>
@@ -1607,6 +1631,7 @@ function openClientFromDB(client, colorIdx) {
   loadSeances(client.id);
   loadClientMetrics(client.id);
   loadClientHabits(client.id);
+  loadBilanCoach(client.id);
   loadComments(client.id);
   drawCoachPerfs();
 }
@@ -2440,8 +2465,9 @@ function switchClientTab(btn, id) {
   document.querySelectorAll('.client-tab-content').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('ctab-' + id).classList.add('active');
-  if (id === 'perfs')  drawCoachPerfs();
-  if (id === 'cycle')  loadClientCycleData();
+  if (id === 'perfs')   drawCoachPerfs();
+  if (id === 'cycle')   loadClientCycleData();
+  if (id === 'habits')  loadBilanCoach(currentClientId);
 }
 
 // ─── CYCLE : vue coach ─────────────────────────────────────────
@@ -2686,6 +2712,73 @@ async function loadClientMetrics(clientId) {
 }
 
 // Charger les habitudes d'une cliente
+// ─── BILAN CONFIG (coach) ─────────────────────────────────────
+
+function getBilanPeriodsCoach(freq) {
+  const now = new Date(), N = 4, periods = [];
+  if (freq === 'semaine' || freq === 'deux_semaines') {
+    const step = freq === 'semaine' ? 7 : 14;
+    const day = now.getDay() || 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + 1);
+    monday.setHours(0, 0, 0, 0);
+    for (let i = N - 1; i >= 0; i--) {
+      const start = new Date(monday);
+      start.setDate(monday.getDate() - i * step);
+      const end = new Date(start);
+      end.setDate(start.getDate() + step - 1);
+      end.setHours(23, 59, 59, 999);
+      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
+    }
+  } else {
+    for (let i = N - 1; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      end.setHours(23, 59, 59, 999);
+      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
+    }
+  }
+  return periods;
+}
+
+async function loadBilanCoach(clientId) {
+  if (!clientId) return;
+  const { data: clientData } = await db.from('clients').select('bilan_frequence').eq('id', clientId).single();
+  const freq = clientData?.bilan_frequence || 'semaine';
+  const sel = document.getElementById('bilan-freq-select');
+  if (sel) sel.value = freq;
+
+  const since = new Date();
+  since.setMonth(since.getMonth() - 3);
+  const { data: logs } = await db.from('bilan_logs').select('date')
+    .eq('client_id', clientId).gte('date', since.toISOString().split('T')[0]);
+  const bilanDates = (logs || []).map(l => l.date);
+
+  const periods = getBilanPeriodsCoach(freq);
+  let done = 0;
+  periods.forEach(p => {
+    const s = p.start.toISOString().split('T')[0];
+    const e = p.end.toISOString().split('T')[0];
+    if (bilanDates.some(d => d >= s && d <= e)) done++;
+  });
+  const pct = periods.length ? Math.round(done / periods.length * 100) : 0;
+
+  const bar  = document.getElementById('bilan-coach-bar');
+  const text = document.getElementById('bilan-coach-text');
+  if (bar)  bar.style.width = pct + '%';
+  if (text) text.textContent = `${pct}% — ${done}/${periods.length} périodes`;
+}
+
+async function saveBilanFreq() {
+  if (!currentClientId) return;
+  const freq = document.getElementById('bilan-freq-select')?.value;
+  if (!freq) return;
+  const { error } = await db.from('clients').update({ bilan_frequence: freq }).eq('id', currentClientId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Fréquence enregistrée ✓');
+  await loadBilanCoach(currentClientId);
+}
+
 async function loadClientHabits(clientId) {
   const list    = document.getElementById('coach-habits-list');
   const emptyEl2 = document.getElementById('coach-habits-empty');
