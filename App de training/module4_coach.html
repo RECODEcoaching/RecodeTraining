@@ -2452,11 +2452,12 @@ async function loadClientCycleData() {
 
   // 1. Charger les débuts de cycle
   const { data: logs } = await db.from('cycle_logs')
-    .select('date_debut')
+    .select('date')
     .eq('client_id', currentClientId)
-    .order('date_debut', { ascending: true });
+    .eq('notes', 'J1')
+    .order('date', { ascending: true });
 
-  const cycles = (logs || []).map(l => new Date(l.date_debut + 'T12:00:00'));
+  const cycles = (logs || []).map(l => new Date(l.date + 'T12:00:00'));
 
   // Calcul durée moyenne
   let avgLen = null;

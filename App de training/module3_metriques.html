@@ -887,10 +887,11 @@ async function loadCycleData() {
 
   // 1. Charger les dates de début de cycle
   const { data: logs } = await db.from('cycle_logs')
-    .select('date_debut').eq('client_id', SESSION.client_id)
-    .order('date_debut', { ascending: true });
+    .select('date').eq('client_id', SESSION.client_id)
+    .eq('notes', 'J1')
+    .order('date', { ascending: true });
 
-  pastCycles = (logs || []).map(l => new Date(l.date_debut + 'T12:00:00'));
+  pastCycles = (logs || []).map(l => new Date(l.date + 'T12:00:00'));
 
   const avg = updateCycleStats();
   const today = new Date();
@@ -1278,7 +1279,8 @@ async function confirmCycleLog() {
 
   const { error } = await db.from('cycle_logs').insert({
     client_id: SESSION.client_id,
-    date_debut: dateStr,
+    date:      dateStr,
+    notes:     'J1',
   });
   if (error) { toast('Erreur : ' + error.message); return; }
 
