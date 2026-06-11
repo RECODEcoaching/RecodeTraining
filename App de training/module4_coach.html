@@ -54,7 +54,7 @@ async function hashPin(pin) {
     --purple:    #7C3AED;
     --border:    rgba(0,0,0,0.06);
     --border-md: rgba(0,0,0,0.10);
-    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-xs: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
     --shadow-sm: 0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
     --shadow:    0 4px 20px rgba(0,0,0,0.10);
     --shadow-lg: 0 12px 40px rgba(0,0,0,0.16);
@@ -658,6 +658,18 @@ async function hashPin(pin) {
   }
   .prog-chip.validée { color: var(--success); background: rgba(22,163,74,0.09); }
   .prog-chip.annulée { color: var(--danger); background: rgba(220,38,38,0.08); text-decoration: line-through; }
+  .prog-bilan-chip {
+    display: block; font-size: 10px; font-weight: 600; text-align: center;
+    border-radius: 4px; padding: 2px 4px; margin-bottom: 2px;
+    border: 1px dashed rgba(109,40,217,0.35); color: var(--accent);
+    background: transparent; cursor: pointer; transition: var(--t);
+    font-family: inherit;
+  }
+  .prog-bilan-chip:hover { background: var(--accent-bg); }
+  .prog-bilan-chip.active {
+    border-style: solid; border-color: transparent;
+    background: var(--accent); color: #fff;
+  }
   .prog-add-hint {
     font-size: 10px; color: var(--dim); text-align: center;
     padding-top: 4px; display: none; pointer-events: none;
@@ -849,6 +861,26 @@ async function hashPin(pin) {
                 <option value="Mensuel">Chaque mois</option>
               </select>
             </div>
+            <div style="flex:1">
+              <label class="form-label">Type de représentation</label>
+              <select class="form-select" id="cm-type" onchange="onCmTypeChange()">
+                <option value="mesure">Mesure (courbe)</option>
+                <option value="score5">Score 1-5 (jauge)</option>
+                <option value="objectif">Objectif avec cible (anneau)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="cm-cible-row" style="display:none">
+            <div style="flex:1">
+              <label class="form-label">Cible</label>
+              <input class="form-input" id="cm-cible" type="number" placeholder="ex : 8 (heures), 10000 (pas)">
+            </div>
+          </div>
+          <div class="form-row" id="cm-inverse-row" style="display:none">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="cm-inverse" style="width:auto">
+              Inverser l'échelle (1 = excellent, 5 = préoccupant — ex : stress)
+            </label>
           </div>
           <div class="form-row">
             <button class="btn btn-accent" onclick="addMetric()">Assigner</button>
@@ -905,6 +937,20 @@ async function hashPin(pin) {
                 <option value="oui-non">Oui / Non</option>
                 <option value="note">Note 1→4</option>
                 <option value="valeur">Valeur numérique</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="flex:none;width:90px">
+              <label class="form-label">Fréquence</label>
+              <input class="form-input" id="ch-freq-count" type="number" min="1" step="1" value="1">
+            </div>
+            <div style="flex:1">
+              <label class="form-label">Par</label>
+              <select class="form-select" id="ch-freq-unite">
+                <option value="jour">Jour</option>
+                <option value="semaine">Semaine</option>
+                <option value="mois">Mois</option>
               </select>
             </div>
           </div>
@@ -1016,13 +1062,25 @@ async function hashPin(pin) {
         </div>
         <div class="form-row">
           <div style="flex:1">
-            <label class="form-label">Type</label>
-            <select class="form-select" id="nm-type">
-              <option value="valeur">Valeur numérique</option>
-              <option value="note10">Note 1→10</option>
-              <option value="oui-non">Oui / Non</option>
+            <label class="form-label">Type de représentation</label>
+            <select class="form-select" id="nm-type" onchange="onNmTypeChange()">
+              <option value="mesure">Mesure (valeur + courbe d'évolution)</option>
+              <option value="score5">Score 1-5 (auto-évaluation, jauge)</option>
+              <option value="objectif">Objectif avec cible (anneau de progression)</option>
             </select>
           </div>
+        </div>
+        <div class="form-row" id="nm-cible-row" style="display:none">
+          <div style="flex:1">
+            <label class="form-label">Cible</label>
+            <input class="form-input" id="nm-cible" type="number" placeholder="ex : 8 (heures), 10000 (pas)">
+          </div>
+        </div>
+        <div class="form-row" id="nm-inverse-row" style="display:none">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="nm-inverse" style="width:auto">
+            Inverser l'échelle (1 = excellent, 5 = préoccupant — ex : stress)
+          </label>
         </div>
         <div class="form-row">
           <button class="btn btn-accent" onclick="saveNewMetric()">Créer</button>
@@ -1030,11 +1088,11 @@ async function hashPin(pin) {
         </div>
       </div>
       <div class="lib-metrics-list" id="lib-metrics-list">
-        <div class="lib-metric-row"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Poids','kg',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Tour de taille','cm',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/10 · Note</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Énergie subjective','/10',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Heures de sommeil','h',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas · Valeur numérique</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Pas quotidiens','pas',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row" data-type="mesure"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg · Mesure (courbe)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Poids','kg',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row" data-type="mesure"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm · Mesure (courbe)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Tour de taille','cm',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row" data-type="score5" data-inverse="false"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/5 · Score 1-5 (jauge)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Énergie subjective','/5',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row" data-type="objectif" data-cible="8"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h · Objectif : 8 (anneau)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Heures de sommeil','h',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div class="lib-metric-row" data-type="objectif" data-cible="10000"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas · Objectif : 10000 (anneau)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Pas quotidiens','pas',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
       </div>
     </div>
 
@@ -1049,14 +1107,28 @@ async function hashPin(pin) {
       <div class="add-form" id="new-habit-form">
         <div class="add-form-title">Nouvelle habitude</div>
         <input class="form-input" id="nh-nom" placeholder="Nom de l'habitude (ex: Méditation, Sommeil…)" style="width:100%;margin-bottom:8px;">
-        <div class="form-row" style="margin-bottom:0">
+        <div class="form-row" style="margin-bottom:8px">
           <input class="form-input" id="nh-icone" placeholder="🌿 Emoji" style="width:80px;flex:none">
           <select class="form-select" id="nh-type" style="flex:1">
             <option value="oui-non">Oui / Non</option>
             <option value="note">Note 1→4</option>
             <option value="valeur">Valeur numérique</option>
           </select>
-          <button class="btn btn-accent" onclick="saveNewHabitLib()">Créer</button>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <div style="flex:none;width:90px">
+            <label class="form-label">Fréquence</label>
+            <input class="form-input" id="nh-freq-count" type="number" min="1" step="1" value="1">
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Par</label>
+            <select class="form-select" id="nh-freq-unite">
+              <option value="jour">Jour</option>
+              <option value="semaine">Semaine</option>
+              <option value="mois">Mois</option>
+            </select>
+          </div>
+          <button class="btn btn-accent" onclick="saveNewHabitLib()" style="align-self:flex-end">Créer</button>
         </div>
       </div>
       <div class="lib-metrics-list" id="habit-lib-list">
@@ -2564,11 +2636,11 @@ function getCyclePhase(day, avgLen) {
 
 // Bibliothèque de métriques et habitudes (source de vérité côté JS)
 const LIB_METRICS = [
-  { icon:'⚖️', nom:'Poids',              unite:'kg',   freq:'Hebdomadaire' },
-  { icon:'📏', nom:'Tour de taille',      unite:'cm',   freq:'Mensuel' },
-  { icon:'⚡', nom:'Énergie subjective',  unite:'/10',  freq:'Quotidien' },
-  { icon:'😴', nom:'Heures de sommeil',   unite:'h',    freq:'Quotidien' },
-  { icon:'👟', nom:'Pas quotidiens',      unite:'pas',  freq:'Quotidien' },
+  { icon:'⚖️', nom:'Poids',              unite:'kg',   freq:'Hebdomadaire', type:'mesure',   cible:null, inverse:false },
+  { icon:'📏', nom:'Tour de taille',      unite:'cm',   freq:'Mensuel',      type:'mesure',   cible:null, inverse:false },
+  { icon:'⚡', nom:'Énergie subjective',  unite:'/5',   freq:'Quotidien',    type:'score5',   cible:null, inverse:false },
+  { icon:'😴', nom:'Heures de sommeil',   unite:'h',    freq:'Quotidien',    type:'objectif', cible:8,    inverse:false },
+  { icon:'👟', nom:'Pas quotidiens',      unite:'pas',  freq:'Quotidien',    type:'objectif', cible:10000, inverse:false },
 ];
 const LIB_HABITS = [
   { icon:'😴', nom:'Qualité du sommeil',  type:'note' },
@@ -2586,6 +2658,15 @@ function toggleAddForm(id) {
   }
 }
 
+// Affiche/masque les champs "Cible" et "Inverser l'échelle" du formulaire d'assignation
+function onCmTypeChange() {
+  const type = document.getElementById('cm-type')?.value || 'mesure';
+  const cibleRow   = document.getElementById('cm-cible-row');
+  const inverseRow = document.getElementById('cm-inverse-row');
+  if (cibleRow)   cibleRow.style.display   = (type === 'objectif') ? '' : 'none';
+  if (inverseRow) inverseRow.style.display = (type === 'score5')   ? '' : 'none';
+}
+
 function buildMetricLibPicker() {
   // Récupérer les métriques existantes dans la bibliothèque (depuis le DOM)
   const libRows = document.querySelectorAll('#lib-metrics-list .lib-metric-row');
@@ -2594,41 +2675,65 @@ function buildMetricLibPicker() {
     const nom   = r.querySelector('.lib-metric-name')?.textContent || '';
     const unite = r.querySelector('.lib-metric-unit')?.textContent.split('·')[0].trim() || '';
     const icon  = r.querySelector('.lib-metric-icon')?.textContent || '📊';
-    libMetrics.push({ icon, nom, unite, freq:'Quotidien' });
+    const type    = r.dataset.type || 'mesure';
+    const cible   = r.dataset.cible || '';
+    const inverse = r.dataset.inverse === 'true';
+    libMetrics.push({ icon, nom, unite, freq:'Quotidien', type, cible, inverse });
   });
-  // Fusionner avec LIB_METRICS pour les fréquences
+  // Fusionner avec LIB_METRICS pour les fréquences (et compléter type/cible/inverse si absents du DOM)
   LIB_METRICS.forEach(lm => {
     const existing = libMetrics.find(m => m.nom === lm.nom);
-    if (existing) existing.freq = lm.freq;
+    if (existing) {
+      existing.freq = lm.freq;
+      if (!existing.type || existing.type === 'mesure') existing.type = lm.type || existing.type;
+      if (!existing.cible) existing.cible = lm.cible || '';
+      if (!existing.inverse) existing.inverse = !!lm.inverse;
+    }
   });
 
   selectedLibMetric = null;
   const container = document.getElementById('cm-lib-picker');
   container.innerHTML = libMetrics.map(m =>
-    `<span class="cm-lib-pill" data-nom="${m.nom}" data-unite="${m.unite}" data-freq="${m.freq||'Quotidien'}" onclick="selectLibMetricPill(this)">
+    `<span class="cm-lib-pill" data-nom="${m.nom}" data-unite="${m.unite}" data-freq="${m.freq||'Quotidien'}" data-type="${m.type||'mesure'}" data-cible="${m.cible||''}" data-inverse="${m.inverse?'true':'false'}" onclick="selectLibMetricPill(this)">
       ${m.icon} ${m.nom}
     </span>`
   ).join('');
   // Reset custom fields
   if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
   if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
+  if (document.getElementById('cm-type')) document.getElementById('cm-type').value = 'mesure';
+  if (document.getElementById('cm-cible')) document.getElementById('cm-cible').value = '';
+  if (document.getElementById('cm-inverse')) document.getElementById('cm-inverse').checked = false;
+  onCmTypeChange();
 }
 
 function selectLibMetricPill(el) {
   document.querySelectorAll('.cm-lib-pill').forEach(p => p.classList.remove('selected'));
   el.classList.add('selected');
-  selectedLibMetric = { nom: el.dataset.nom, unite: el.dataset.unite, freq: el.dataset.freq };
+  selectedLibMetric = {
+    nom: el.dataset.nom, unite: el.dataset.unite, freq: el.dataset.freq,
+    type: el.dataset.type || 'mesure', cible: el.dataset.cible || '', inverse: el.dataset.inverse === 'true'
+  };
   // Autofill les champs custom
   if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = selectedLibMetric.nom;
   if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = selectedLibMetric.unite;
   const freqSel = document.getElementById('cm-freq');
   if (freqSel) freqSel.value = selectedLibMetric.freq;
+  const typeSel = document.getElementById('cm-type');
+  if (typeSel) typeSel.value = selectedLibMetric.type;
+  if (document.getElementById('cm-cible')) document.getElementById('cm-cible').value = selectedLibMetric.cible;
+  if (document.getElementById('cm-inverse')) document.getElementById('cm-inverse').checked = selectedLibMetric.inverse;
+  onCmTypeChange();
 }
 
 async function addMetric() {
   const nom  = (document.getElementById('cm-nom')?.value||'').trim();
   const unit = (document.getElementById('cm-unite')?.value||'').trim();
   const freq = document.getElementById('cm-freq')?.value || 'Hebdomadaire';
+  const type = document.getElementById('cm-type')?.value || 'mesure';
+  const cibleRaw = (document.getElementById('cm-cible')?.value||'').trim();
+  const cible = (type === 'objectif' && cibleRaw) ? parseFloat(cibleRaw) : null;
+  const inverse = type === 'score5' && !!document.getElementById('cm-inverse')?.checked;
   if (!nom) { toast('Sélectionne une métrique ou saisis un nom'); return; }
   if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
 
@@ -2636,13 +2741,17 @@ async function addMetric() {
   const icon = libEntry?.icon || '📊';
 
   const { data, error } = await db.from('client_metriques').insert({
-    client_id: currentClientId, nom, unite: unit||null, icone: icon, frequence: freq
+    client_id: currentClientId, nom, unite: unit||null, icone: icon, frequence: freq,
+    type, cible, inverse
   }).select().single();
 
   if (error) { toast('Erreur : ' + error.message); return; }
 
   if (document.getElementById('cm-nom')) document.getElementById('cm-nom').value = '';
   if (document.getElementById('cm-unite')) document.getElementById('cm-unite').value = '';
+  if (document.getElementById('cm-cible')) document.getElementById('cm-cible').value = '';
+  if (document.getElementById('cm-inverse')) document.getElementById('cm-inverse').checked = false;
+  if (document.getElementById('cm-type')) document.getElementById('cm-type').value = 'mesure';
   selectedLibMetric = null;
   document.getElementById('metrics-add-form').classList.remove('open');
   toast('Métrique assignée ✓');
@@ -2652,15 +2761,20 @@ async function addMetric() {
 async function addHabit() {
   const nom  = (document.getElementById('ch-nom')?.value||'').trim();
   const type = document.getElementById('ch-type')?.value || 'oui-non';
+  const freqCount = parseInt(document.getElementById('ch-freq-count')?.value, 10) || 1;
+  const freqUnite = document.getElementById('ch-freq-unite')?.value || 'jour';
   if (!nom) { toast('Saisis un nom d\'habitude'); return; }
   if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
 
   const { error } = await db.from('client_habitudes').insert({
-    client_id: currentClientId, nom, type
+    client_id: currentClientId, nom, type,
+    frequence_count: freqCount, frequence_unite: freqUnite
   });
   if (error) { toast('Erreur : ' + error.message); return; }
 
   if (document.getElementById('ch-nom')) document.getElementById('ch-nom').value = '';
+  if (document.getElementById('ch-freq-count')) document.getElementById('ch-freq-count').value = '1';
+  if (document.getElementById('ch-freq-unite')) document.getElementById('ch-freq-unite').value = 'jour';
   document.getElementById('habits-add-form').classList.remove('open');
   toast('Habitude assignée ✓');
   await loadClientHabits(currentClientId);
@@ -2695,13 +2809,17 @@ async function loadClientMetrics(clientId) {
         const lastDate = vals && vals[0]
           ? new Date(vals[0].date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
           : '—';
+        let typeLabel = TYPE_LABELS[m.type] || 'Mesure (courbe)';
+        if (m.type === 'objectif' && m.cible != null) typeLabel = `Objectif : ${m.cible}`;
+        if (m.type === 'score5' && m.inverse) typeLabel = 'Score 1-5 (inversé)';
+
         const row = document.createElement('div');
         row.className = 'metric-manage-row';
         row.dataset.metriqueId = m.id;
         row.innerHTML = `<div class="metric-manage-icon">${m.icone||'📊'}</div>
           <div class="metric-manage-info">
             <div class="metric-manage-name">${m.nom}</div>
-            <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence}</div>
+            <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence} · ${typeLabel}</div>
           </div>
           <div class="metric-manage-val">${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small></div>
           <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
@@ -2779,6 +2897,57 @@ async function saveBilanFreq() {
   await loadBilanCoach(currentClientId);
 }
 
+// ─── FRÉQUENCE / ADHÉRENCE HABITUDES ───────────────────────────
+
+// Fenêtre de calcul selon l'unité de fréquence
+function getHabitWindow(freqUnite) {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  if (freqUnite === 'semaine') {
+    const day = now.getDay() || 7;
+    const monday = new Date(now); monday.setDate(now.getDate() - day + 1);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] };
+  } else if (freqUnite === 'mois') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+  } else {
+    const start = new Date(now); start.setDate(now.getDate() - 6);
+    return { start: start.toISOString().split('T')[0], end: todayStr };
+  }
+}
+
+// Une entrée habitude_valeurs compte-t-elle comme "faite" ?
+function isHabitDone(valeur, type) {
+  if (valeur == null || valeur === '') return false;
+  if (type === 'oui-non') return valeur === 'oui';
+  return true; // note / valeur numérique : juste loggé = fait
+}
+
+// % de respect sur la période pertinente (jour/semaine/mois)
+async function computeHabitAdherence(habitudeId, type, freqCount, freqUnite) {
+  const fc = freqCount || 1;
+  const fu = freqUnite || 'jour';
+  const { start, end } = getHabitWindow(fu);
+  const { data: vals } = await db.from('habitude_valeurs').select('valeur,date')
+    .eq('habitude_id', habitudeId).gte('date', start).lte('date', end);
+
+  let current = 0, target;
+  if (fu === 'jour' && fc > 1) {
+    target = fc * 7;
+    (vals || []).forEach(v => { current += parseFloat(v.valeur) || 0; });
+  } else if (fu === 'jour') {
+    target = 7;
+    current = (vals || []).filter(v => isHabitDone(v.valeur, type)).length;
+  } else {
+    target = fc;
+    current = (vals || []).filter(v => isHabitDone(v.valeur, type)).length;
+  }
+  const pct = target > 0 ? Math.min(100, Math.round(current / target * 100)) : 0;
+  return { pct, current, target };
+}
+
 async function loadClientHabits(clientId) {
   const list    = document.getElementById('coach-habits-list');
   const emptyEl2 = document.getElementById('coach-habits-empty');
@@ -2800,18 +2969,32 @@ async function loadClientHabits(clientId) {
 
   const typeLabel = { 'oui-non':'Oui / Non', 'note':'Note 1→4', 'valeur':'Valeur numérique' };
   habitudes.forEach(h => {
+    const fc = h.frequence_count || 1;
+    const fu = h.frequence_unite || 'jour';
     const row = document.createElement('div');
     row.className = 'metric-manage-row';
     row.dataset.habitudeId = h.id;
     row.innerHTML = `<div class="metric-manage-icon">${h.icone||'🌿'}</div>
       <div class="metric-manage-info">
         <div class="metric-manage-name">${h.nom}</div>
-        <div class="metric-manage-unit">${typeLabel[h.type]||h.type} · Quotidien</div>
+        <div class="metric-manage-unit">${typeLabel[h.type]||h.type} · ${freqLabel(fc, fu)}</div>
       </div>
-      <div class="metric-manage-val">—</div>
+      <div class="metric-manage-val" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:64px">
+        <span style="font-size:16px;font-weight:800;color:var(--accent)">—</span>
+        <div style="width:56px;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div class="habit-adherence-bar" style="height:100%;border-radius:3px;background:var(--accent);width:0%;transition:width 0.5s ease"></div>
+        </div>
+      </div>
       <button class="btn btn-ghost btn-sm" onclick="showHabitHistory('${h.id}','${h.nom}','${h.type}')">Gérer</button>
       <button class="btn btn-danger btn-sm" onclick="removeHabitDB('${h.id}',this)">Retirer</button>`;
     list.appendChild(row);
+
+    computeHabitAdherence(h.id, h.type, fc, fu).then(({ pct }) => {
+      const valEl = row.querySelector('.metric-manage-val span');
+      const barEl = row.querySelector('.habit-adherence-bar');
+      if (valEl) valEl.textContent = pct + '%';
+      if (barEl) barEl.style.width = pct + '%';
+    });
   });
 }
 
@@ -2829,23 +3012,49 @@ async function removeHabitDB(id, btn) {
   toast('Habitude retirée');
 }
 
+// Affiche/masque les champs "Cible" et "Inverser l'échelle" selon le type choisi
+function onNmTypeChange() {
+  const type = document.getElementById('nm-type')?.value || 'mesure';
+  const cibleRow   = document.getElementById('nm-cible-row');
+  const inverseRow = document.getElementById('nm-inverse-row');
+  if (cibleRow)   cibleRow.style.display   = (type === 'objectif') ? '' : 'none';
+  if (inverseRow) inverseRow.style.display = (type === 'score5')   ? '' : 'none';
+}
+
+const TYPE_LABELS = { mesure: 'Mesure (courbe)', score5: 'Score 1-5 (jauge)', objectif: 'Objectif' };
+
 function saveNewMetric() {
   const nom  = (document.getElementById('nm-nom')?.value||'').trim();
   const unit = (document.getElementById('nm-unite')?.value||'').trim();
+  const type = document.getElementById('nm-type')?.value || 'mesure';
+  const cible   = (document.getElementById('nm-cible')?.value||'').trim();
+  const inverse = !!document.getElementById('nm-inverse')?.checked;
   if (!nom) { toast('Saisis un nom'); return; }
   // Add to lib list
   const list = document.querySelector('#screen-biblio-metrics .lib-metrics-list');
   if (!list) { toast('Erreur interne'); return; }
+
+  let typeLabel = TYPE_LABELS[type] || 'Mesure (courbe)';
+  if (type === 'objectif' && cible) typeLabel = `Objectif : ${cible} (anneau)`;
+  const unitDisplay = `${unit} · ${typeLabel}`;
+
   const row = document.createElement('div');
   row.className = 'lib-metric-row';
+  row.dataset.type = type;
+  if (type === 'objectif' && cible) row.dataset.cible = cible;
+  if (type === 'score5') row.dataset.inverse = inverse ? 'true' : 'false';
   row.innerHTML = `<div class="lib-metric-icon">📊</div>
-    <div class="lib-metric-info"><div class="lib-metric-name">${nom}</div><div class="lib-metric-unit">${unit}</div></div>
+    <div class="lib-metric-info"><div class="lib-metric-name">${nom}</div><div class="lib-metric-unit">${unitDisplay}</div></div>
     <div class="assign-pills"></div>
     <button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button>
     <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button>`;
   list.appendChild(row);
   if (document.getElementById('nm-nom')) document.getElementById('nm-nom').value = '';
   if (document.getElementById('nm-unite')) document.getElementById('nm-unite').value = '';
+  if (document.getElementById('nm-cible')) document.getElementById('nm-cible').value = '';
+  if (document.getElementById('nm-inverse')) document.getElementById('nm-inverse').checked = false;
+  document.getElementById('nm-type').value = 'mesure';
+  onNmTypeChange();
   document.getElementById('new-metric-form').classList.remove('open');
   toast('Métrique créée ✓');
 }
@@ -2882,7 +3091,7 @@ async function loadBiblioHabits() {
   if (!list) return;
   list.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;">Chargement…</div>';
 
-  let { data, error } = await db.from('habitudes').select('id, nom, type').order('nom', { ascending: true });
+  let { data, error } = await db.from('habitudes').select('id, nom, type, frequence_count, frequence_unite').order('nom', { ascending: true });
 
   if (error) {
     // Si problème de cache Supabase (colonne inconnue), on essaie sans ORDER
@@ -2911,43 +3120,66 @@ async function loadBiblioHabits() {
 
   const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
   const typeEmoji = { 'oui-non': '✅', 'note': '⭐', 'valeur': '📊' };
-  list.innerHTML = data.map(h => `
+  list.innerHTML = data.map(h => {
+    const fc = h.frequence_count || 1;
+    const fu = h.frequence_unite || 'jour';
+    return `
     <div class="lib-metric-row">
       <div class="lib-metric-icon">${typeEmoji[h.type] || '🌿'}</div>
       <div class="lib-metric-info">
         <div class="lib-metric-name">${h.nom}</div>
-        <div class="lib-metric-unit">${typeLabel[h.type] || h.type}</div>
+        <div class="lib-metric-unit">${typeLabel[h.type] || h.type} · ${freqLabel(fc, fu)}</div>
       </div>
       <div class="assign-pills"></div>
-      <button class="btn btn-accent btn-sm" onclick="openAssignHabit('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Assigner</button>
-      <button class="btn btn-ghost btn-sm" onclick="openLibHabitGerer('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}')">Gérer</button>
+      <button class="btn btn-accent btn-sm" onclick="openAssignHabit('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}',${fc},'${fu}')">Assigner</button>
+      <button class="btn btn-ghost btn-sm" onclick="openLibHabitGerer('${h.id}','${h.nom.replace(/'/g,"\\'")}','${h.type}',${fc},'${fu}')">Gérer</button>
       <button class="btn btn-danger btn-sm" onclick="deleteHabitLib('${h.id}','${h.nom.replace(/'/g,"\\'")}',this)">Supprimer</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function saveNewHabitLib() {
   const nom   = (document.getElementById('nh-nom')?.value || '').trim();
   const icone = (document.getElementById('nh-icone')?.value || '🌿').trim();
   const type  = document.getElementById('nh-type')?.value || 'oui-non';
+  const freqCount = parseInt(document.getElementById('nh-freq-count')?.value, 10) || 1;
+  const freqUnite = document.getElementById('nh-freq-unite')?.value || 'jour';
   if (!nom) { toast('Saisis un nom pour l\'habitude'); return; }
 
-  const { error } = await db.from('habitudes').insert({ nom, type });
+  const { error } = await db.from('habitudes').insert({
+    nom, type, frequence_count: freqCount, frequence_unite: freqUnite
+  });
   if (error) { toast('Erreur : ' + error.message); return; }
 
   document.getElementById('nh-nom').value = '';
   document.getElementById('nh-icone').value = '';
+  document.getElementById('nh-freq-count').value = '1';
+  document.getElementById('nh-freq-unite').value = 'jour';
   document.getElementById('new-habit-form').classList.remove('open');
   toast('Habitude créée ✓');
   await loadBiblioHabits();
 }
 
-function openLibHabitGerer(id, nom, type) {
+// Libellé "X fois par jour/semaine/mois" pour une fréquence donnée
+function freqLabel(count, unite) {
+  const c = count || 1;
+  const u = unite || 'jour';
+  const unitLabel = { jour: 'jour', semaine: 'semaine', mois: 'mois' }[u] || 'jour';
+  if (c === 1) return `1x/${unitLabel}`;
+  return `${c}x/${unitLabel}`;
+}
+
+function openLibHabitGerer(id, nom, type, freqCount, freqUnite) {
   const typeLabel = { 'oui-non': 'Oui / Non', 'note': 'Note 1→4', 'valeur': 'Valeur numérique' };
   document.getElementById('gm-title').textContent = 'Gérer — ' + nom;
   document.getElementById('gm-body').innerHTML = `
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Type</div>
       <div style="font-size:13px;font-weight:600;">${typeLabel[type] || type}</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Fréquence</div>
+      <div style="font-size:13px;font-weight:600;">${freqLabel(freqCount, freqUnite)}</div>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
       Pour assigner cette habitude à une cliente, ouvre sa fiche → onglet Habitudes → "+ Ajouter".
@@ -2976,8 +3208,8 @@ async function deleteHabitLibById(id, nom) {
 
 let assignHabitData = null;
 
-async function openAssignHabit(id, nom, type) {
-  assignHabitData = { id, nom, type };
+async function openAssignHabit(id, nom, type, freqCount, freqUnite) {
+  assignHabitData = { id, nom, type, freqCount: freqCount || 1, freqUnite: freqUnite || 'jour' };
   document.getElementById('assign-habit-title').textContent = 'Assigner — ' + nom;
 
   // Charger la liste des clientes
@@ -3006,6 +3238,8 @@ async function confirmAssignHabit() {
     client_id: clientId,
     nom: assignHabitData.nom,
     type: assignHabitData.type,
+    frequence_count: assignHabitData.freqCount,
+    frequence_unite: assignHabitData.freqUnite,
   });
   if (error) { toast('Erreur : ' + error.message); return; }
 
@@ -3104,6 +3338,7 @@ let progOffset     = 0;   // décalage en semaines depuis aujourd'hui
 let progClients    = [];
 let progClientId   = null;
 let progSeancesAll = [];
+let progBilanAll   = [];
 let progClickDate  = null;
 
 async function initProgScreen() {
@@ -3124,6 +3359,7 @@ async function initProgScreen() {
 async function onProgClientChange() {
   progClientId = document.getElementById('prog-client-select').value || null;
   progSeancesAll = [];
+  progBilanAll = [];
   if (progClientId) await loadProgSeances();
   renderProgGrid();
 }
@@ -3142,6 +3378,29 @@ async function loadProgSeances() {
     .gte('date', startStr).lte('date', endStr)
     .order('date');
   progSeancesAll = data || [];
+
+  const { data: bilanData } = await db.from('bilan_schedule').select('date')
+    .eq('client_id', progClientId)
+    .gte('date', startStr).lte('date', endStr);
+  progBilanAll = (bilanData || []).map(b => b.date);
+
+  renderProgGrid();
+}
+
+async function toggleBilanDay(dateStr) {
+  if (!progClientId) return;
+  const isActive = progBilanAll.includes(dateStr);
+  if (isActive) {
+    await db.from('bilan_schedule').delete()
+      .eq('client_id', progClientId).eq('date', dateStr);
+    progBilanAll = progBilanAll.filter(d => d !== dateStr);
+  } else {
+    await db.from('bilan_schedule').upsert(
+      { client_id: progClientId, date: dateStr },
+      { onConflict: 'client_id,date' }
+    );
+    progBilanAll.push(dateStr);
+  }
   renderProgGrid();
 }
 
@@ -3222,9 +3481,15 @@ function renderProgGrid() {
           onclick="event.stopPropagation();openProgSeanceDetail('${s.id}','${s.titre.replace(/'/g,"\\'")}','${s.date}','${s.statut}')"
          >${s.titre}</span>`
       ).join('');
+      const bilanActive = progBilanAll.includes(key);
+      const bilanChip = `<button type="button" class="prog-bilan-chip${bilanActive?' active':''}"
+          title="${bilanActive ? 'Bilan programmé — cliquer pour retirer' : 'Programmer un bilan ce jour'}"
+          onclick="event.stopPropagation();toggleBilanDay('${key}')"
+        >Bilan</button>`;
       html += `<div class="prog-day-cell${isToday?' today-col':''}" onclick="openProgAddSeance('${key}')">
         <div class="prog-day-num${isToday?' today-num':''}">${dayNum}</div>
         ${chips}
+        ${bilanChip}
         <div class="prog-add-hint">+</div>
       </div>`;
     }

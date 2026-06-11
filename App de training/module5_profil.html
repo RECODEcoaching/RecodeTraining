@@ -68,9 +68,19 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     width: 90px; height: 90px; border-radius: 50%;
     background: rgba(255,255,255,0.04); pointer-events: none;
   }
+  .profile-hero-logo {
+    position: absolute; top: -30px; left: -50px; z-index: 0;
+    width: 220px; height: 280px;
+    background-image: url('Logo.png'); background-repeat: no-repeat;
+    background-size: contain; background-position: center;
+    filter: brightness(0) invert(1);
+    opacity: 0.10; pointer-events: none;
+  }
   .photo-wrap {
     position: relative; width: 88px; height: 88px; margin-bottom: 14px; cursor: pointer; z-index: 1;
+    transition: var(--transition);
   }
+  .photo-wrap:active { transform: scale(0.95); }
   .photo-circle {
     width: 88px; height: 88px; border-radius: 50%;
     background: rgba(255,255,255,0.15);
@@ -116,6 +126,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     background: var(--surface); border-radius: var(--radius);
     border: 1px solid var(--border);
     overflow: hidden;
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
   }
   .info-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -131,6 +142,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     background: var(--surface); border-radius: var(--radius);
     border: 1px solid var(--border);
     overflow: hidden;
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
   }
   .action-row {
     display: flex; align-items: center; gap: 14px;
@@ -239,6 +251,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
 <!-- PHOTO + NOM -->
 <div class="profile-hero">
+  <div class="profile-hero-logo"></div>
   <div class="photo-wrap" onclick="document.getElementById('photo-input').click()">
     <div class="photo-circle" id="photo-circle">
       <span id="photo-initial">?</span>

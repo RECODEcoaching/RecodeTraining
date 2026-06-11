@@ -31,6 +31,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     --success: #16A34A;
     --danger: #DC2626;
     --technique: #8B5CF6;
+    /* Jauge dynamique selon seuils (fond clair) — nuances violet + gris de la charte */
+    --gauge-low: #9CA3AF;
+    --gauge-mid: #8B5CF6;
+    --gauge-high: #6D28D9;
     --radius: 12px;
     --radius-sm: 8px;
     --transition: 0.15s ease;
@@ -74,8 +78,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     width: 110px; height: 110px; border-radius: 50%;
     background: rgba(255,255,255,0.07); pointer-events: none;
   }
-  .page-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; color: #fff; }
-  .page-sub { color: rgba(255,255,255,0.65); font-size: 13px; }
+  .page-header::after {
+    content: ''; position: absolute; top: -30px; left: -50px; z-index: 0;
+    width: 220px; height: 280px;
+    background-image: url('Logo.png'); background-repeat: no-repeat;
+    background-size: contain; background-position: center;
+    filter: brightness(0) invert(1);
+    opacity: 0.10; pointer-events: none;
+  }
+  .page-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; color: #fff; position: relative; z-index: 1; }
+  .page-sub { color: rgba(255,255,255,0.65); font-size: 13px; position: relative; z-index: 1; }
 
   /* ── SEARCH / FILTER ── */
   .search-wrap { padding: 12px 20px; }
@@ -105,6 +117,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     border: 1px solid var(--border);
   }
   .group-chip.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+  .group-chip:active, .toggle-btn:active, .period-btn:active { transform: scale(0.96); }
 
   /* ── EXO LIST ── */
   .exo-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -112,9 +125,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     background: var(--surface); border-radius: var(--radius);
     display: flex; align-items: center; gap: 14px;
     padding: 14px 16px; cursor: pointer; transition: var(--transition);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04); border: 1px solid var(--border);
   }
-  .exo-row:active { transform: scale(0.98); }
+  .exo-row:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(17,24,39,0.05); }
   .exo-row.active { border-color: var(--accent); }
   /* Icon system */
   .ic { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 9px; }
@@ -137,7 +150,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     display: flex; align-items: center; gap: 6px;
     color: var(--text-muted); font-size: 13px; font-weight: 500;
     cursor: pointer; padding: 16px 20px 0; width: fit-content;
+    transition: var(--transition);
   }
+  .back-btn:active { transform: scale(0.96); opacity: 0.7; }
 
   .detail-header {
     margin: 12px 20px 16px; border-radius: 20px; padding: 20px;
@@ -149,11 +164,20 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     width: 100px; height: 100px; border-radius: 50%;
     background: rgba(255,255,255,0.07); pointer-events: none;
   }
+  .detail-header::after {
+    content: ''; position: absolute; top: -30px; left: -50px; z-index: 0;
+    width: 220px; height: 280px;
+    background-image: url('Logo.png'); background-repeat: no-repeat;
+    background-size: contain; background-position: center;
+    filter: brightness(0) invert(1);
+    opacity: 0.10; pointer-events: none;
+  }
   .detail-title {
     font-size: 18px; font-weight: 800; margin-bottom: 14px;
     letter-spacing: -0.3px; color: #fff;
+    position: relative; z-index: 1;
   }
-  .detail-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 14px; }
+  .detail-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 14px; position: relative; z-index: 1; }
   .stat-box { text-align: center; }
   .stat-box + .stat-box { border-left: 1px solid rgba(255,255,255,0.15); }
   .stat-val { font-size: 18px; font-weight: 700; color: #fff; }
@@ -176,7 +200,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     margin: 0 20px 20px;
     background: var(--surface); border-radius: var(--radius);
     padding: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04); border: 1px solid var(--border);
   }
   .chart-title-row {
     display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
@@ -237,7 +261,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   .history-row {
     background: var(--surface); border-radius: var(--radius-sm);
     padding: 14px 16px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
   }
   .history-row.technique-row { border-left: 2px solid var(--technique); }
   .history-date { font-size: 13px; color: var(--text-muted); flex: 1; }

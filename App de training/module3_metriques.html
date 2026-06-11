@@ -31,6 +31,13 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     --text-dim: #9CA3AF;
     --success: #16A34A;
     --danger: #DC2626;
+    /* Jauge dynamique selon seuils (fond clair) — nuances violet + gris de la charte */
+    --gauge-low: #9CA3AF;
+    --gauge-mid: #8B5CF6;
+    --gauge-high: #6D28D9;
+    /* Jauge "score inversé" (ex: stress) — vire vers le rouge quand le score augmente */
+    --gauge-warn: #F59E0B;
+    --gauge-danger: #EF4444;
     --cycle-menstrual: #f87171;
     --cycle-follicular: #fb923c;
     --cycle-ovulation: #facc15;
@@ -121,6 +128,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   .metric-delta.neutral { color: var(--text-dim); }
   .metric-chart-wrap { padding: 0 16px 14px; border-top: 1px solid var(--border); }
   .metric-chart-canvas { width: 100%; display: block; }
+  .metric-mini-gauge { flex: 0 0 auto; line-height: 0; }
+  .metric-target { font-size: 11px; color: var(--text-dim); margin-top: 2px; text-align: right; }
 
   /* ── MODAL ── */
   .modal-overlay {
@@ -238,57 +247,48 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   .check-day.today { border-color: var(--accent); }
   .check-day.today .cd-check { color: var(--text-muted); }
 
+  /* Barre de progression habitude (fréquence semaine/mois/jour) */
+  .habit-progress { margin-top: 10px; }
+  .habit-progress-track {
+    height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden;
+  }
+  .habit-progress-fill {
+    height: 100%; border-radius: 3px; background: var(--accent-mid);
+    width: 0%; transition: width 0.6s cubic-bezier(.4,0,.2,1) 0.1s;
+  }
+  .habit-progress-fill.complete { background: var(--success); }
+  .habit-progress-label {
+    font-size: 11px; color: var(--text-dim); margin-top: 5px; text-align: right;
+  }
+
+  /* Barre segmentée cliquable (ex: hydratation Nx/jour) */
+  .habit-segments { display: flex; gap: 5px; }
+  .habit-segment {
+    flex: 1; height: 22px; border-radius: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    cursor: pointer; transition: var(--transition);
+  }
+  .habit-segment.filled {
+    background: var(--accent-mid); border-color: var(--accent-mid);
+  }
+  .habit-segment:active { transform: scale(0.94); }
+
   /* ═══════ BILAN ═══════ */
   .bilan-gauges {
     display: flex; gap: 12px; padding: 0 20px 4px;
   }
   .bilan-gauge-card {
     flex: 1; background: var(--surface); border-radius: var(--radius);
-    padding: 16px 12px 14px; border: 1px solid var(--border);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 22px 12px 18px; border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .bilan-gauge-title { font-size: 12px; font-weight: 700; color: var(--text); text-align: center; }
-  .bilan-gauge-sub   { font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.4; min-height: 16px; }
-
-  .bilan-action-card {
-    margin: 0 20px; background: var(--surface); border-radius: var(--radius);
-    padding: 18px; border: 1px solid var(--border);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  .bilan-gauge-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px rgba(17,24,39,0.05);
   }
-  .bilan-done-badge {
-    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-    background: rgba(22,163,74,0.06); border: 1px solid rgba(22,163,74,0.18); border-radius: 10px;
-  }
-  .bilan-done-icon {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: rgba(22,163,74,0.12); display: flex; align-items: center;
-    justify-content: center; flex: 0 0 auto;
-  }
-  .bilan-done-main { font-size: 13px; font-weight: 600; color: var(--success); }
-  .bilan-done-sub  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-  .btn-bilan {
-    width: 100%; padding: 14px; border-radius: var(--radius);
-    background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
-    border: none; cursor: pointer; font-family: inherit;
-    box-shadow: 0 4px 14px rgba(109,40,217,0.28); transition: opacity 0.15s;
-  }
-  .btn-bilan:active { opacity: 0.85; }
-
-  .bilan-history-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
-  .bilan-history-item {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--surface); border-radius: var(--radius-sm);
-    padding: 12px 14px; border: 1px solid var(--border);
-  }
-  .bilan-hist-dot {
-    width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .bilan-hist-dot.done   { background: rgba(22,163,74,0.12); }
-  .bilan-hist-dot.missed { background: rgba(220,38,38,0.07); }
-  .bilan-hist-period { font-size: 13px; font-weight: 600; color: var(--text); }
-  .bilan-hist-sub    { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .bilan-gauge-title { font-size: 13px; font-weight: 700; color: var(--text); text-align: center; }
 
   /* ═══════ CYCLE ═══════ */
   /* ── HERO CARD CYCLE ── */
@@ -541,7 +541,6 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <div class="tab-bar">
   <div class="tab-btn active" onclick="switchTab(this,'metrics')">Métriques</div>
   <div class="tab-btn" onclick="switchTab(this,'habits')">Habitudes</div>
-  <div class="tab-btn" onclick="switchTab(this,'bilan')">Bilan</div>
   <div class="tab-btn" onclick="switchTab(this,'cycle')">Cycle</div>
 </div>
 
@@ -552,12 +551,6 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <div class="bilan-gauge-card">
       <div id="gauge-bilans-svg" style="line-height:0"></div>
       <div class="bilan-gauge-title">Bilans</div>
-      <div class="bilan-gauge-sub" id="gauge-bilans-sub">—</div>
-    </div>
-    <div class="bilan-gauge-card">
-      <div id="gauge-seances-svg" style="line-height:0"></div>
-      <div class="bilan-gauge-title">Séances</div>
-      <div class="bilan-gauge-sub" id="gauge-seances-sub">—</div>
     </div>
   </div>
 
@@ -580,23 +573,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="pb-nav"></div>
 </div>
 
-<!-- ═══════ TAB 3 : BILAN ═══════ -->
-<div class="tab-content" id="tab-bilan">
-
-  <div class="section-label">Mon bilan</div>
-  <div class="bilan-action-card" id="bilan-action-card">
-    <div style="text-align:center;padding:12px 0;color:var(--text-dim);font-size:13px">Chargement…</div>
-  </div>
-
-  <div class="section-label">Historique</div>
-  <div class="bilan-history-list" id="bilan-history-list">
-    <div style="text-align:center;padding:24px 0;color:var(--text-dim);font-size:13px">Chargement…</div>
-  </div>
-
-  <div class="pb-nav"></div>
-</div>
-
-<!-- ═══════ TAB 4 : CYCLE ═══════ -->
+<!-- ═══════ TAB 3 : CYCLE ═══════ -->
 <div class="tab-content" id="tab-cycle">
 
   <!-- Hero Card -->
@@ -914,6 +891,7 @@ if (SESSION) {
 // ─── ID de métrique ouvert (pour saveLog) ─────────────────
 let currentMetriqueId = null;
 let currentMetriqueUnit = '';
+let currentMetriqueType = 'mesure';
 
 // ─── CHARGEMENT MÉTRIQUES SUPABASE ────────────────────────
 async function loadMetrics() {
@@ -943,7 +921,10 @@ async function loadMetrics() {
 
     container.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
   }
-  requestAnimationFrame(() => drawAllMetricCharts());
+  requestAnimationFrame(() => {
+    drawAllMetricCharts();
+    document.querySelectorAll('#metrics-list .metric-mini-gauge').forEach(g => animateGaugeFill(g));
+  });
 }
 
 function renderMetricCard(m, valeurs) {
@@ -964,7 +945,7 @@ function renderMetricCard(m, valeurs) {
     deltaHtml = `<div class="metric-delta ${cls}">${sign}${rounded} ${m.unite||''}</div>`;
   }
 
-  // Données chart
+  // Données chart (sparkline)
   const vals  = valeurs.map(v => v.valeur).join(',');
   const dates = valeurs.map(v => {
     const d = new Date(v.date + 'T12:00:00');
@@ -974,10 +955,29 @@ function renderMetricCard(m, valeurs) {
     ? `<div class="metric-chart-wrap"><canvas class="metric-chart-canvas" height="90" data-values="${vals}" data-dates="${dates}" data-color="#6D28D9"></canvas></div>`
     : '';
 
-  const valDisplay = lastVal !== '—' ? `${lastVal} <span class="metric-unit">${m.unite||''}</span>` : '<span class="metric-unit">—</span>';
+  const type = m.type || 'mesure';
+  let currentHtml;
+
+  if (type === 'score5' && lastVal !== '—') {
+    // Jauge arc miniature : score sur 5, couleur selon seuils (inversée pour le stress)
+    const pct = Math.min(Math.max(lastVal / 5, 0), 1);
+    const color = gaugeColorForScore(pct, !!m.inverse);
+    currentHtml = `<div class="metric-mini-gauge">${renderArcGauge(pct, `${lastVal}/5`, color, 60)}</div>`;
+  } else if (type === 'objectif' && lastVal !== '—' && m.cible) {
+    // Anneau de progression vers la cible
+    const pct = Math.min(Math.max(lastVal / m.cible, 0), 1);
+    currentHtml = `<div class="metric-mini-gauge">${renderArcGauge(pct, `${lastVal}`, null, 60)}</div>
+      <div class="metric-target">/ ${m.cible} ${m.unite||''}</div>`;
+  } else {
+    const valDisplay = lastVal !== '—' ? `${lastVal} <span class="metric-unit">${m.unite||''}</span>` : '<span class="metric-unit">—</span>';
+    currentHtml = `<div class="metric-val">${valDisplay}</div>${deltaHtml}`;
+    if (type === 'objectif' && m.cible) {
+      currentHtml += `<div class="metric-target">Objectif : ${m.cible} ${m.unite||''}</div>`;
+    }
+  }
 
   return `<div class="metric-card">
-    <div class="metric-card-top" onclick="openLog('${m.id}','${m.nom}','${m.unite||''}','${lastVal}')">
+    <div class="metric-card-top" onclick="openLog('${m.id}','${m.nom}','${m.unite||''}','${lastVal}','${type}',${m.cible != null ? m.cible : 'null'})">
       <div class="ic ic-md icon-primary">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -988,8 +988,7 @@ function renderMetricCard(m, valeurs) {
         <div class="metric-last">Dernière saisie · ${lastDate}</div>
       </div>
       <div class="metric-current">
-        <div class="metric-val">${valDisplay}</div>
-        ${deltaHtml}
+        ${currentHtml}
       </div>
     </div>
     ${chartHtml}
@@ -1004,7 +1003,6 @@ function switchTab(btn, id) {
   document.getElementById('tab-' + id).classList.add('active');
   window.scrollTo(0, 0);
   if (id === 'metrics') drawAllMetricCharts();
-  if (id === 'bilan')   loadBilan();
 }
 
 // ─── METRIC CHARTS WITH DATES ────────────────────────────────
@@ -1523,6 +1521,138 @@ function selectDay(idx) {
 // ─── CHARGEMENT HABITUDES SUPABASE ────────────────────────────
 let allHabitudes = []; // cache pour éviter de recharger à chaque changement de jour
 
+// ─── FRÉQUENCE / PROGRESSION HABITUDES ─────────────────────────
+let habitProgressValeurs = {}; // { habitude_id: { 'YYYY-MM-DD': valeur } }
+
+function getHabitWindow(freqUnite) {
+  const today = new Date();
+  if (freqUnite === 'semaine') {
+    const day = today.getDay(); // 0=dim..6=sam
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] };
+  } else if (freqUnite === 'mois') {
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    const last  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { start: first.toISOString().split('T')[0], end: last.toISOString().split('T')[0] };
+  } else {
+    // jour : fenêtre glissante de 7 jours (J-6 → J)
+    const start = new Date(today);
+    start.setDate(today.getDate() - 6);
+    return { start: start.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+  }
+}
+
+function isHabitDone(valeur, type) {
+  if (type === 'oui-non') return valeur === 'oui';
+  return valeur !== null && valeur !== undefined && valeur !== '';
+}
+
+async function loadHabitsProgress() {
+  if (!allHabitudes.length) { habitProgressValeurs = {}; return; }
+  const ids = allHabitudes.map(h => h.id);
+
+  // Fenêtre la plus large nécessaire : début du mois courant ou J-6, le plus ancien des deux
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 6);
+  const earliestStart = monthStart < weekAgo ? monthStart : weekAgo;
+  const startStr = earliestStart.toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+
+  const { data: valeurs } = await db
+    .from('habitude_valeurs')
+    .select('*')
+    .in('habitude_id', ids)
+    .gte('date', startStr)
+    .lte('date', todayStr);
+
+  habitProgressValeurs = {};
+  (valeurs || []).forEach(v => {
+    if (!habitProgressValeurs[v.habitude_id]) habitProgressValeurs[v.habitude_id] = {};
+    habitProgressValeurs[v.habitude_id][v.date] = v.valeur;
+  });
+}
+
+// Retourne { current, target, pct, label, segmentsMode, todayCount }
+function computeHabitProgress(h) {
+  const type = h.type || 'oui-non';
+  const freqCount = h.frequence_count || 1;
+  const freqUnite = h.frequence_unite || 'jour';
+  const valeursMap = habitProgressValeurs[h.id] || {};
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Mode "barre segmentée" : habitude oui/non avec plusieurs fois par jour (ex: hydratation 8x/jour)
+  const segmentsMode = (type === 'oui-non' && freqUnite === 'jour' && freqCount > 1);
+  if (segmentsMode) {
+    const todayCount = parseFloat(valeursMap[todayStr]) || 0;
+    return {
+      current: todayCount,
+      target: freqCount,
+      pct: Math.min(100, Math.round((todayCount / freqCount) * 100)),
+      label: `${todayCount}/${freqCount} aujourd'hui`,
+      segmentsMode: true,
+      todayCount,
+    };
+  }
+
+  const { start, end } = getHabitWindow(freqUnite);
+  let current = 0, target = freqCount, label = '';
+
+  if (freqUnite === 'jour') {
+    if (freqCount > 1) {
+      // somme des valeurs sur 7 jours glissants (ex: valeur numérique cumulée)
+      target = freqCount * 7;
+      let sum = 0;
+      for (let d = new Date(start); d <= new Date(end); d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().split('T')[0];
+        sum += parseFloat(valeursMap[ds]) || 0;
+      }
+      current = sum;
+      label = `${current}/${target} cette semaine`;
+    } else {
+      // jours "faits" sur 7 jours glissants
+      target = 7;
+      let count = 0;
+      for (let d = new Date(start); d <= new Date(end); d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().split('T')[0];
+        if (isHabitDone(valeursMap[ds], type)) count++;
+      }
+      current = count;
+      label = `${current}/7 jours cette semaine`;
+    }
+  } else {
+    // semaine / mois : nombre de jours "faits" sur la période en cours
+    let count = 0;
+    for (let d = new Date(start); d <= new Date(end); d.setDate(d.getDate() + 1)) {
+      const ds = d.toISOString().split('T')[0];
+      if (isHabitDone(valeursMap[ds], type)) count++;
+    }
+    current = count;
+    label = freqUnite === 'mois' ? `${current}/${target} ce mois-ci` : `${current}/${target} cette semaine`;
+  }
+
+  return {
+    current, target,
+    pct: Math.min(100, Math.round((current / target) * 100)),
+    label,
+    segmentsMode: false,
+  };
+}
+
+function renderHabitProgressBar(progress) {
+  const pct = progress.pct || 0;
+  const completeCls = pct >= 100 ? ' complete' : '';
+  return `<div class="habit-progress">
+    <div class="habit-progress-track"><div class="habit-progress-fill${completeCls}" style="width:${pct}%"></div></div>
+    <div class="habit-progress-label">${progress.label}</div>
+  </div>`;
+}
+
 async function loadHabits() {
   if (!SESSION) return;
   const list = document.getElementById('habits-list');
@@ -1543,6 +1673,7 @@ async function loadHabits() {
 
   allHabitudes = habitudes;
   buildWeekGrid();
+  await loadHabitsProgress();
   const todayStr = new Date().toISOString().split('T')[0];
   await loadHabitsForDay(todayStr);
 }
@@ -1568,9 +1699,22 @@ async function loadHabitsForDay(dateStr) {
 function renderHabitCard(h, currentVal, dateStr) {
   const nom  = h.nom;
   const type = h.type || 'oui-non';
+  const freqCount = h.frequence_count || 1;
+  const progress  = computeHabitProgress(h);
 
   let inputHtml = '';
-  if (type === 'note') {
+  if (progress.segmentsMode) {
+    // Barre segmentée cliquable (ex: hydratation 8x/jour) — remplace les boutons Fait/Non fait
+    const todayCount = progress.todayCount;
+    inputHtml = `<div class="habit-segments">
+      ${Array.from({ length: freqCount }).map((_, i) => {
+        const segIdx = i + 1;
+        const filled = segIdx <= todayCount;
+        return `<div class="habit-segment${filled ? ' filled' : ''}" onclick="setHabitSegment('${h.id}','${dateStr}',${segIdx},${todayCount},this)"></div>`;
+      }).join('')}
+    </div>
+    <div class="habit-progress-label">${progress.label}</div>`;
+  } else if (type === 'note') {
     const labels = ['Mauvais','Moyen','Bon','Très bon'];
     const colors = ['red','orange','',''];
     inputHtml = `<div class="habit-rating-row">
@@ -1580,7 +1724,8 @@ function renderHabitCard(h, currentVal, dateStr) {
         const colorCls   = isSelected && colors[i] ? ' ' + colors[i] : '';
         return `<div class="rating-btn${isSelected?' selected'+colorCls:''}" onclick="saveHabitVal('${h.id}','${val}','${dateStr}',this,'note')"><div class="r-dot"></div><span>${l}</span></div>`;
       }).join('')}
-    </div>`;
+    </div>
+    ${renderHabitProgressBar(progress)}`;
   } else if (type === 'oui-non') {
     const isDone = currentVal === 'oui';
     inputHtml = `<div class="habit-check-row" style="justify-content:flex-start;gap:12px;padding:0 4px">
@@ -1594,14 +1739,16 @@ function renderHabitCard(h, currentVal, dateStr) {
                background:${currentVal==='non'?'rgba(220,38,38,0.1)':'var(--surface2)'};color:${currentVal==='non'?'var(--danger)':'var(--text-muted)'}">
         ✕ Non fait
       </button>
-    </div>`;
+    </div>
+    ${renderHabitProgressBar(progress)}`;
   } else {
     // valeur numérique
     inputHtml = `<div style="display:flex;align-items:center;gap:10px;padding:4px 0">
       <input type="number" placeholder="Valeur…" value="${currentVal||''}"
         style="flex:1;background:var(--surface2);border:none;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--text)"
         onchange="saveHabitVal('${h.id}',this.value,'${dateStr}',this,'num')">
-    </div>`;
+    </div>
+    ${renderHabitProgressBar(progress)}`;
   }
 
   return `<div class="habit-card" data-habitude-id="${h.id}">
@@ -1630,8 +1777,16 @@ async function saveHabitVal(habitudeId, valeur, dateStr, el, uiType) {
   if (error) { toast('Erreur : ' + error.message); return; }
 
   toast('Enregistré ✓');
-  // Rafraîchir la carte pour refléter le nouvel état
+  // Rafraîchir le cache de progression + la carte pour refléter le nouvel état
+  await loadHabitsProgress();
   await loadHabitsForDay(dateStr);
+}
+
+// Clic sur un segment de la barre (habitudes Nx/jour, ex: hydratation 8x/jour)
+// Toggle : recliquer sur le dernier segment rempli le retire (décrément)
+async function setHabitSegment(habitudeId, dateStr, segIdx, currentCount, el) {
+  const newCount = (segIdx === currentCount) ? segIdx - 1 : segIdx;
+  await saveHabitVal(habitudeId, newCount, dateStr, el, 'segment');
 }
 
 // ─── INTERACTIONS ─────────────────────────────────────────────
@@ -1700,17 +1855,29 @@ async function saveDailyLog() {
   buildCycleCalendar();
 }
 
-function openLog(metriqueId, name, unit, lastVal) {
+function openLog(metriqueId, name, unit, lastVal, type, cible) {
   currentMetriqueId   = metriqueId;
   currentMetriqueUnit = unit;
+  currentMetriqueType = type || 'mesure';
   document.getElementById('log-title').textContent = name;
-  document.getElementById('log-sub').textContent = lastVal !== '—'
+  let sub = lastVal !== '—'
     ? 'Dernière valeur : ' + lastVal + ' ' + unit
     : 'Aucune valeur enregistrée';
+  const input = document.getElementById('log-input');
+  if (type === 'score5') {
+    sub += ' · Échelle de 1 à 5';
+    input.min = '1'; input.max = '5'; input.step = '1';
+  } else if (type === 'objectif' && cible) {
+    sub += ` · Objectif : ${cible} ${unit}`;
+    input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
+  } else {
+    input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
+  }
+  document.getElementById('log-sub').textContent = sub;
   document.getElementById('log-unit').textContent = unit;
-  document.getElementById('log-input').value = '';
+  input.value = '';
   document.getElementById('modal-log').classList.add('open');
-  setTimeout(() => document.getElementById('log-input').focus(), 150);
+  setTimeout(() => input.focus(), 150);
 }
 function closeLog() {
   document.getElementById('modal-log').classList.remove('open');
@@ -1719,6 +1886,7 @@ function closeLog() {
 async function saveLog() {
   const v = parseFloat(document.getElementById('log-input').value);
   if (isNaN(v)) { alert('Entre une valeur numérique.'); return; }
+  if (currentMetriqueType === 'score5' && (v < 1 || v > 5)) { alert('Entre une valeur entre 1 et 5.'); return; }
   if (!currentMetriqueId) { closeLog(); return; }
 
   const today = new Date().toISOString().split('T')[0];
@@ -1805,25 +1973,55 @@ function toast(msg) {
 
 // ─── BILAN ────────────────────────────────────────────────────
 
-const FREQ_LABELS = { semaine:'1×/semaine', deux_semaines:'1×/2 semaines', mois:'1×/mois' };
-
-function renderArcGauge(pct, valueLabel, color) {
+function renderArcGauge(pct, valueLabel, color, size) {
+  size = size || 130;
   const r = 44, cx = 55, cy = 55;
   const C = 2 * Math.PI * r;           // ≈ 276.5
   const arcLen = C * 0.75;             // 270° arc
-  const fillLen = Math.min(Math.max(pct, 0), 1) * arcLen;
-  const c = color || '#6D28D9';
-  return `<svg viewBox="0 0 110 110" width="110" height="110" style="display:block">
+  const emptyLen = C - arcLen;
+  const p = Math.min(Math.max(pct, 0), 1);
+  const fillLen = p * arcLen;
+  // Couleur dynamique selon seuils, sauf si une couleur explicite est fournie
+  const c = color || (p < 0.5 ? 'var(--gauge-low)' : (p < 0.8 ? 'var(--gauge-mid)' : 'var(--gauge-high)'));
+  const fontSize = (valueLabel.length >= 4 ? 24 : 28) * (size / 130);
+  return `<svg viewBox="0 0 110 110" width="${size}" height="${size}" style="display:block">
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EDE9FE" stroke-width="10"
-      stroke-dasharray="${arcLen.toFixed(1)} ${(C-arcLen).toFixed(1)}"
+      stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"
       stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="10"
-      stroke-dasharray="${fillLen.toFixed(1)} ${(C-fillLen).toFixed(1)}"
+    <circle class="gauge-fill" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="10"
+      stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"
+      stroke-dashoffset="${arcLen.toFixed(1)}" data-target="${(arcLen - fillLen).toFixed(1)}"
+      style="transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) 0.15s;"
       stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
     <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
-      font-size="20" font-weight="800" fill="#111827"
+      font-size="${fontSize.toFixed(1)}" font-weight="800" fill="#111827"
       font-family="Inter,-apple-system,sans-serif">${valueLabel}</text>
   </svg>`;
+}
+
+// Couleur d'une jauge "Score 1-5" selon le pourcentage et le sens de l'échelle.
+// inverse=false (ex: énergie, qualité sommeil) : plus le score est haut, mieux c'est → violet.
+// inverse=true  (ex: stress) : plus le score est haut, plus c'est préoccupant → vire au rouge.
+function gaugeColorForScore(pct, inverse) {
+  if (inverse) {
+    if (pct <= 0.4) return 'var(--gauge-high)';
+    if (pct <= 0.7) return 'var(--gauge-warn)';
+    return 'var(--gauge-danger)';
+  }
+  if (pct < 0.5) return 'var(--gauge-low)';
+  if (pct < 0.8) return 'var(--gauge-mid)';
+  return 'var(--gauge-high)';
+}
+
+// Déclenche l'animation de remplissage de l'arc (à appeler après insertion du SVG dans le DOM)
+function animateGaugeFill(containerEl) {
+  const fillCircle = containerEl && containerEl.querySelector('.gauge-fill');
+  if (!fillCircle) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      fillCircle.style.strokeDashoffset = fillCircle.dataset.target;
+    });
+  });
 }
 
 // Toutes les périodes depuis la création du compte (pour le % global "depuis le début")
@@ -1859,43 +2057,6 @@ function getBilanPeriodsGlobal(freq, createdAt) {
   return periods.length ? periods : [{ start: now, end: now }];
 }
 
-function getBilanPeriods(freq) {
-  const now = new Date();
-  const N = 4;
-  const periods = [];
-
-  if (freq === 'semaine' || freq === 'deux_semaines') {
-    const step = freq === 'semaine' ? 7 : 14;
-    const day = now.getDay() || 7; // 1=Lun … 7=Dim
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - day + 1);
-    monday.setHours(0, 0, 0, 0);
-    for (let i = N - 1; i >= 0; i--) {
-      const start = new Date(monday);
-      start.setDate(monday.getDate() - i * step);
-      const end = new Date(start);
-      end.setDate(start.getDate() + step - 1);
-      end.setHours(23, 59, 59, 999);
-      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
-    }
-  } else { // mois
-    for (let i = N - 1; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-      end.setHours(23, 59, 59, 999);
-      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
-    }
-  }
-  return periods;
-}
-
-function formatPeriodLabel(start, end) {
-  const opts = { day:'numeric', month:'short' };
-  const s = start.toLocaleDateString('fr-FR', opts);
-  const e = end.toLocaleDateString('fr-FR', opts);
-  return s === e ? s : s + ' – ' + e;
-}
-
 async function loadBilan() {
   if (!SESSION) return;
 
@@ -1911,15 +2072,7 @@ async function loadBilan() {
     .order('date', { ascending: false });
   const bilanDates = (logs || []).map(l => l.date); // tri desc
 
-  // 3. Toutes les séances passées pour le % de validation (depuis le début)
-  const today = new Date().toISOString().split('T')[0];
-  const { data: seances } = await db.from('seances')
-    .select('date,statut').eq('client_id', SESSION.client_id).lte('date', today);
-  const past  = (seances || []).filter(s => s.date <= today);
-  const total = past.length;
-  const valid = past.filter(s => s.statut === 'validée').length;
-
-  // 4. Calcul % bilans depuis le début (toutes les périodes depuis la création du compte)
+  // 3. Calcul % bilans depuis le début (toutes les périodes depuis la création du compte)
   const allPeriods = getBilanPeriodsGlobal(freq, createdAt);
   let bilanDoneGlobal = 0;
   allPeriods.forEach(p => {
@@ -1927,92 +2080,12 @@ async function loadBilan() {
     const e = p.end.toISOString().split('T')[0];
     if (bilanDates.some(d => d >= s && d <= e)) bilanDoneGlobal++;
   });
-  const bilanPct   = allPeriods.length ? bilanDoneGlobal / allPeriods.length : 0;
-  const seancesPct = total ? valid / total : 0;
+  const bilanPct = allPeriods.length ? bilanDoneGlobal / allPeriods.length : 0;
 
-  // 5. Gauges (vue d'ensemble, onglet Métriques) — % depuis le début
-  document.getElementById('gauge-bilans-svg').innerHTML  = renderArcGauge(bilanPct,   Math.round(bilanPct*100)+'%', '#6D28D9');
-  document.getElementById('gauge-bilans-sub').textContent = `${bilanDoneGlobal}/${allPeriods.length} périodes`;
-  document.getElementById('gauge-seances-svg').innerHTML  = renderArcGauge(seancesPct, Math.round(seancesPct*100)+'%', '#8B5CF6');
-  document.getElementById('gauge-seances-sub').textContent = total ? `${valid}/${total} séances` : 'Aucune séance';
-
-  // 6. Carte action (bilan de la période courante) — basée sur les 4 dernières périodes
-  const periods   = getBilanPeriods(freq);
-  const curPeriod = periods[periods.length - 1];
-  const curStart  = curPeriod?.start.toISOString().split('T')[0] || today;
-  const doneCur   = bilanDates.some(d => d >= curStart && d <= today);
-  const lastDate  = bilanDates[0] || null; // premier = le plus récent (tri desc)
-  renderBilanAction(doneCur, lastDate, freq);
-
-  // 7. Historique des dernières périodes
-  renderBilanHistory(periods, bilanDates);
-}
-
-function renderBilanAction(done, lastDate, freq) {
-  const card = document.getElementById('bilan-action-card');
-  const fLbl = FREQ_LABELS[freq] || freq;
-  if (done && lastDate) {
-    const d   = new Date(lastDate + 'T12:00:00');
-    const fmt = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    card.innerHTML = `
-      <div class="bilan-done-badge">
-        <div class="bilan-done-icon">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div>
-          <div class="bilan-done-main">Bilan effectué ✓</div>
-          <div class="bilan-done-sub">Le ${fmt}</div>
-        </div>
-      </div>
-      <div style="margin-top:10px;font-size:12px;color:var(--text-dim);text-align:center">Fréquence · ${fLbl}</div>`;
-  } else {
-    card.innerHTML = `
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.55">
-        Marque ton bilan quand tu l'as effectué.<br>
-        Fréquence définie par ton coach : <strong>${fLbl}</strong>
-      </div>
-      <button class="btn-bilan" onclick="markBilanDone()">Marquer le bilan comme fait</button>`;
-  }
-}
-
-function renderBilanHistory(periods, bilanDates) {
-  const list = document.getElementById('bilan-history-list');
-  if (!periods.length) {
-    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px">Aucune donnée</div>';
-    return;
-  }
-  list.innerHTML = [...periods].reverse().map(p => {
-    const s     = p.start.toISOString().split('T')[0];
-    const e     = p.end.toISOString().split('T')[0];
-    const match = bilanDates.find(d => d >= s && d <= e);
-    const label = formatPeriodLabel(p.start, p.end);
-    const sub   = match
-      ? 'Fait le ' + new Date(match + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' })
-      : 'Non effectué';
-    const dotCls = match ? 'done' : 'missed';
-    const icon   = match
-      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
-      : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-    return `<div class="bilan-history-item">
-      <div class="bilan-hist-dot ${dotCls}">${icon}</div>
-      <div>
-        <div class="bilan-hist-period">${label}</div>
-        <div class="bilan-hist-sub">${sub}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function markBilanDone() {
-  if (!SESSION) return;
-  const today = new Date().toISOString().split('T')[0];
-  const { error } = await db.from('bilan_logs').upsert(
-    { client_id: SESSION.client_id, date: today },
-    { onConflict: 'client_id,date' }
-  );
-  if (error) { toast('Erreur : ' + error.message); return; }
-  toast('Bilan enregistré ✓');
-  await loadBilan();
+  // 4. Gauge (vue d'ensemble, onglet Métriques) — % depuis le début
+  const gaugeEl = document.getElementById('gauge-bilans-svg');
+  gaugeEl.innerHTML = renderArcGauge(bilanPct, Math.round(bilanPct*100)+'%');
+  animateGaugeFill(gaugeEl);
 }
 
 window.addEventListener('load', () => {
