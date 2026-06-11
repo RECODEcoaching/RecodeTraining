@@ -543,6 +543,11 @@ async function hashPin(pin) {
   }
   .seance-exo-add:hover { background: var(--accent-bg); }
   .seance-exo-empty { padding: 12px 14px; font-size: 12px; color: var(--dim); }
+  .seance-section-label {
+    font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.6px; padding: 10px 14px 4px;
+  }
+  .seance-section-label.ech { color: var(--accent); }
 
   /* ─── EXO PICKER MODAL ───────────────────────────────────── */
   .exo-picker-search {
@@ -1185,6 +1190,22 @@ ALTER TABLE seance_exercices ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all anon on seance_exercices"
   ON seance_exercices FOR ALL TO anon USING (true) WITH CHECK (true);</pre>
       </div>
+
+      <div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:var(--rs);font-size:11px;color:var(--muted);">
+        <strong style="color:var(--text)">SQL requis</strong> — pour activer la section "Échauffement" dans les séances, exécute dans Supabase → SQL Editor :
+        <pre class="sql-block" style="margin-top:6px;">CREATE TABLE IF NOT EXISTS seance_echauffement (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  seance_id   UUID REFERENCES seances(id) ON DELETE CASCADE,
+  exercice_id UUID REFERENCES exercices(id) ON DELETE SET NULL,
+  nom_exo     TEXT NOT NULL,
+  ordre       INTEGER DEFAULT 0,
+  consigne    TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE seance_echauffement ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all anon on seance_echauffement"
+  ON seance_echauffement FOR ALL TO anon USING (true) WITH CHECK (true);</pre>
+      </div>
     </div>
 
   </div><!-- end .content -->
@@ -1281,6 +1302,32 @@ CREATE POLICY "Allow all anon on seance_exercices"
       <div style="display:flex;gap:7px;margin-top:12px;">
         <button class="btn btn-accent" id="btn-save-picker" onclick="savePickerExo()" style="flex:1">Ajouter à la séance</button>
         <button class="btn btn-ghost" onclick="document.getElementById('modal-exo-picker').classList.remove('open')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : PICKER EXO ÉCHAUFFEMENT ═══════════════ -->
+<div class="modal-overlay" id="modal-ech-picker">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Ajouter à l'échauffement</div>
+      <button class="modal-close" onclick="document.getElementById('modal-ech-picker').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input class="exo-picker-search" id="ech-picker-search" placeholder="Rechercher un exercice…" oninput="filterEchPickerList()">
+      <div class="exo-picker-list" id="ech-picker-list"></div>
+      <div class="exo-params-form" id="ech-params-form">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;" id="ech-picker-selected-name">—</div>
+        <div>
+          <label class="form-label">Consigne (texte libre, visible par la cliente)</label>
+          <textarea class="form-input" id="ech-consigne" rows="3" placeholder="ex : 5 min vélo léger + mobilité épaules 2x10, sans charge"></textarea>
+        </div>
+      </div>
+      <div id="ech-picker-error" style="display:none;font-size:12px;color:var(--danger);padding:7px 0;"></div>
+      <div style="display:flex;gap:7px;margin-top:12px;">
+        <button class="btn btn-accent" id="btn-save-ech-picker" onclick="saveEchPickerExo()" style="flex:1">Ajouter à l'échauffement</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-ech-picker').classList.remove('open')">Annuler</button>
       </div>
     </div>
   </div>
@@ -1930,6 +1977,13 @@ CREATE POLICY "Allow all anon on seances"
           <svg class="seance-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <div class="seance-exo-panel" id="exo-panel-${s.id}">
+          <div class="seance-section-label ech">Échauffement</div>
+          <div id="ech-list-${s.id}" class="seance-exo-empty">Chargement…</div>
+          ${!isValidee ? `<button class="seance-exo-add" onclick="openEchPicker('${s.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Ajouter un exercice d'échauffement
+          </button>` : ''}
+          <div class="seance-section-label">Exercices</div>
           <div id="exo-list-${s.id}" class="seance-exo-empty">Chargement…</div>
           ${!isValidee ? `<button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1951,8 +2005,42 @@ async function toggleSeanceDetail(seanceId) {
   document.querySelectorAll('.seance-card.expanded').forEach(c => c.classList.remove('expanded'));
   if (!isExpanded) {
     card.classList.add('expanded');
+    await loadSeanceEchauffement(seanceId);
     await loadSeanceExercices(seanceId);
   }
+}
+
+async function loadSeanceEchauffement(seanceId) {
+  const container = document.getElementById('ech-list-' + seanceId);
+  if (!container) return;
+  container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
+
+  const { data, error } = await db.from('seance_echauffement').select('*')
+    .eq('seance_id', seanceId).order('ordre', { ascending: true });
+
+  if (error) {
+    container.innerHTML = '<div class="seance-exo-empty" style="color:var(--warning);">Échauffement indisponible — exécute le SQL "seance_echauffement" (voir Programmation).</div>';
+    return;
+  }
+
+  const isValidee = (window._seanceStatuts || {})[seanceId] === 'validée';
+  const items = data || [];
+  if (items.length === 0) {
+    container.innerHTML = '<div class="seance-exo-empty">Aucun exercice d\'échauffement — ajoutes-en un ci-dessous.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map((e, i) => `
+    <div class="seance-exo-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
+      <div style="display:flex;width:100%;align-items:center;gap:8px">
+        <div class="seance-exo-num">${i+1}</div>
+        <div class="seance-exo-info" style="flex:1">
+          <div class="seance-exo-name">${e.nom_exo}</div>
+          ${e.consigne ? `<div class="seance-exo-params" style="color:var(--dim)">${e.consigne}</div>` : ''}
+        </div>
+        ${!isValidee ? `<button class="seance-exo-del" title="Retirer" onclick="deleteSeanceEchExo('${e.id}','${seanceId}')">×</button>` : ''}
+      </div>
+    </div>`).join('');
 }
 
 async function loadSeanceExercices(seanceId) {
@@ -2060,6 +2148,7 @@ async function deleteSeance(seanceId) {
   if (!confirm('Supprimer définitivement cette séance et tous ses exercices ?')) return;
   // Supprimer exercices liés d'abord
   await db.from('seance_exercices').delete().eq('seance_id', seanceId);
+  await db.from('seance_echauffement').delete().eq('seance_id', seanceId);
   const { error } = await db.from('seances').delete().eq('id', seanceId);
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Séance supprimée');
@@ -2072,6 +2161,12 @@ async function deleteSeanceExo(exoId, seanceId) {
   if (!confirm('Retirer cet exercice de la séance ?')) return;
   await db.from('seance_exercices').delete().eq('id', exoId);
   await loadSeanceExercices(seanceId);
+}
+
+async function deleteSeanceEchExo(id, seanceId) {
+  if (!confirm("Retirer cet exercice de l'échauffement ?")) return;
+  await db.from('seance_echauffement').delete().eq('id', id);
+  await loadSeanceEchauffement(seanceId);
 }
 
 // ─── EXO PICKER ──────────────────────────────────────────────
@@ -2180,6 +2275,93 @@ async function savePickerExo() {
   document.getElementById('modal-exo-picker').classList.remove('open');
   toast('Exercice ajouté ✓');
   await loadSeanceExercices(pickerSeanceId);
+}
+
+// ─── ÉCHAUFFEMENT PICKER ─────────────────────────────────────
+let echPickerSeanceId   = null;
+let echPickerSelectedId = null;
+let echPickerSelectedNom= null;
+
+async function openEchPicker(seanceId) {
+  echPickerSeanceId    = seanceId;
+  echPickerSelectedId  = null;
+  echPickerSelectedNom = null;
+  document.getElementById('ech-picker-search').value = '';
+  document.getElementById('ech-params-form').classList.remove('open');
+  document.getElementById('ech-picker-error').style.display = 'none';
+  document.getElementById('ech-consigne').value = '';
+  document.getElementById('modal-ech-picker').classList.add('open');
+  // Charger les exercices si pas encore fait
+  if (allExercices.length === 0) {
+    document.getElementById('ech-picker-list').innerHTML =
+      '<div style="padding:12px;font-size:12px;color:var(--dim);text-align:center;">Chargement…</div>';
+    await loadExercices();
+  }
+  renderEchPickerList('');
+}
+
+function renderEchPickerList(query) {
+  const list = document.getElementById('ech-picker-list');
+  const q = query.toLowerCase();
+  const filtered = allExercices.filter(e =>
+    e.nom.toLowerCase().includes(q) || (e.groupe_musculaire||'').toLowerCase().includes(q)
+  );
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--dim);text-align:center;">Aucun résultat</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(e => `
+    <div class="exo-picker-item" data-id="${e.id}" data-nom="${e.nom.replace(/"/g,'&quot;')}" onclick="selectEchPickerExo(this)">
+      <span>${e.nom}</span>
+      <span class="ep-muscle">${e.groupe_musculaire||''}</span>
+    </div>`).join('');
+}
+
+function filterEchPickerList() {
+  renderEchPickerList(document.getElementById('ech-picker-search').value);
+}
+
+function selectEchPickerExo(el) {
+  document.querySelectorAll('#ech-picker-list .exo-picker-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  echPickerSelectedId  = el.dataset.id;
+  echPickerSelectedNom = el.dataset.nom;
+  document.getElementById('ech-picker-selected-name').textContent = echPickerSelectedNom;
+  document.getElementById('ech-params-form').classList.add('open');
+}
+
+async function saveEchPickerExo() {
+  const errEl = document.getElementById('ech-picker-error');
+  errEl.style.display = 'none';
+  if (!echPickerSeanceId || !echPickerSelectedNom) {
+    errEl.style.display = 'block'; errEl.textContent = 'Sélectionne un exercice d\'abord.'; return;
+  }
+  // Get next ordre
+  const { data: existing } = await db.from('seance_echauffement').select('ordre').eq('seance_id', echPickerSeanceId).order('ordre', {ascending:false}).limit(1);
+  const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
+
+  const consigne = document.getElementById('ech-consigne').value.trim();
+  const payload = {
+    seance_id:   echPickerSeanceId,
+    exercice_id: echPickerSelectedId || null,
+    nom_exo:     echPickerSelectedNom,
+    ordre:       nextOrdre,
+    consigne:    consigne || null,
+  };
+
+  const btn = document.getElementById('btn-save-ech-picker');
+  btn.disabled = true; btn.textContent = 'Ajout…';
+
+  const { error } = await db.from('seance_echauffement').insert(payload);
+
+  btn.disabled = false; btn.textContent = "Ajouter à l'échauffement";
+
+  if (error) {
+    errEl.style.display = 'block'; errEl.textContent = 'Erreur : ' + error.message; return;
+  }
+  document.getElementById('modal-ech-picker').classList.remove('open');
+  toast('Exercice ajouté à l\'échauffement ✓');
+  await loadSeanceEchauffement(echPickerSeanceId);
 }
 
 function openAddSeance() {

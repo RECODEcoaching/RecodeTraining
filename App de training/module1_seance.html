@@ -254,6 +254,14 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   }
   .exo-video-btn:active { color: var(--accent); border-color: var(--accent); }
 
+  /* Échauffement */
+  .ech-card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .ech-card .exo-header { cursor: default; }
+
   /* Progress bar */
   .session-progress { padding: 12px 0 0; }
   .progress-track {
@@ -522,6 +530,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       <div class="progress-label" id="progress-label">0 / 0 exercices</div>
     </div>
   </div>
+
+  <!-- Échauffement (chargé dynamiquement, masqué si vide) -->
+  <div class="section-label" id="ech-section-label" style="display:none">Échauffement</div>
+  <div class="exo-list" id="ech-list" style="display:none"></div>
 
   <!-- Exercices (chargés dynamiquement) -->
   <div class="section-label">Exercices</div>
@@ -836,6 +848,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     document.getElementById('exo-list').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>';
     document.getElementById('progress-label').textContent = '0 / 0 exercices';
     document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('ech-section-label').style.display = 'none';
+    const echListEl = document.getElementById('ech-list');
+    echListEl.style.display = 'none';
+    echListEl.innerHTML = '';
 
     // Charger la séance
     const { data: seance } = await db.from('seances').select('*').eq('id', seanceId).single();
@@ -877,6 +893,34 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       db.from('seance_exercices').update({ reponse_lue: true }).in('id', unreadIds).then(() => {});
     }
 
+    // Charger l'échauffement (encart optionnel, pas d'erreur bloquante si table absente)
+    const { data: echs, error: echError } = await db
+      .from('seance_echauffement')
+      .select('*')
+      .eq('seance_id', seanceId)
+      .order('ordre', { ascending: true });
+
+    if (!echError && echs && echs.length > 0) {
+      const echIds = echs.map(e => e.exercice_id).filter(Boolean);
+      const echTagsMap = {};
+      if (echIds.length) {
+        const { data: libEchs } = await db
+          .from('exercices')
+          .select('id, url_video')
+          .in('id', echIds);
+        (libEchs || []).forEach(e => { echTagsMap[e.id] = e; });
+      }
+      echs.forEach(e => {
+        if (e.exercice_id && echTagsMap[e.exercice_id]) {
+          e.exercices = echTagsMap[e.exercice_id];
+        }
+      });
+      document.getElementById('ech-section-label').style.display = '';
+      const echListEl2 = document.getElementById('ech-list');
+      echListEl2.style.display = '';
+      echListEl2.innerHTML = echs.map((e, i) => renderEchCard(e, i)).join('');
+    }
+
     const exoList = document.getElementById('exo-list');
     if (!exos || exos.length === 0) {
       exoList.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:14px">Aucun exercice dans cette séance.</div>';
@@ -905,6 +949,28 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       btn.disabled = false;
       btn.style.opacity = '1';
     }
+  }
+
+  // ── Rendu d'un exercice d'échauffement (texte libre, sans séries) ──
+  function renderEchCard(item, index) {
+    const safeNomExo = item.nom_exo.replace(/'/g,"\\'");
+    const videoUrl   = item.exercices?.url_video || null;
+    const consigne   = item.consigne || '';
+    const videoBtn = videoUrl
+      ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${safeNomExo}', '${consigne.replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+         </div>`
+      : '';
+    return `<div class="ech-card">
+      <div class="exo-header">
+        <div class="exo-num">${index + 1}</div>
+        <div class="exo-info">
+          <div class="exo-name">${item.nom_exo}</div>
+          ${consigne ? `<div class="exo-params">${consigne}</div>` : ''}
+        </div>
+        ${videoBtn}
+      </div>
+    </div>`;
   }
 
   // ── Rendu d'un exercice ──────────────────────────────────
