@@ -14,6 +14,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Performances</title>
+
+<!-- PWA / Ajout à l'écran d'accueil -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6D28D9">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RECODE">
 <style>
   :root {
     --bg: #F6F6F8;
@@ -862,23 +872,25 @@ function renderChart(history, metric) {
   data.forEach((d, i) => {
     const x = xPos(i), y = yPos(values[i]);
     if (d.technique) {
-      // Technique marker: violet star-like circle with ring
+      // Technique marker: cercle violet plein avec anneau, lettre "T" bien visible
       ctx.beginPath();
-      ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(167,139,250,0.25)';
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(124,58,237,0.16)';
       ctx.fill();
-      ctx.strokeStyle = '#a78bfa';
-      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#7C3AED';
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#a78bfa';
-      ctx.fill();
-      // Wrench icon text
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 9px -apple-system';
+      // Lettre "T" centrée et bien contrastée
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '700 10px -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('T', x, y + 3);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('T', x, y + 0.5);
+      ctx.textBaseline = 'alphabetic';
     } else {
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, Math.PI * 2);

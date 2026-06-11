@@ -14,6 +14,16 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Profil</title>
+
+<!-- PWA / Ajout à l'écran d'accueil -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6D28D9">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RECODE">
 <style>
   :root {
     --bg: #F6F6F8;
@@ -447,16 +457,12 @@ async function saveNewPin() {
   const btn = document.getElementById('btn-save-pin');
   btn.disabled = true; btn.textContent = 'Enregistrement…';
 
-  // Hash + update Supabase
-  const data = new TextEncoder().encode(newPin + 'recode_salt_v1');
-  const buf  = await crypto.subtle.digest('SHA-256', data);
-  const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-
-  const { error } = await db.from('clients').update({ pin_hash: hash, is_first_login: false }).eq('id', SESSION.client_id);
+  // Mise à jour sécurisée du PIN via fonction serveur (RPC)
+  const { data, error } = await db.rpc('rpc_set_pin', { p_client_id: SESSION.client_id, p_pin: newPin });
 
   btn.disabled = false; btn.textContent = 'Enregistrer →';
 
-  if (error) { alert('Erreur : ' + error.message); return; }
+  if (error || !data) { alert('Erreur : ' + (error ? error.message : 'échec de la mise à jour')); return; }
 
   document.getElementById('pin-success').classList.add('show');
   setTimeout(() => closeModal(), 1500);

@@ -14,6 +14,17 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>RECODE Training — Séances</title>
+
+<!-- PWA / Ajout à l'écran d'accueil -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6D28D9">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RECODE">
+
 <style>
   :root {
     --bg: #F6F6F8;
@@ -94,16 +105,31 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     font-size: 22px; font-weight: 800; margin-bottom: 0;
     letter-spacing: -0.5px; color: #fff;
   }
-  .week-seances-gauge {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    flex: 0 0 auto; cursor: pointer; padding: 4px; border-radius: 50%;
+  /* ── SCORE DU JOUR (ring composite) ── */
+  .day-score-row {
+    display: flex; align-items: center; gap: 16px;
+    margin: 4px 0 14px; position: relative; z-index: 1;
+    cursor: pointer; transition: transform 0.15s ease;
+  }
+  .day-score-row:active { transform: scale(0.98); }
+  .day-score-gauge {
+    flex: 0 0 auto; padding: 4px; border-radius: 50%;
     background: rgba(255,255,255,0.06);
     box-shadow: 0 6px 18px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.10);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .week-seances-gauge:active {
-    transform: scale(0.93);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.10);
+  .day-score-stats {
+    display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0;
+  }
+  .day-score-stat { display: flex; flex-direction: column; gap: 1px; }
+  .dss-label {
+    font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,0.6);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .dss-value { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+  .day-insight-card {
+    background: rgba(255,255,255,0.08); border-radius: 14px; padding: 11px 14px;
+    font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.92);
+    margin-bottom: 14px; position: relative; z-index: 1;
   }
   /* Week navigation */
   .week-nav { display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
@@ -447,10 +473,21 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="week-header">
     <div class="week-greeting-row">
       <div class="week-greeting" id="week-greeting">Bonjour</div>
-      <div class="week-seances-gauge" title="Séances validées depuis le début" onclick="window.location.href='module3_metriques.html'">
-        <div id="week-seances-svg" style="line-height:0"></div>
+    </div>
+    <div class="day-score-row" title="Voir le détail dans Métriques" onclick="window.location.href='module3_metriques.html'">
+      <div class="day-score-gauge" id="day-score-svg"></div>
+      <div class="day-score-stats">
+        <div class="day-score-stat">
+          <span class="dss-label">Habitudes (semaine)</span>
+          <span class="dss-value" id="dss-habits">—</span>
+        </div>
+        <div class="day-score-stat">
+          <span class="dss-label">Séances (semaine)</span>
+          <span class="dss-value" id="dss-seances">—</span>
+        </div>
       </div>
     </div>
+    <div class="day-insight-card" id="day-insight" style="display:none"></div>
     <div class="week-nav">
       <button class="week-nav-btn" onclick="shiftWeek(-1)" aria-label="Semaine précédente">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1402,51 +1439,126 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     if (Math.abs(dx) > 55 && Math.abs(dy) < 70) shiftWeek(dx < 0 ? 1 : -1);
   }, { passive: true });
 
-  // ── Mini jauge "Séances validées" (depuis le début) ───────
-  function renderMiniGauge(pct, valueLabel) {
-    const r = 44, cx = 55, cy = 55;
-    const C = 2 * Math.PI * r;
-    const arcLen = C * 0.75;
-    const emptyLen = C - arcLen;
-    const p = Math.min(Math.max(pct, 0), 1);
-    const fillLen = p * arcLen;
-    const fillColor = p < 0.5 ? 'var(--gauge-low)' : (p < 0.8 ? 'var(--gauge-mid)' : 'var(--gauge-high)');
-    const fontSize = valueLabel.length >= 4 ? 22 : 28;
-    return `<svg viewBox="0 0 110 110" width="64" height="64" style="display:block">
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="12"
+  // ── Score du jour : ring composite (habitudes + séances semaine) ──
+  function renderDayScoreGauge(pctOuter, pctInner, centerLabel) {
+    const cx = 60, cy = 60;
+    const arcFrac = 0.75;
+    function ring(r, sw, pct, color) {
+      const C = 2 * Math.PI * r;
+      const arcLen = C * arcFrac;
+      const emptyLen = C - arcLen;
+      const p = Math.min(Math.max(pct, 0), 1);
+      const fillLen = p * arcLen;
+      return `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="${sw}"
         stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"
         stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
-      <circle class="gauge-fill" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${fillColor}" stroke-width="12"
+      <circle class="gauge-fill" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
         stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"
         stroke-dashoffset="${arcLen.toFixed(1)}" data-target="${(arcLen - fillLen).toFixed(1)}"
         style="transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) 0.15s;"
-        stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
+        stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>`;
+    }
+    const fontSize = centerLabel.length >= 4 ? 20 : 24;
+    return `<svg viewBox="0 0 120 120" width="84" height="84" style="display:block">
+      ${ring(50, 10, pctOuter, '#C4B5FD')}
+      ${ring(37, 9, pctInner, '#FFFFFF')}
       <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
         font-size="${fontSize}" font-weight="800" fill="#ffffff"
-        font-family="Inter,-apple-system,sans-serif">${valueLabel}</text>
+        font-family="Inter,-apple-system,sans-serif">${centerLabel}</text>
     </svg>`;
   }
 
-  async function loadSeancesGauge() {
+  function isHabitDoneSimple(valeur, type) {
+    if (type === 'oui-non') return valeur === 'oui';
+    return valeur !== null && valeur !== undefined && valeur !== '';
+  }
+
+  async function loadDayScore() {
     if (!SESSION) return;
-    const today = new Date().toISOString().split('T')[0];
-    const { data: seances } = await db.from('seances')
-      .select('date,statut').eq('client_id', SESSION.client_id).lte('date', today);
-    const past  = (seances || []).filter(s => s.date <= today);
-    const total = past.length;
-    const valid = past.filter(s => s.statut === 'validée').length;
-    const pct   = total ? valid / total : 0;
-    const svgEl = document.getElementById('week-seances-svg');
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Semaine ISO en cours (lundi → dimanche)
+    const dow = today.getDay();
+    const diffToMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today); monday.setDate(today.getDate() + diffToMonday);
+    const weekStart = monday.toISOString().split('T')[0];
+
+    // ── Habitudes : moyenne de progression de chaque habitude vs son objectif (semaine en cours) ──
+    let habitsPct = null;
+    const { data: habitudes } = await db.from('client_habitudes').select('*').eq('client_id', SESSION.client_id);
+    if (habitudes && habitudes.length) {
+      const ids = habitudes.map(h => h.id);
+      const { data: valeurs } = await db.from('habitude_valeurs').select('*')
+        .in('habitude_id', ids).gte('date', weekStart).lte('date', todayStr);
+      const valeursMap = {};
+      (valeurs || []).forEach(v => {
+        if (!valeursMap[v.habitude_id]) valeursMap[v.habitude_id] = {};
+        valeursMap[v.habitude_id][v.date] = v.valeur;
+      });
+      let sumPct = 0;
+      habitudes.forEach(h => {
+        const type = h.type || 'oui-non';
+        const fc = h.frequence_count || 1;
+        const fu = h.frequence_unite || 'jour';
+        const map = valeursMap[h.id] || {};
+        let current = 0, target = 1;
+        if (fu === 'jour') {
+          target = fc;
+          current = fc > 1 ? (parseFloat(map[todayStr]) || 0) : (isHabitDoneSimple(map[todayStr], type) ? 1 : 0);
+        } else {
+          target = fu === 'semaine' ? fc : Math.max(1, Math.round(fc / 4)); // mois → ramené à la semaine
+          let count = 0;
+          for (let d = new Date(monday); d <= today; d.setDate(d.getDate() + 1)) {
+            const ds = d.toISOString().split('T')[0];
+            if (isHabitDoneSimple(map[ds], type)) count++;
+          }
+          current = count;
+        }
+        sumPct += Math.min(1, target ? current / target : 0);
+      });
+      habitsPct = sumPct / habitudes.length;
+    }
+
+    // ── Séances : validées / programmées cette semaine (jusqu'à aujourd'hui) ──
+    const { data: seances } = await db.from('seances').select('date,statut')
+      .eq('client_id', SESSION.client_id).gte('date', weekStart).lte('date', todayStr);
+    let seancesPct = 1;
+    if (seances && seances.length) {
+      const valid = seances.filter(s => s.statut === 'validée').length;
+      seancesPct = valid / seances.length;
+    }
+
+    // ── Score combiné ──
+    const parts = habitsPct !== null ? [habitsPct, seancesPct] : [seancesPct];
+    const combined = parts.reduce((a, b) => a + b, 0) / parts.length;
+
+    const svgEl = document.getElementById('day-score-svg');
     if (svgEl) {
-      svgEl.innerHTML = renderMiniGauge(pct, Math.round(pct * 100) + '%');
-      const fillCircle = svgEl.querySelector('.gauge-fill');
-      if (fillCircle) {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            fillCircle.style.strokeDashoffset = fillCircle.dataset.target;
-          });
-        });
-      }
+      svgEl.innerHTML = renderDayScoreGauge(habitsPct ?? seancesPct, seancesPct, Math.round(combined * 100) + '%');
+      svgEl.querySelectorAll('.gauge-fill').forEach(c => {
+        requestAnimationFrame(() => requestAnimationFrame(() => { c.style.strokeDashoffset = c.dataset.target; }));
+      });
+    }
+    const habitsEl = document.getElementById('dss-habits');
+    if (habitsEl) habitsEl.textContent = habitsPct === null ? '—' : Math.round(habitsPct * 100) + '%';
+    const seancesEl = document.getElementById('dss-seances');
+    if (seancesEl) seancesEl.textContent = Math.round(seancesPct * 100) + '%';
+
+    // ── Conseil du jour (généré par règles) ──
+    let insight = '';
+    if (habitsPct !== null && habitsPct < 0.5 && habitsPct <= seancesPct) {
+      insight = `Tes habitudes ont pris du retard cette semaine (${Math.round(habitsPct * 100)}%) — un petit geste aujourd'hui peut relancer la dynamique.`;
+    } else if (seancesPct < 0.5 && (habitsPct === null || seancesPct < habitsPct)) {
+      insight = `Quelques séances ont été manquées cette semaine (${Math.round(seancesPct * 100)}%) — à toi de jouer pour la suite.`;
+    } else if (combined < 0.8) {
+      insight = `Bonne dynamique cette semaine (${Math.round(combined * 100)}%) — encore un peu d'effort pour finir fort.`;
+    }
+    const insightEl = document.getElementById('day-insight');
+    if (insightEl) {
+      if (insight) { insightEl.textContent = insight; insightEl.style.display = 'block'; }
+      else { insightEl.style.display = 'none'; }
     }
   }
 
@@ -1460,7 +1572,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   updateWeekLabel();
   loadWeekSessions();
   loadClientDriveUrl();
-  loadSeancesGauge();
+  loadDayScore();
 </script>
 </body>
 </html>
