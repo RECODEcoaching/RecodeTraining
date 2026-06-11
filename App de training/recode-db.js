@@ -44,35 +44,27 @@ function requireAuth() {
 // ── AUTH ───────────────────────────────────────────────────────────
 
 async function loginClient(email, pin) {
-  const pinHash = await hashPin(pin);
-
   const { data, error } = await db
-    .from('clients')
-    .select('id, email, prenom, is_first_login, pin_hash')
-    .eq('email', email.toLowerCase().trim())
-    .single();
+    .rpc('rpc_verify_login', { p_email: email.toLowerCase().trim(), p_pin: pin });
 
-  if (error || !data) return { success: false, error: 'Email ou code PIN incorrect.' };
-  if (data.pin_hash !== pinHash) return { success: false, error: 'Email ou code PIN incorrect.' };
+  if (error || !data || !data.length) return { success: false, error: 'Email ou code PIN incorrect.' };
 
+  const row = data[0];
   const session = {
-    client_id:      data.id,
-    email:          data.email,
-    prenom:         data.prenom,
-    is_first_login: data.is_first_login
+    client_id:      row.id,
+    email:          row.email,
+    prenom:         row.prenom,
+    is_first_login: row.is_first_login
   };
   setSession(session);
   return { success: true, session };
 }
 
 async function setNewPin(clientId, newPin) {
-  const pinHash = await hashPin(newPin);
-  const { error } = await db
-    .from('clients')
-    .update({ pin_hash: pinHash, is_first_login: false })
-    .eq('id', clientId);
+  const { data, error } = await db
+    .rpc('rpc_set_pin', { p_client_id: clientId, p_pin: newPin });
 
-  if (error) return { success: false };
+  if (error || !data) return { success: false };
   const s = getSession();
   if (s) { s.is_first_login = false; setSession(s); }
   return { success: true };
