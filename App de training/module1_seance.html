@@ -73,9 +73,21 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     width: 110px; height: 110px; border-radius: 50%;
     background: rgba(255,255,255,0.07); pointer-events: none;
   }
+  .week-greeting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 12px;
+  }
   .week-greeting {
-    font-size: 22px; font-weight: 800; margin-bottom: 12px;
+    font-size: 22px; font-weight: 800; margin-bottom: 0;
     letter-spacing: -0.5px; color: #fff;
+  }
+  .week-seances-gauge {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    flex: 0 0 auto;
+  }
+  .week-seances-label {
+    font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.7);
+    text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
   }
   /* Week navigation */
   .week-nav { display: flex; align-items: center; gap: 8px; }
@@ -411,7 +423,13 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <!-- ═══════════════ SCREEN : VUE SEMAINE ═══════════════ -->
 <div class="screen active" id="screen-week">
   <div class="week-header">
-    <div class="week-greeting" id="week-greeting">Bonjour</div>
+    <div class="week-greeting-row">
+      <div class="week-greeting" id="week-greeting">Bonjour</div>
+      <div class="week-seances-gauge" title="Séances validées depuis le début">
+        <div id="week-seances-svg" style="line-height:0"></div>
+        <div class="week-seances-label" id="week-seances-label">—</div>
+      </div>
+    </div>
     <div class="week-nav">
       <button class="week-nav-btn" onclick="shiftWeek(-1)" aria-label="Semaine précédente">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1300,6 +1318,40 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     if (Math.abs(dx) > 55 && Math.abs(dy) < 70) shiftWeek(dx < 0 ? 1 : -1);
   }, { passive: true });
 
+  // ── Mini jauge "Séances validées" (depuis le début) ───────
+  function renderMiniGauge(pct, valueLabel) {
+    const r = 44, cx = 55, cy = 55;
+    const C = 2 * Math.PI * r;
+    const arcLen = C * 0.75;
+    const fillLen = Math.min(Math.max(pct, 0), 1) * arcLen;
+    return `<svg viewBox="0 0 110 110" width="44" height="44" style="display:block">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="12"
+        stroke-dasharray="${arcLen.toFixed(1)} ${(C-arcLen).toFixed(1)}"
+        stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffffff" stroke-width="12"
+        stroke-dasharray="${fillLen.toFixed(1)} ${(C-fillLen).toFixed(1)}"
+        stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+        font-size="30" font-weight="800" fill="#ffffff"
+        font-family="Inter,-apple-system,sans-serif">${valueLabel}</text>
+    </svg>`;
+  }
+
+  async function loadSeancesGauge() {
+    if (!SESSION) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { data: seances } = await db.from('seances')
+      .select('date,statut').eq('client_id', SESSION.client_id).lte('date', today);
+    const past  = (seances || []).filter(s => s.date <= today);
+    const total = past.length;
+    const valid = past.filter(s => s.statut === 'validée').length;
+    const pct   = total ? valid / total : 0;
+    const svgEl = document.getElementById('week-seances-svg');
+    const lblEl = document.getElementById('week-seances-label');
+    if (svgEl) svgEl.innerHTML = renderMiniGauge(pct, Math.round(pct * 100) + '%');
+    if (lblEl) lblEl.textContent = total ? `${valid}/${total} séances` : 'Aucune séance';
+  }
+
   // ── Init ─────────────────────────────────────────────────
   if (SESSION) {
     const av = document.querySelector('.avatar');
@@ -1310,6 +1362,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   updateWeekLabel();
   loadWeekSessions();
   loadClientDriveUrl();
+  loadSeancesGauge();
 </script>
 </body>
 </html>

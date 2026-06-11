@@ -547,6 +547,20 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
 <!-- ═══════ TAB 1 : MÉTRIQUES ═══════ -->
 <div class="tab-content active" id="tab-metrics">
+  <div class="section-label">Vue d'ensemble</div>
+  <div class="bilan-gauges">
+    <div class="bilan-gauge-card">
+      <div id="gauge-bilans-svg" style="line-height:0"></div>
+      <div class="bilan-gauge-title">Bilans</div>
+      <div class="bilan-gauge-sub" id="gauge-bilans-sub">—</div>
+    </div>
+    <div class="bilan-gauge-card">
+      <div id="gauge-seances-svg" style="line-height:0"></div>
+      <div class="bilan-gauge-title">Séances</div>
+      <div class="bilan-gauge-sub" id="gauge-seances-sub">—</div>
+    </div>
+  </div>
+
   <div class="section-label">Mes métriques</div>
   <div class="metrics-list" id="metrics-list">
     <div id="metrics-loading" style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>
@@ -568,20 +582,6 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 
 <!-- ═══════ TAB 3 : BILAN ═══════ -->
 <div class="tab-content" id="tab-bilan">
-
-  <div class="section-label">Vue d'ensemble</div>
-  <div class="bilan-gauges">
-    <div class="bilan-gauge-card">
-      <div id="gauge-bilans-svg" style="line-height:0"></div>
-      <div class="bilan-gauge-title">Bilans</div>
-      <div class="bilan-gauge-sub" id="gauge-bilans-sub">—</div>
-    </div>
-    <div class="bilan-gauge-card">
-      <div id="gauge-seances-svg" style="line-height:0"></div>
-      <div class="bilan-gauge-title">Séances</div>
-      <div class="bilan-gauge-sub" id="gauge-seances-sub">—</div>
-    </div>
-  </div>
 
   <div class="section-label">Mon bilan</div>
   <div class="bilan-action-card" id="bilan-action-card">
@@ -1826,6 +1826,39 @@ function renderArcGauge(pct, valueLabel, color) {
   </svg>`;
 }
 
+// Toutes les périodes depuis la création du compte (pour le % global "depuis le début")
+function getBilanPeriodsGlobal(freq, createdAt) {
+  const now = new Date();
+  const start0 = new Date(createdAt);
+  start0.setHours(0, 0, 0, 0);
+  if (isNaN(start0.getTime()) || start0 > now) return [{ start: now, end: now }];
+
+  const periods = [];
+  if (freq === 'semaine' || freq === 'deux_semaines') {
+    const step = freq === 'semaine' ? 7 : 14;
+    const day = start0.getDay() || 7; // 1=Lun … 7=Dim
+    let cursor = new Date(start0);
+    cursor.setDate(start0.getDate() - day + 1); // lundi de la semaine de création
+    while (cursor <= now) {
+      const end = new Date(cursor);
+      end.setDate(cursor.getDate() + step - 1);
+      end.setHours(23, 59, 59, 999);
+      periods.push({ start: new Date(cursor), end: new Date(Math.min(end.getTime(), now.getTime())) });
+      cursor = new Date(cursor);
+      cursor.setDate(cursor.getDate() + step);
+    }
+  } else { // mois
+    let cursor = new Date(start0.getFullYear(), start0.getMonth(), 1);
+    while (cursor <= now) {
+      const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+      end.setHours(23, 59, 59, 999);
+      periods.push({ start: new Date(cursor), end: new Date(Math.min(end.getTime(), now.getTime())) });
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+  }
+  return periods.length ? periods : [{ start: now, end: now }];
+}
+
 function getBilanPeriods(freq) {
   const now = new Date();
   const N = 4;
@@ -1866,21 +1899,19 @@ function formatPeriodLabel(start, end) {
 async function loadBilan() {
   if (!SESSION) return;
 
-  // 1. Fréquence configurée par le coach
+  // 1. Fréquence + date de création du compte
   const { data: clientData } = await db.from('clients')
-    .select('bilan_frequence').eq('id', SESSION.client_id).single();
-  const freq = clientData?.bilan_frequence || 'semaine';
+    .select('bilan_frequence,created_at').eq('id', SESSION.client_id).single();
+  const freq      = clientData?.bilan_frequence || 'semaine';
+  const createdAt = clientData?.created_at || new Date().toISOString();
 
-  // 2. Logs bilans (3 derniers mois)
-  const since = new Date();
-  since.setMonth(since.getMonth() - 3);
+  // 2. Tous les logs de bilans depuis le début
   const { data: logs } = await db.from('bilan_logs')
     .select('date').eq('client_id', SESSION.client_id)
-    .gte('date', since.toISOString().split('T')[0])
     .order('date', { ascending: false });
   const bilanDates = (logs || []).map(l => l.date); // tri desc
 
-  // 3. Séances passées pour le % de validation
+  // 3. Toutes les séances passées pour le % de validation (depuis le début)
   const today = new Date().toISOString().split('T')[0];
   const { data: seances } = await db.from('seances')
     .select('date,statut').eq('client_id', SESSION.client_id).lte('date', today);
@@ -1888,31 +1919,32 @@ async function loadBilan() {
   const total = past.length;
   const valid = past.filter(s => s.statut === 'validée').length;
 
-  // 4. Calcul % bilans sur les périodes
-  const periods = getBilanPeriods(freq);
-  let bilanDone = 0;
-  periods.forEach(p => {
+  // 4. Calcul % bilans depuis le début (toutes les périodes depuis la création du compte)
+  const allPeriods = getBilanPeriodsGlobal(freq, createdAt);
+  let bilanDoneGlobal = 0;
+  allPeriods.forEach(p => {
     const s = p.start.toISOString().split('T')[0];
     const e = p.end.toISOString().split('T')[0];
-    if (bilanDates.some(d => d >= s && d <= e)) bilanDone++;
+    if (bilanDates.some(d => d >= s && d <= e)) bilanDoneGlobal++;
   });
-  const bilanPct   = periods.length ? bilanDone / periods.length : 0;
+  const bilanPct   = allPeriods.length ? bilanDoneGlobal / allPeriods.length : 0;
   const seancesPct = total ? valid / total : 0;
 
-  // 5. Gauges
+  // 5. Gauges (vue d'ensemble, onglet Métriques) — % depuis le début
   document.getElementById('gauge-bilans-svg').innerHTML  = renderArcGauge(bilanPct,   Math.round(bilanPct*100)+'%', '#6D28D9');
-  document.getElementById('gauge-bilans-sub').textContent = `${bilanDone}/${periods.length} périodes`;
+  document.getElementById('gauge-bilans-sub').textContent = `${bilanDoneGlobal}/${allPeriods.length} périodes`;
   document.getElementById('gauge-seances-svg').innerHTML  = renderArcGauge(seancesPct, Math.round(seancesPct*100)+'%', '#8B5CF6');
   document.getElementById('gauge-seances-sub').textContent = total ? `${valid}/${total} séances` : 'Aucune séance';
 
-  // 6. Carte action (bilan de la période courante)
+  // 6. Carte action (bilan de la période courante) — basée sur les 4 dernières périodes
+  const periods   = getBilanPeriods(freq);
   const curPeriod = periods[periods.length - 1];
   const curStart  = curPeriod?.start.toISOString().split('T')[0] || today;
   const doneCur   = bilanDates.some(d => d >= curStart && d <= today);
   const lastDate  = bilanDates[0] || null; // premier = le plus récent (tri desc)
   renderBilanAction(doneCur, lastDate, freq);
 
-  // 7. Historique des périodes
+  // 7. Historique des dernières périodes
   renderBilanHistory(periods, bilanDates);
 }
 
@@ -1987,6 +2019,7 @@ window.addEventListener('load', () => {
   loadMetrics();
   loadHabits();
   loadCycleData();
+  loadBilan();
 });
 window.addEventListener('resize', () => {
   drawAllMetricCharts();
