@@ -205,6 +205,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     border: 1px solid var(--border);
   }
   .chip.accent { background: var(--accent-bg); color: var(--accent); border-color: rgba(109,40,217,0.15); font-weight: 600; }
+  .chip.drive { display: none; align-items: center; gap: 4px; cursor: pointer; }
+  .chip.drive:active { opacity: 0.65; }
 
   /* Warmup */
   .warmup-card {
@@ -260,7 +262,12 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     overflow: hidden;
   }
-  .ech-card .exo-header { cursor: default; }
+  .ech-card .exo-header { cursor: default; padding: 8px 12px; gap: 8px; }
+  .ech-card .exo-num { width: 18px; height: 18px; font-size: 10px; border-radius: 5px; }
+  .ech-card .exo-name { font-size: 12px; }
+  .ech-card .exo-params { font-size: 10.5px; margin-top: 1px; }
+  .ech-card .exo-video-btn { width: 22px; height: 22px; }
+  #ech-list { gap: 6px; }
 
   /* Progress bar */
   .session-progress { padding: 12px 0 0; }
@@ -524,6 +531,10 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     <div class="session-title" id="session-title-text">Séance</div>
     <div class="session-chips">
       <span class="chip accent" id="session-date-chip">—</span>
+      <span class="chip drive" id="session-drive-chip" onclick="openClientDrive()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Drive
+      </span>
     </div>
     <div class="session-progress">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
@@ -595,17 +606,6 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   <div class="success-title">Séance validée</div>
   <div class="success-sub">Bien joué ! La séance a été enregistrée.</div>
 
-  <!-- Encart Drive — visible uniquement si un lien est configuré -->
-  <div id="drive-upload-block" style="display:none;margin:18px 0;padding:14px 16px;background:rgba(109,40,217,0.06);border:1px solid rgba(109,40,217,0.18);border-radius:14px;text-align:left;">
-    <div style="font-size:12px;font-weight:700;color:#6D28D9;margin-bottom:4px;">📹 Vidéos d'exercices</div>
-    <div style="font-size:11px;color:#666;margin-bottom:10px;line-height:1.5;">Tu peux déposer tes vidéos dans ton Drive personnel pour que ton coach puisse les analyser.</div>
-    <button id="btn-drive-upload" onclick="openClientDrive()"
-      style="width:100%;padding:10px;border-radius:10px;border:none;background:#6D28D9;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Déposer mes vidéos
-    </button>
-  </div>
-
   <button class="btn-secondary" onclick="closeSuccess()">Retour à la semaine</button>
 </div>
 
@@ -657,6 +657,8 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       const { data } = await db.from('clients').select('drive_url').eq('id', SESSION.client_id).single();
       clientDriveUrl = data?.drive_url || null;
     } catch(e) {}
+    const driveChip = document.getElementById('session-drive-chip');
+    if (driveChip) driveChip.style.display = clientDriveUrl ? 'inline-flex' : 'none';
   }
 
   function openClientDrive() {
@@ -1336,9 +1338,6 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       alert('Erreur lors de la validation. Réessaie.');
       return;
     }
-    // Afficher le bloc Drive si un lien est configuré
-    const driveBlock = document.getElementById('drive-upload-block');
-    if (driveBlock) driveBlock.style.display = clientDriveUrl ? 'block' : 'none';
     document.getElementById('success-overlay').classList.add('open');
   }
 
