@@ -1008,6 +1008,12 @@ async function hashPin(pin) {
           </div>
           <div id="cc-no-data" style="display:none;color:var(--muted);font-size:12px;margin-bottom:16px;">Aucun cycle enregistré par la cliente.</div>
 
+          <!-- Historique des cycles (début + durée des règles) -->
+          <div id="cc-history-section" style="display:none;">
+            <div class="section-title">Historique des cycles</div>
+            <div id="cc-history-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+          </div>
+
           <!-- Journal quotidien -->
           <div class="section-title">Journal quotidien (30 derniers jours)</div>
           <div id="cc-daily-empty" style="display:none;color:var(--muted);font-size:12px;padding:8px 0;">Aucune saisie quotidienne.</div>
@@ -2806,14 +2812,27 @@ async function loadClientCycleData() {
   document.getElementById('cycle-coach-loading').style.display = 'block';
   document.getElementById('cycle-coach-content').style.display  = 'none';
 
-  // 1. Charger les débuts de cycle
+  // 1. Charger les débuts (J1) et fins de règles
   const { data: logs } = await db.from('cycle_logs')
-    .select('date')
+    .select('date, notes')
     .eq('client_id', currentClientId)
-    .eq('notes', 'J1')
+    .or('notes.eq.J1,notes.eq.FIN_REGLES,notes.eq.J1_FIN_REGLES')
     .order('date', { ascending: true });
 
-  const cycles = (logs || []).map(l => new Date(l.date + 'T12:00:00'));
+  const cycles = [];
+  const periodEnds = [];
+  (logs || []).forEach(l => {
+    const d = new Date(l.date + 'T12:00:00');
+    if (l.notes === 'J1' || l.notes === 'J1_FIN_REGLES') cycles.push(d);
+    if (l.notes === 'FIN_REGLES' || l.notes === 'J1_FIN_REGLES') periodEnds.push(d);
+  });
+
+  // Durée réelle des règles pour un cycle donné (fallback 5j si non déclarée)
+  const reglesLenFor = (cycleStart, cycleEnd) => {
+    const end = periodEnds.find(d => d.getTime() >= cycleStart.getTime() && (!cycleEnd || d.getTime() < cycleEnd.getTime()));
+    if (!end) return null;
+    return Math.max(1, Math.round((end - cycleStart) / 86400000) + 1);
+  };
 
   // Calcul durée moyenne
   let avgLen = null;
@@ -2827,6 +2846,7 @@ async function loadClientCycleData() {
   const today   = new Date();
   const lastCyc = cycles.length ? cycles[cycles.length - 1] : null;
   const dayOfCyc = lastCyc ? Math.round((today - lastCyc) / 86400000) + 1 : null;
+  const currentReglesLen = lastCyc ? (reglesLenFor(lastCyc, null) || 5) : 5;
 
   // Afficher résumé
   document.getElementById('cc-avg').textContent   = avgLen   ? avgLen + 'j'  : '—';
@@ -2838,7 +2858,7 @@ async function loadClientCycleData() {
   if (dayOfCyc && avgLen) {
     phaseBox.style.display = 'block';
     document.getElementById('cc-no-data').style.display = 'none';
-    const { label, color, desc } = getCyclePhase(dayOfCyc, avgLen);
+    const { label, color, desc } = getCyclePhase(dayOfCyc, avgLen, currentReglesLen);
     document.getElementById('cc-phase-label').textContent = label;
     document.getElementById('cc-phase-label').style.color = color;
     document.getElementById('cc-phase-desc').textContent  = desc;
@@ -2847,6 +2867,32 @@ async function loadClientCycleData() {
   } else {
     phaseBox.style.display = 'none';
     document.getElementById('cc-no-data').style.display = cycles.length === 0 ? 'block' : 'none';
+  }
+
+  // Historique des cycles : date de début + durée des règles déclarée
+  const historySection = document.getElementById('cc-history-section');
+  const historyList    = document.getElementById('cc-history-list');
+  if (cycles.length === 0) {
+    historySection.style.display = 'none';
+  } else {
+    historySection.style.display = 'block';
+    historyList.innerHTML = '';
+    // Du plus récent au plus ancien
+    for (let i = cycles.length - 1; i >= 0; i--) {
+      const start = cycles[i];
+      const end   = cycles[i + 1] || null; // début du cycle suivant = fin de la fenêtre
+      const len   = reglesLenFor(start, end);
+      const startStr = start.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+      const row = document.createElement('div');
+      row.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+      row.innerHTML = `
+        <span style="font-size:12px;font-weight:700;">${startStr}</span>
+        <span style="font-size:11px;color:${len ? 'var(--cycle-menstrual)' : 'var(--muted)'};font-weight:600;">
+          ${len ? '🩸 Règles : ' + len + ' jour' + (len > 1 ? 's' : '') : 'Fin des règles non déclarée'}
+        </span>
+      `;
+      historyList.appendChild(row);
+    }
   }
 
   // 2. Charger le journal quotidien (30 derniers jours)
@@ -2884,9 +2930,10 @@ async function loadClientCycleData() {
   document.getElementById('cycle-coach-content').style.display  = 'block';
 }
 
-function getCyclePhase(day, avgLen) {
+function getCyclePhase(day, avgLen, reglesLen) {
+  const R = reglesLen || 5;
   const ovul = Math.round(avgLen * 0.5);
-  if (day <= 5)             return { label:'🩸 MENSTRUATION',   color:'#EF4444', desc:`Jour ${day} · règles` };
+  if (day <= R)             return { label:'🩸 MENSTRUATION',   color:'#EF4444', desc:`Jour ${day} · règles` };
   if (day <= ovul - 2)      return { label:'🌱 PHASE FOLLICULAIRE', color:'#F97316', desc:`Jour ${day} · énergie en hausse` };
   if (day <= ovul + 1)      return { label:'🥚 OVULATION',       color:'#EAB308', desc:`Jour ${day} · pic de fertilité` };
   return                           { label:'🌙 PHASE LUTÉALE',   color:'#A855F7', desc:`Jour ${day} · phase de récupération` };

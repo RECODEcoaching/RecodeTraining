@@ -714,6 +714,12 @@ function checkAccountActive(session){
     Déclarer le début de mes règles
   </div>
 
+  <!-- Bouton fin des règles (visible si un cycle est ouvert sans fin déclarée) -->
+  <div class="log-cycle-btn" id="btn-end-period" onclick="openEndPeriodLog()" style="display:none;">
+    <div class="log-cycle-dot" style="background:#a78bfa;"></div>
+    Déclarer la fin de mes règles
+  </div>
+
   <!-- Saisie quotidienne -->
   <div class="cycle-daily-log">
     <div class="cycle-daily-header">
@@ -938,6 +944,24 @@ function checkAccountActive(session){
     </div>
     <button class="btn-primary" onclick="confirmCycleLog()">Confirmer</button>
     <button class="btn-ghost" onclick="document.getElementById('modal-cycle').classList.remove('open')">Annuler</button>
+  </div>
+</div>
+
+<!-- Modal déclaration fin des règles -->
+<div class="modal-overlay" id="modal-end-period">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Fin des règles</div>
+    <div class="modal-sub" id="end-period-modal-sub">Début de ce cycle : —</div>
+    <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:500;">Date de fin</div>
+      <input type="date" id="end-period-date-input" style="background:transparent;border:none;color:var(--text);font-size:18px;font-weight:700;outline:none;width:100%;font-family:inherit;">
+    </div>
+    <div id="end-period-calc-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-muted);">
+      <strong style="color:var(--text)">Durée des règles pour ce cycle :</strong> <span id="end-period-days-calc">—</span> jour(s)
+    </div>
+    <button class="btn-primary" onclick="confirmEndPeriodLog()">Confirmer</button>
+    <button class="btn-ghost" onclick="document.getElementById('modal-end-period').classList.remove('open')">Annuler</button>
   </div>
 </div>
 
@@ -1192,10 +1216,11 @@ const CYCLE_PHASE_TIPS = {
   luteal:     "La progestérone domine et la température corporelle augmente légèrement. La récupération peut être plus longue — adapte le volume si besoin.",
 };
 
-function getCyclePhase(day, avgLen) {
+function getCyclePhase(day, avgLen, reglesLen) {
   const L = avgLen || 28;
+  const R = reglesLen || 5;
   const ovDay = Math.round(L - 14); // ovulation théorique
-  if (day <= 5)         return { name: 'Règles',       cls: 'menstrual',   daysLeft: 5 - day + 1,      color: '#f87171', tip: CYCLE_PHASE_TIPS.menstrual };
+  if (day <= R)         return { name: 'Règles',       cls: 'menstrual',   daysLeft: R - day + 1,      color: '#f87171', tip: CYCLE_PHASE_TIPS.menstrual };
   if (day <= ovDay - 2) return { name: 'Folliculaire', cls: 'follicular',  daysLeft: ovDay - 2 - day + 1, color: '#fb923c', tip: CYCLE_PHASE_TIPS.follicular };
   if (day <= ovDay + 1) return { name: 'Ovulation',    cls: 'ovulation',   daysLeft: ovDay + 1 - day + 1, color: '#facc15', tip: CYCLE_PHASE_TIPS.ovulation };
   return                       { name: 'Lutéale',      cls: 'luteal',      daysLeft: L - day + 1,       color: '#c084fc', tip: CYCLE_PHASE_TIPS.luteal };
@@ -1203,7 +1228,9 @@ function getCyclePhase(day, avgLen) {
 
 function updateCycleDisplay(currentDay, avgLen) {
   const L = avgLen || 28;
-  const phase = getCyclePhase(currentDay, L);
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  const reglesLen = getReglesLenForCycle(lastCycle, null);
+  const phase = getCyclePhase(currentDay, L, reglesLen);
   const daysLeft = Math.max(0, L - currentDay);
 
   // Hero card
@@ -1218,7 +1245,7 @@ function updateCycleDisplay(currentDay, avgLen) {
   // Barre de progression — avancement dans la phase
   const fill = document.getElementById('cycle-hero-progress-fill');
   if (fill) {
-    const phaseProgress = getPhasePct(currentDay, L);
+    const phaseProgress = getPhasePct(currentDay, L, reglesLen);
     fill.style.width = phaseProgress + '%';
   }
   // Insight texte selon la phase
@@ -1245,29 +1272,32 @@ function updateCycleDisplay(currentDay, avgLen) {
   }
 }
 
-function getPhasePct(day, L) {
+function getPhasePct(day, L, reglesLen) {
+  const R = reglesLen || 5;
   const ovDay = Math.round(L - 14);
-  if (day <= 5)         return Math.round((day / 5) * 100);
-  if (day <= ovDay - 2) return Math.round(((day - 5) / (ovDay - 2 - 5)) * 100);
+  if (day <= R)         return Math.round((day / R) * 100);
+  if (day <= ovDay - 2) return Math.round(((day - R) / (ovDay - 2 - R)) * 100);
   if (day <= ovDay + 1) return Math.round(((day - (ovDay-2)) / 3) * 100);
   return Math.round(((day - (ovDay+1)) / (L - (ovDay+1))) * 100);
 }
 
-function drawCycleRing(currentDay, avgLen) {
+function drawCycleRing(currentDay, avgLen, reglesLen) {
   const canvas = document.getElementById('cycleCanvas');
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = 180 * dpr; canvas.height = 180 * dpr;
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const cx = 90, cy = 90, R = 72, thick = 16;
+  const cx = 90, cy = 90, R_RING = 72, thick = 16;
   const L = avgLen || 28;
+  const R = reglesLen || 5;
+  const ovDay = Math.round(L - 14);
 
   const phases = [
-    { start: 0,  end: 5,  color: '#f87171' },
-    { start: 5,  end: 13, color: '#fb923c' },
-    { start: 13, end: 16, color: '#facc15' },
-    { start: 16, end: L,  color: '#c084fc' },
+    { start: 0,        end: R,        color: '#f87171' },
+    { start: R,        end: ovDay-1,  color: '#fb923c' },
+    { start: ovDay-1,  end: ovDay+2,  color: '#facc15' },
+    { start: ovDay+2,  end: L,        color: '#c084fc' },
   ];
 
   const startAngle = -Math.PI / 2;
@@ -1276,7 +1306,7 @@ function drawCycleRing(currentDay, avgLen) {
   phases.forEach(p => {
     const a1 = startAngle + (p.start / L) * 2 * Math.PI + gap;
     const a2 = startAngle + (p.end / L) * 2 * Math.PI - gap;
-    ctx.beginPath(); ctx.arc(cx, cy, R, a1, a2);
+    ctx.beginPath(); ctx.arc(cx, cy, R_RING, a1, a2);
     ctx.strokeStyle = p.color + '40'; ctx.lineWidth = thick; ctx.stroke();
   });
 
@@ -1284,12 +1314,12 @@ function drawCycleRing(currentDay, avgLen) {
   if (activePhase) {
     const a1 = startAngle + (activePhase.start / L) * 2 * Math.PI + gap;
     const a2 = startAngle + ((currentDay - 1) / L) * 2 * Math.PI;
-    ctx.beginPath(); ctx.arc(cx, cy, R, a1, a2);
+    ctx.beginPath(); ctx.arc(cx, cy, R_RING, a1, a2);
     ctx.strokeStyle = activePhase.color; ctx.lineWidth = thick; ctx.stroke();
   }
 
   const dayAngle = startAngle + ((currentDay - 1) / L) * 2 * Math.PI;
-  const mx = cx + R * Math.cos(dayAngle), my = cy + R * Math.sin(dayAngle);
+  const mx = cx + R_RING * Math.cos(dayAngle), my = cy + R_RING * Math.sin(dayAngle);
   ctx.beginPath(); ctx.arc(mx, my, thick / 2 + 2, 0, Math.PI * 2);
   ctx.fillStyle = activePhase ? activePhase.color : '#fb923c'; ctx.fill();
   ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2);
@@ -1297,26 +1327,45 @@ function drawCycleRing(currentDay, avgLen) {
 }
 
 // ─── CYCLE STATS ──────────────────────────────────────────────
-let pastCycles = []; // chargé depuis Supabase
+let pastCycles = []; // chargé depuis Supabase — dates J1 (début des règles)
+let periodEnds = []; // chargé depuis Supabase — dates de fin des règles
 let selectedGlaireValue = null;
 let spottingValue = false;
+
+/* Durée réelle des règles pour un cycle donné (cycleStart inclus, avant cycleEnd
+   exclu si fourni). Retourne 5 par défaut si aucune fin n'a été déclarée. */
+function getReglesLenForCycle(cycleStart, cycleEnd) {
+  if (!cycleStart) return 5;
+  const end = periodEnds.find(d => d.getTime() >= cycleStart.getTime() && (!cycleEnd || d.getTime() < cycleEnd.getTime()));
+  if (!end) return 5;
+  return Math.max(1, Math.round((end - cycleStart) / 86400000) + 1);
+}
 
 async function loadCycleData() {
   if (!SESSION) return;
 
-  // 1. Charger les dates de début de cycle
+  // 1. Charger les dates de début (J1) et de fin des règles
   const { data: logs } = await db.from('cycle_logs')
-    .select('date').eq('client_id', SESSION.client_id)
-    .eq('notes', 'J1')
+    .select('date, notes').eq('client_id', SESSION.client_id)
+    .or('notes.eq.J1,notes.eq.FIN_REGLES,notes.eq.J1_FIN_REGLES')
     .order('date', { ascending: true });
 
-  pastCycles = (logs || []).map(l => new Date(l.date + 'T12:00:00'));
+  pastCycles = [];
+  periodEnds = [];
+  (logs || []).forEach(l => {
+    const d = new Date(l.date + 'T12:00:00');
+    if (l.notes === 'J1' || l.notes === 'J1_FIN_REGLES') pastCycles.push(d);
+    if (l.notes === 'FIN_REGLES' || l.notes === 'J1_FIN_REGLES') periodEnds.push(d);
+  });
+  pastCycles.sort((a, b) => a - b);
+  periodEnds.sort((a, b) => a - b);
 
   const avg = updateCycleStats();
   const today = new Date();
   const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
   const dayOfCycle = lastCycle ? Math.round((today - lastCycle) / 86400000) + 1 : null;
   updateCycleDisplay(dayOfCycle || 1, avg);
+  updateEndPeriodButtonVisibility();
 
   // 2. Afficher/masquer les insights selon le nombre de cycles
   const insightsList = document.querySelector('.insights-list');
@@ -1437,8 +1486,11 @@ function getCycleInfoForDate(date) {
   // Ovulation estimée pour ce cycle
   const ovDay = computeOvulationEstimate(cycleStart, cycleEnd, calDailyMap);
 
+  // Durée réelle des règles pour ce cycle (fallback 5j si non déclarée)
+  const reglesLen = getReglesLenForCycle(cycleStart, cycleEnd);
+
   let phase = null;
-  if (dayOfCycle <= 5)          phase = 'phase-menstrual';
+  if (dayOfCycle <= reglesLen)          phase = 'phase-menstrual';
   else if (dayOfCycle <= ovDay - 2)  phase = 'phase-follicular';
   else if (dayOfCycle <= ovDay + 1)  phase = 'phase-ovulation';
   else if (dayOfCycle <= cycleLen)   phase = 'phase-luteal';
@@ -2237,7 +2289,81 @@ async function confirmCycleLog() {
   calJ1Set.add(dateStr);
   buildCycleCalendar();
   document.getElementById('modal-cycle').classList.remove('open');
+  updateEndPeriodButtonVisibility();
   toast('Nouveau cycle enregistré · Moyenne : ' + (avg || '—') + ' jours');
+}
+
+// ─── FIN DES RÈGLES ─────────────────────────────────────────────
+
+/* Affiche le bouton "Déclarer la fin de mes règles" uniquement si le dernier
+   cycle (J1) en cours n'a pas encore de fin de règles déclarée. */
+function updateEndPeriodButtonVisibility() {
+  const btn = document.getElementById('btn-end-period');
+  if (!btn) return;
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  const hasEnd = lastCycle && periodEnds.some(d => d.getTime() >= lastCycle.getTime());
+  btn.style.display = (lastCycle && !hasEnd) ? 'flex' : 'none';
+}
+
+function openEndPeriodLog() {
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  if (!lastCycle) return;
+  document.getElementById('end-period-modal-sub').textContent =
+    `Début de ce cycle : ${lastCycle.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}`;
+  const inp = document.getElementById('end-period-date-input');
+  inp.value = new Date().toISOString().split('T')[0];
+  inp.min = lastCycle.toISOString().split('T')[0];
+  updateEndPeriodPreview();
+  inp.removeEventListener('input', updateEndPeriodPreview);
+  inp.addEventListener('input', updateEndPeriodPreview);
+  document.getElementById('modal-end-period').classList.add('open');
+}
+
+function updateEndPeriodPreview() {
+  const inp = document.getElementById('end-period-date-input');
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  const endDate = new Date(inp.value + 'T12:00:00');
+  if (!lastCycle || isNaN(endDate)) return;
+  const days = Math.max(1, Math.round((endDate - lastCycle) / 86400000) + 1);
+  document.getElementById('end-period-days-calc').textContent = days;
+}
+
+async function confirmEndPeriodLog() {
+  const inp = document.getElementById('end-period-date-input');
+  const dateStr = inp.value;
+  const endDate = new Date(dateStr + 'T12:00:00');
+  const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
+  if (!lastCycle || isNaN(endDate)) return;
+  if (endDate < lastCycle) { toast('La date de fin doit être après le début de ce cycle.'); return; }
+
+  const lastCycleStr = lastCycle.toISOString().split('T')[0];
+  let error;
+  if (dateStr === lastCycleStr) {
+    // Règles d'un seul jour : on fusionne sur la même ligne que le J1
+    ({ error } = await db.from('cycle_logs')
+      .update({ notes: 'J1_FIN_REGLES' })
+      .eq('client_id', SESSION.client_id)
+      .eq('date', dateStr));
+  } else {
+    ({ error } = await db.from('cycle_logs').insert({
+      client_id: SESSION.client_id,
+      date:      dateStr,
+      notes:     'FIN_REGLES',
+    }));
+  }
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  periodEnds.push(endDate);
+  periodEnds.sort((a, b) => a - b);
+
+  const avg = updateCycleStats();
+  const today = new Date();
+  const dayOfCycle = Math.round((today - lastCycle) / 86400000) + 1;
+  updateCycleDisplay(dayOfCycle, avg);
+  buildCycleCalendar();
+  document.getElementById('modal-end-period').classList.remove('open');
+  updateEndPeriodButtonVisibility();
+  toast('Fin des règles enregistrée');
 }
 
 function toast(msg) {
