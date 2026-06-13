@@ -10,6 +10,17 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
 function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+// Vérifie (async, non bloquant) que le compte n'a pas été désactivé par le coach.
+// Si désactivé : déconnecte et redirige vers login.html avec un message.
+function checkAccountActive(session){
+  if (!session) return;
+  db.from('clients').select('actif').eq('id', session.client_id).single().then(({data}) => {
+    if (data && data.actif === false) {
+      localStorage.removeItem('recode_session');
+      window.location.href = 'login.html?desactive=1';
+    }
+  }).catch(()=>{});
+}
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -445,6 +456,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <script>
 // ── Auth ──────────────────────────────────────────────────
 const SESSION = requireAuth();
+checkAccountActive(SESSION);
 if (SESSION) {
   const av = document.querySelector('.avatar');
   if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();

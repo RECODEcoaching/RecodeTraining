@@ -20,6 +20,9 @@ async function loginClient(email, pin) {
     .rpc('rpc_verify_login', { p_email: email.toLowerCase().trim(), p_pin: pin });
   if (error || !data || !data.length) return { success: false, error: 'Email ou code PIN incorrect.' };
   const row = data[0];
+  if (row.actif === false) {
+    return { success: false, error: 'Compte désactivé par ton coach. Contacte-le pour plus d\'informations.' };
+  }
   const session = { client_id: row.id, email: row.email, prenom: row.prenom, is_first_login: row.is_first_login };
   setSession(session);
   return { success: true, session };
@@ -471,6 +474,18 @@ let currentSession = null;
 (function() {
   const s = getSession();
   if (s && s.client_id) window.location.href = 'module1_seance.html';
+})();
+
+// ── Message si redirigée car compte désactivé par le coach ──────────
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('desactive') === '1') {
+    const msg = document.getElementById('error-msg');
+    if (msg) {
+      msg.textContent = 'Compte désactivé par ton coach. Contacte-le pour plus d\'informations.';
+      msg.classList.add('show');
+    }
+  }
 })();
 
 // ── Splash screen (lancement) ─────────────────────────────

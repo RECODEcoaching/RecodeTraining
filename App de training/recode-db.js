@@ -50,6 +50,10 @@ async function loginClient(email, pin) {
   if (error || !data || !data.length) return { success: false, error: 'Email ou code PIN incorrect.' };
 
   const row = data[0];
+  if (row.actif === false) {
+    return { success: false, error: 'Compte désactivé par ton coach. Contacte-le pour plus d\'informations.' };
+  }
+
   const session = {
     client_id:      row.id,
     email:          row.email,

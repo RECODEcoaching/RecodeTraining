@@ -204,6 +204,8 @@ async function hashPin(pin) {
   .tag.green  { background: rgba(22,163,74,0.08);  color: var(--success); }
   .tag.orange { background: rgba(217,119,6,0.08);  color: var(--warning); }
   .tag.purple { background: rgba(109,40,217,0.08); color: var(--accent); }
+  .tag.red    { background: rgba(220,38,38,0.08);  color: var(--danger); }
+  .client-card.inactive { opacity: 0.55; filter: grayscale(0.5); }
   .client-stats { display: flex; gap: 12px; }
   .client-stat { font-size: 10px; color: var(--muted); }
   .client-stat strong { display: block; font-size: 13px; font-weight: 700; color: var(--text); }
@@ -796,6 +798,11 @@ async function hashPin(pin) {
             style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.49"/></svg>
             <span id="btn-drive-label">Drive</span>
+          </button>
+          <button id="btn-toggle-active" onclick="toggleClientActive()"
+            style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
+            <svg id="btn-toggle-active-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <span id="btn-toggle-active-label">Désactiver l'accès</span>
           </button>
           <button class="btn btn-accent btn-sm" onclick="openAddSeance()">+ Ajouter séance</button>
         </div>
@@ -1658,7 +1665,7 @@ async function loadClients() {
 
   const { data, error } = await db
     .from('clients')
-    .select('id, email, prenom, created_at, is_first_login, drive_url')
+    .select('id, email, prenom, created_at, is_first_login, drive_url, actif')
     .order('prenom', { ascending: true });
 
   if (error) {
@@ -1691,8 +1698,9 @@ async function loadClients() {
     const initials = c.prenom.slice(0,2).toUpperCase();
     const since    = new Date(c.created_at).toLocaleDateString('fr-FR', { month:'short', year:'numeric' });
     const isNew    = c.is_first_login;
+    const isInactive = c.actif === false;
     return `
-      <div class="client-card">
+      <div class="client-card${isInactive ? ' inactive' : ''}">
         <div onclick='openClientFromDB(${JSON.stringify(c)}, ${i})' style="cursor:pointer">
           <div class="client-card-top">
             <div class="client-avatar" style="background:${col.bg};color:${col.text}">${initials}</div>
@@ -1702,7 +1710,9 @@ async function loadClients() {
             </div>
           </div>
           <div class="client-tags">
-            <span class="tag ${isNew ? 'orange' : 'green'}">${isNew ? 'Jamais connectée' : 'Connectée'}</span>
+            ${isInactive
+              ? `<span class="tag red">Désactivée</span>`
+              : `<span class="tag ${isNew ? 'orange' : 'green'}">${isNew ? 'Jamais connectée' : 'Connectée'}</span>`}
           </div>
           <div style="font-size:11px;color:var(--dim);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.email}</div>
         </div>
@@ -1746,6 +1756,9 @@ function openClientFromDB(client, colorIdx) {
   }
   document.getElementById('drive-editor').style.display = 'none';
   document.getElementById('drive-url-input').value = client.drive_url || '';
+
+  // Activation / désactivation du compte
+  updateToggleActiveButton(client);
 
   // Reset tabs
   document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
@@ -2641,6 +2654,51 @@ function renderExoGrid(groupe) {
     : '';
 
   grid.innerHTML = emptyMsg + cardsHTML + addCard;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ACTIVATION / DÉSACTIVATION DE L'ACCÈS CLIENTE
+// ═══════════════════════════════════════════════════════════
+function updateToggleActiveButton(client) {
+  const btn   = document.getElementById('btn-toggle-active');
+  const label = document.getElementById('btn-toggle-active-label');
+  const icon  = document.getElementById('btn-toggle-active-icon');
+  if (!btn || !label || !icon) return;
+
+  const isActive = client.actif !== false;
+  if (isActive) {
+    label.textContent = "Désactiver l'accès";
+    icon.innerHTML = '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>';
+    btn.style.color = 'var(--muted)';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.background = 'var(--surface2)';
+  } else {
+    label.textContent = "Réactiver l'accès";
+    icon.innerHTML = '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>';
+    btn.style.color = 'var(--success)';
+    btn.style.borderColor = 'var(--success)';
+    btn.style.background = 'rgba(22,163,74,0.08)';
+  }
+}
+
+async function toggleClientActive() {
+  if (!currentClientId || !currentClientData) return;
+
+  const isActive = currentClientData.actif !== false;
+  const newActif = !isActive;
+
+  if (isActive) {
+    const ok = confirm(`Désactiver l'accès de ${currentClientData.prenom} ?\n\nElle ne pourra plus se connecter à son espace, mais toutes ses données restent visibles ici et le compte est réactivable à tout moment.`);
+    if (!ok) return;
+  }
+
+  const { error } = await db.from('clients').update({ actif: newActif }).eq('id', currentClientId);
+  if (error) { alert('Erreur : ' + error.message); return; }
+
+  currentClientData.actif = newActif;
+  updateToggleActiveButton(currentClientData);
+  toast(newActif ? 'Accès réactivé' : 'Accès désactivé');
+  loadClients();
 }
 
 // ═══════════════════════════════════════════════════════════

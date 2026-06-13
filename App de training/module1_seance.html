@@ -10,6 +10,17 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
 function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+// Vérifie (async, non bloquant) que le compte n'a pas été désactivé par le coach.
+// Si désactivé : déconnecte et redirige vers login.html avec un message.
+function checkAccountActive(session){
+  if (!session) return;
+  db.from('clients').select('actif').eq('id', session.client_id).single().then(({data}) => {
+    if (data && data.actif === false) {
+      localStorage.removeItem('recode_session');
+      window.location.href = 'login.html?desactive=1';
+    }
+  }).catch(()=>{});
+}
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -650,6 +661,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
 <script>
   // ── Auth & state ─────────────────────────────────────────
   const SESSION = requireAuth();
+  checkAccountActive(SESSION);
   let weekOffset = 0;
   let currentSeanceId     = null;
   let currentSeanceStatut = null;
@@ -1009,15 +1021,15 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       let rows = '';
       for (let i = 1; i <= (exo.series || 3); i++) {
         const sd = sdArrUni ? (sdArrUni[i-1] || {}) : null;
-        const chargeVal = isDone ? (sd?.charge ?? exo.charge_reelle ?? '') : '';
-        const sideGVal  = isDone ? (sd?.reps_g ?? '') : '';
-        const sideDVal  = isDone ? (sd?.reps_d ?? '') : '';
+        const chargeVal = sd?.charge ?? exo.charge_reelle ?? '';
+        const sideGVal  = sd?.reps_g ?? '';
+        const sideDVal  = sd?.reps_d ?? '';
         rows += `<div class="series-row uni">
           <div class="serie-num">${i}</div>
           <input class="serie-input prescribed" value="${exo.reps}" readonly>
-          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" data-field="reps-g" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-g')">
-          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" data-field="reps-d" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-d')">
-          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'charge')">
+          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" data-field="reps-g" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-g')" onblur="flushAutosave('${exo.id}')">
+          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" data-field="reps-d" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-d')" onblur="flushAutosave('${exo.id}')">
+          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'charge')" onblur="flushAutosave('${exo.id}')">
         </div>`;
       }
       const savedNote = exo.notes_client || '';
@@ -1039,7 +1051,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
           <div class="series-header-row uni"><div>#</div><div>Prévu</div><div>G</div><div>D</div><div>Charge</div></div>
           ${rows}
           ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
-          <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''}>${savedNote}</textarea>
+          <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''} oninput="scheduleAutosave('${exo.id}')" onblur="flushAutosave('${exo.id}')">${savedNote}</textarea>
           ${renderExoThread(exo, true)}
         </div>
       </div>`;
@@ -1059,13 +1071,13 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     let rows = '';
     for (let i = 1; i <= (exo.series || 3); i++) {
       const sd = sdArr ? (sdArr[i-1] || {}) : null;
-      const repsVal   = isDone ? (sd?.reps   ?? exo.reps_reelles  ?? '') : '';
-      const chargeVal = isDone ? (sd?.charge ?? exo.charge_reelle ?? '') : '';
+      const repsVal   = sd?.reps   ?? exo.reps_reelles  ?? '';
+      const chargeVal = sd?.charge ?? exo.charge_reelle ?? '';
       rows += `<div class="series-row">
         <div class="serie-num">${i}</div>
         <input class="serie-input prescribed" value="${exo.reps}" readonly>
-        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" data-field="reps" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'reps')">
-        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'charge')">
+        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" data-field="reps" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'reps')" onblur="flushAutosave('${exo.id}')">
+        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'charge')" onblur="flushAutosave('${exo.id}')">
       </div>`;
     }
     const rawTags = exo.exercices?.tags || [];
@@ -1087,7 +1099,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
         <div class="series-header-row"><div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div></div>
         ${rows}
         ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
-        <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''}>${savedNote}</textarea>
+        <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''} oninput="scheduleAutosave('${exo.id}')" onblur="flushAutosave('${exo.id}')">${savedNote}</textarea>
         ${renderExoThread(exo, false)}
       </div>
     </div>`;
@@ -1252,6 +1264,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   function trackExoInput(inp, exoId, serie, field) {
     const v = parseFloat(inp.value);
     window._exoTrack[exoId + '|' + serie + '|' + field] = isNaN(v) ? null : v;
+    scheduleAutosave(exoId);
   }
 
   function getTracked(exoId, serie, field) {
@@ -1259,6 +1272,94 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     return Object.prototype.hasOwnProperty.call(window._exoTrack, key)
       ? window._exoTrack[key]
       : undefined;
+  }
+
+  // ── Sauvegarde continue (autosave) des séries/charges/commentaire ────
+  // Persiste les données saisies dans seance_exercices au fur et à mesure,
+  // indépendamment de la validation de la séance, pour qu'une cliente qui
+  // change de page sans valider ne perde jamais ce qu'elle a déjà entré.
+  window._autosaveTimers = window._autosaveTimers || {};
+
+  function getExoCard(exoId) {
+    return document.querySelector(`.exo-card[data-exo-id="${exoId}"]`);
+  }
+
+  // Sauvegarde différée (~900ms après la dernière saisie)
+  function scheduleAutosave(exoId) {
+    if (window._autosaveTimers[exoId]) clearTimeout(window._autosaveTimers[exoId]);
+    window._autosaveTimers[exoId] = setTimeout(() => {
+      delete window._autosaveTimers[exoId];
+      const card = getExoCard(exoId);
+      if (card) saveExoCardData(card);
+    }, 900);
+  }
+
+  // Sauvegarde immédiate (ex: quand le champ perd le focus)
+  function flushAutosave(exoId) {
+    if (window._autosaveTimers[exoId]) {
+      clearTimeout(window._autosaveTimers[exoId]);
+      delete window._autosaveTimers[exoId];
+    }
+    const card = getExoCard(exoId);
+    if (card) saveExoCardData(card);
+  }
+
+  // Collecte + persiste les données d'une carte exercice (séries, charges, commentaire)
+  async function saveExoCardData(card) {
+    const exoId = card?.dataset?.exoId;
+    if (!exoId) return;
+    const isUni = card.dataset.unilateral === 'true';
+
+    const seriesRows = card.querySelectorAll('.series-row');
+    const seriesData = [];
+    const domVal = inp => {
+      if (!inp) return null;
+      const v = parseFloat(inp.value);
+      return isNaN(v) ? null : v;
+    };
+    seriesRows.forEach((row, idx) => {
+      const s = idx + 1; // numéro de série (1-indexed)
+      if (isUni) {
+        const repsG  = getTracked(exoId, s, 'reps-g')  ?? domVal(row.querySelector('[data-field="reps-g"]'));
+        const repsD  = getTracked(exoId, s, 'reps-d')  ?? domVal(row.querySelector('[data-field="reps-d"]'));
+        const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
+        seriesData.push({ serie: s, reps_g: repsG ?? null, reps_d: repsD ?? null, charge: charge ?? null });
+      } else {
+        const reps   = getTracked(exoId, s, 'reps')    ?? domVal(row.querySelector('[data-field="reps"]'));
+        const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
+        seriesData.push({ serie: s, reps: reps ?? null, charge: charge ?? null });
+      }
+    });
+
+    // Valeurs résumées (max) pour compatibilité ascendante
+    const allCharges = seriesData.map(s => s.charge).filter(v => v !== null && v !== undefined);
+    const allReps    = seriesData.map(s => s.reps ?? s.reps_g ?? s.reps_d).filter(v => v !== null && v !== undefined);
+    const chargeReelle = allCharges.length ? Math.max(...allCharges) : null;
+    const repsReelles  = allReps.length    ? Math.max(...allReps)    : null;
+
+    // Commentaire client
+    const commentInput = card.querySelector('.exo-comment-input');
+    const notesClient = commentInput?.value?.trim() || null;
+
+    const hasData = seriesData.some(s => s.charge !== null || s.reps !== null || s.reps_g !== null || s.reps_d !== null);
+
+    const promises = [];
+
+    // Update 1 : colonnes stables (charge_reelle, reps_reelles, notes_client)
+    const baseUpdate = {};
+    if (chargeReelle !== null) baseUpdate.charge_reelle = chargeReelle;
+    if (repsReelles  !== null) baseUpdate.reps_reelles  = repsReelles;
+    if (notesClient)           baseUpdate.notes_client  = notesClient;
+    if (Object.keys(baseUpdate).length > 0) {
+      promises.push(db.from('seance_exercices').update(baseUpdate).eq('id', exoId));
+    }
+
+    // Update 2 : series_data (peut échouer si la colonne n'existe pas encore)
+    if (hasData) {
+      promises.push(db.from('seance_exercices').update({ series_data: seriesData }).eq('id', exoId));
+    }
+
+    if (promises.length) await Promise.allSettled(promises);
   }
 
   // ── Bouton principal : valider OU invalider selon le statut actuel ──
@@ -1277,74 +1378,9 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     btn.disabled = true; btn.style.opacity = '0.6';
     btn.textContent = 'Enregistrement…';
 
-    // 1. Sauvegarder les données saisies par exercice
+    // 1. Sauvegarder les données saisies par exercice (mêmes données que l'autosave)
     const exoCards = document.querySelectorAll('.exo-card[data-exo-id]');
-    const savePromises = [];
-    exoCards.forEach(card => {
-      const exoId = card.dataset.exoId;
-      if (!exoId) return;
-      const isUni = card.dataset.unilateral === 'true';
-
-      // Collecter les données par série
-      // Priorité 1 : valeurs trackées via oninput (les plus fiables)
-      // Priorité 2 : lecture directe du DOM via data-field
-      const seriesRows = card.querySelectorAll('.series-row');
-      const seriesData = [];
-      const domVal = inp => {
-        if (!inp) return null;
-        const v = parseFloat(inp.value);
-        return isNaN(v) ? null : v;
-      };
-      seriesRows.forEach((row, idx) => {
-        const s = idx + 1; // numéro de série (1-indexed)
-        if (isUni) {
-          const repsG  = getTracked(exoId, s, 'reps-g')  ?? domVal(row.querySelector('[data-field="reps-g"]'));
-          const repsD  = getTracked(exoId, s, 'reps-d')  ?? domVal(row.querySelector('[data-field="reps-d"]'));
-          const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
-          seriesData.push({ serie: s, reps_g: repsG ?? null, reps_d: repsD ?? null, charge: charge ?? null });
-        } else {
-          const reps   = getTracked(exoId, s, 'reps')    ?? domVal(row.querySelector('[data-field="reps"]'));
-          const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
-          seriesData.push({ serie: s, reps: reps ?? null, charge: charge ?? null });
-        }
-      });
-      // Debug localStorage pour diagnostic (à retirer plus tard)
-      try { localStorage.setItem('_recode_debug_' + exoId, JSON.stringify(seriesData)); } catch(e) {}
-
-      // Valeurs résumées (max) pour compatibilité ascendante
-      const allCharges = seriesData.map(s => s.charge).filter(v => v !== null && v !== undefined);
-      const allReps    = seriesData.map(s => s.reps ?? s.reps_g ?? s.reps_d).filter(v => v !== null && v !== undefined);
-      const chargeReelle = allCharges.length ? Math.max(...allCharges) : null;
-      const repsReelles  = allReps.length    ? Math.max(...allReps)    : null;
-
-      // Commentaire client
-      const commentInput = card.querySelector('.exo-comment-input');
-      const notesClient = commentInput?.value?.trim() || null;
-
-      const hasData = seriesData.some(s => s.charge !== null || s.reps !== null || s.reps_g !== null || s.reps_d !== null);
-
-      // Update 1 : colonnes stables (charge_reelle, reps_reelles, notes_client)
-      // Séparé de series_data pour éviter qu'un échec de l'un bloque l'autre
-      const baseUpdate = {};
-      if (chargeReelle !== null) baseUpdate.charge_reelle = chargeReelle;
-      if (repsReelles  !== null) baseUpdate.reps_reelles  = repsReelles;
-      if (notesClient)           baseUpdate.notes_client  = notesClient;
-      if (Object.keys(baseUpdate).length > 0) {
-        savePromises.push(
-          db.from('seance_exercices').update(baseUpdate).eq('id', exoId)
-        );
-      }
-
-      // Update 2 : series_data (peut échouer si la colonne n'existe pas encore)
-      if (hasData) {
-        savePromises.push(
-          db.from('seance_exercices').update({ series_data: seriesData }).eq('id', exoId)
-        );
-      }
-    });
-
-    // Sauvegarder en parallèle (Promise.allSettled ignore les erreurs individuelles)
-    await Promise.allSettled(savePromises);
+    await Promise.allSettled(Array.from(exoCards).map(card => saveExoCardData(card)));
 
     // 2. Valider la séance
     const { error } = await db.from('seances').update({ statut: 'validée' }).eq('id', currentSeanceId);
