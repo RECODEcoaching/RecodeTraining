@@ -402,6 +402,11 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   }
   .btn-validate:active { transform: scale(0.97); opacity: 0.85; }
   .btn-validate:disabled { background: var(--surface3); color: var(--text-muted); cursor: default; box-shadow: none; }
+  .btn-validate.btn-invalidate {
+    background: var(--surface2); color: var(--text-muted);
+    border: 1px solid var(--border); box-shadow: none;
+  }
+  .btn-validate.btn-invalidate:active { transform: scale(0.97); opacity: 0.7; }
 
   /* Modal vidéo */
   .modal-overlay {
@@ -553,7 +558,7 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
   </div>
 
   <div class="validate-section">
-    <button class="btn-validate" id="validate-btn" onclick="validateSession()">
+    <button class="btn-validate" id="validate-btn" onclick="onValidateBtnClick()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       Valider la séance
     </button>
@@ -943,13 +948,15 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
     // État du bouton valider
     const btn = document.getElementById('validate-btn');
     if (seance.statut === 'validée') {
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Séance déjà validée';
-      btn.disabled = true;
-      btn.style.opacity = '0.6';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg> Invalider la séance';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.classList.add('btn-invalidate');
     } else {
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
       btn.disabled = false;
       btn.style.opacity = '1';
+      btn.classList.remove('btn-invalidate');
     }
   }
 
@@ -1254,6 +1261,15 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       : undefined;
   }
 
+  // ── Bouton principal : valider OU invalider selon le statut actuel ──
+  function onValidateBtnClick() {
+    if (currentSeanceStatut === 'validée') {
+      invalidateSession();
+    } else {
+      validateSession();
+    }
+  }
+
   // ── Valider la séance — collecte les perfs avant de valider ────
   async function validateSession() {
     if (!currentSeanceId) return;
@@ -1339,6 +1355,25 @@ function logout(){localStorage.removeItem('recode_session');window.location.href
       return;
     }
     document.getElementById('success-overlay').classList.add('open');
+  }
+
+  // ── Invalider la séance — annule la validation si erreur de la cliente ──
+  async function invalidateSession() {
+    if (!currentSeanceId) return;
+    if (!confirm('Invalider cette séance ? Tu pourras de nouveau modifier tes données.')) return;
+
+    const btn = document.getElementById('validate-btn');
+    btn.disabled = true; btn.style.opacity = '0.6';
+
+    const { error } = await db.from('seances').update({ statut: 'planifiée' }).eq('id', currentSeanceId);
+    if (error) {
+      btn.disabled = false; btn.style.opacity = '1';
+      alert('Erreur lors de l\'invalidation. Réessaie.');
+      return;
+    }
+
+    currentSeanceStatut = 'planifiée';
+    await openSession(currentSeanceId);
   }
 
   async function closeSuccess() {
