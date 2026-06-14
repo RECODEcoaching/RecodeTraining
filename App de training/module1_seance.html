@@ -596,7 +596,15 @@ function checkAccountActive(session){
       <div style="font-size:15px;font-weight:700;color:var(--text)" id="exo-history-title">Historique</div>
       <button onclick="document.getElementById('modal-exo-history').classList.remove('open')" style="background:none;border:none;font-size:22px;color:var(--text-muted);cursor:pointer;line-height:1;">×</button>
     </div>
-    <div style="padding:4px 18px 18px;max-height:60vh;overflow-y:auto;" id="exo-history-body"></div>
+    <div style="padding:4px 18px 0;max-height:60vh;overflow-y:auto;">
+      <div id="exo-history-body" style="padding-bottom:14px;"></div>
+      <div style="border-top:1px solid var(--border);padding:14px 0 18px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Mes notes perso</div>
+        <div id="exo-notes-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+        <textarea id="exo-note-input" rows="2" placeholder="Ajouter une note (ressenti, sensation, objectif…)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--text);font-family:inherit;resize:none;outline:none;margin-bottom:8px;"></textarea>
+        <button class="btn-ghost" style="width:100%;" onclick="addExoNote()">+ Ajouter une note</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -666,6 +674,7 @@ function checkAccountActive(session){
   let currentSeanceId     = null;
   let currentSeanceStatut = null;
   let clientDriveUrl      = null;
+  let currentExoNoteName  = null; // nom de l'exercice courant dans la modale historique (pour les notes perso)
 
   // ── Chargement Drive URL ─────────────────────────────────
   async function loadClientDriveUrl() {
@@ -1112,6 +1121,11 @@ function checkAccountActive(session){
     document.getElementById('exo-history-body').innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:13px;">Chargement…</div>';
     modal.classList.add('open');
 
+    // Notes perso : indépendantes de l'historique reps/charge
+    currentExoNoteName = nomExo;
+    document.getElementById('exo-note-input').value = '';
+    loadExoNotes(nomExo);
+
     // Récupère les séances du client
     const { data: seances } = await db.from('seances').select('id, date, titre')
       .eq('client_id', SESSION.client_id).order('date', { ascending: false });
@@ -1176,6 +1190,69 @@ function checkAccountActive(session){
         <div style="display:flex;flex-direction:column;gap:4px;">${seriesHtml}</div>
       </div>`;
     }).join('');
+  }
+
+  // ── Notes perso par exercice (liste datée, ajout/suppression) ──
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  async function loadExoNotes(nomExo) {
+    const list = document.getElementById('exo-notes-list');
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">Chargement…</div>';
+    const { data: notes, error } = await db.from('notes_exercice_perso')
+      .select('id, date, contenu')
+      .eq('client_id', SESSION.client_id)
+      .eq('nom_exo', nomExo)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">Notes indisponibles — exécute le SQL (section 20).</div>';
+      return;
+    }
+    renderExoNotes(notes || []);
+  }
+
+  function renderExoNotes(notes) {
+    const list = document.getElementById('exo-notes-list');
+    if (!notes.length) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">Aucune note pour le moment.</div>';
+      return;
+    }
+    list.innerHTML = notes.map(n => {
+      const dateStr = new Date(n.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+      return `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;background:var(--surface2);border-radius:10px;padding:8px 10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;">${dateStr}</div>
+          <div style="font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word;">${escapeHtml(n.contenu)}</div>
+        </div>
+        <button onclick="deleteExoNote('${n.id}')" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;line-height:1;flex:0 0 auto;padding:0 2px;" title="Supprimer">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  async function addExoNote() {
+    const input = document.getElementById('exo-note-input');
+    const contenu = input.value.trim();
+    if (!contenu || !currentExoNoteName) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { error } = await db.from('notes_exercice_perso').insert({
+      client_id: SESSION.client_id,
+      nom_exo: currentExoNoteName,
+      date: today,
+      contenu,
+    });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    input.value = '';
+    await loadExoNotes(currentExoNoteName);
+  }
+
+  async function deleteExoNote(noteId) {
+    if (!confirm('Supprimer cette note ?')) return;
+    const { error } = await db.from('notes_exercice_perso').delete().eq('id', noteId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadExoNotes(currentExoNoteName);
   }
 
   // ── Thread de conversation coach/client sur un exercice ─────
