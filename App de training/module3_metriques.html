@@ -1028,11 +1028,21 @@ let currentDetailId = null;
 // ─── CHARGEMENT MÉTRIQUES SUPABASE ────────────────────────
 async function loadMetrics() {
   if (!SESSION) return;
-  const { data: metriques, error } = await db
+  let { data: metriques, error } = await db
     .from('client_metriques')
     .select('*')
     .eq('client_id', SESSION.client_id)
+    .order('ordre', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
+
+  if (error) {
+    // Colonne "ordre" pas encore créée (SQL section 21 non exécuté) : fallback
+    ({ data: metriques, error } = await db
+      .from('client_metriques')
+      .select('*')
+      .eq('client_id', SESSION.client_id)
+      .order('created_at', { ascending: true }));
+  }
 
   const container = document.getElementById('metrics-list');
   const loading   = document.getElementById('metrics-loading');

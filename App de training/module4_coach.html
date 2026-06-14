@@ -294,6 +294,14 @@ async function hashPin(pin) {
   .metric-manage-info { flex: 1; }
   .metric-manage-name { font-size: 13px; font-weight: 600; }
   .metric-manage-unit { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .metric-drag-handle {
+    flex: 0 0 auto; width: 16px; text-align: center; cursor: grab;
+    color: var(--muted); font-size: 14px; letter-spacing: -1px; line-height: 1;
+  }
+  .metric-manage-row[draggable="true"] { transition: box-shadow .15s ease, opacity .15s ease; }
+  .metric-manage-row.dragging { opacity: .4; }
+  .metric-manage-row.drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
+  .metric-manage-row.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--accent); }
   .metric-manage-val { font-size: 16px; font-weight: 800; color: var(--accent); margin-right: 8px; flex: 0 0 auto; }
   .metric-manage-val span { font-size: 10px; color: var(--muted); font-weight: 500; }
 
@@ -679,6 +687,22 @@ async function hashPin(pin) {
     font-family: inherit;
   }
   .prog-bilan-chip:hover { background: var(--accent-bg); }
+  .prog-paste-banner {
+    display: none; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 14px; margin-bottom: 10px; border-radius: var(--rs);
+    background: var(--accent-bg); border: 1px solid rgba(109,40,217,0.25);
+    font-size: 12px; font-weight: 600; color: var(--accent);
+  }
+  .prog-paste-banner.active { display: flex; }
+  .prog-day-cell.paste-mode { cursor: copy; }
+  .prog-day-cell.paste-mode:hover { background: rgba(109,40,217,0.10); }
+  .prog-paste-hint {
+    display: none; position: absolute; inset: 0; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(109,40,217,0.07);
+    border: 1px dashed var(--accent); border-radius: 4px; margin: 2px; text-align: center;
+  }
+  .prog-day-cell.paste-mode .prog-paste-hint { display: flex; }
+  .prog-day-cell.paste-mode .prog-add-hint { display: none; }
   .prog-bilan-chip.active {
     border-style: solid; border-color: transparent;
     background: var(--accent); color: #fff;
@@ -853,7 +877,10 @@ async function hashPin(pin) {
       <div class="client-tab-content" id="ctab-metrics">
         <div class="section-title">
           Métriques assignées
-          <button class="btn btn-accent btn-sm" onclick="toggleAddForm('metrics-add-form')">+ Ajouter</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="openAppliquerGroupe()">Appliquer un groupe</button>
+            <button class="btn btn-accent btn-sm" onclick="toggleAddForm('metrics-add-form')">+ Ajouter</button>
+          </div>
         </div>
         <div class="add-form" id="metrics-add-form">
           <div class="add-form-title">Assigner une métrique</div>
@@ -1118,6 +1145,14 @@ async function hashPin(pin) {
         <div class="lib-metric-row" data-type="objectif" data-cible="8"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h · Objectif : 8 (anneau)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Heures de sommeil','h',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
         <div class="lib-metric-row" data-type="objectif" data-cible="10000"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas · Objectif : 10000 (anneau)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Pas quotidiens','pas',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
       </div>
+
+      <div class="section-title" style="margin-top:24px;">
+        Groupes de métriques
+        <button class="btn btn-accent btn-sm" onclick="openCreateGroupe()">+ Créer un groupe</button>
+      </div>
+      <div class="lib-metrics-list" id="groupes-metriques-list">
+        <div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Aucun groupe créé</div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════════════
@@ -1179,6 +1214,11 @@ async function hashPin(pin) {
         <select class="prog-client-select" id="prog-client-select" onchange="onProgClientChange()">
           <option value="">— Sélectionner une cliente —</option>
         </select>
+      </div>
+
+      <div class="prog-paste-banner" id="prog-paste-banner">
+        <span id="prog-paste-banner-text">Mode collage actif</span>
+        <button class="btn btn-ghost btn-sm" onclick="cancelPasteMode()">Annuler</button>
       </div>
 
       <div class="prog-grid-wrap">
@@ -1249,6 +1289,7 @@ CREATE POLICY "Allow all anon on seance_echauffement"
       <div style="display:flex;gap:7px;">
         <button class="btn btn-accent btn-sm" id="psd-add-exo-btn" onclick="">+ Exercice</button>
         <button class="btn btn-sm" id="psd-validate-btn" onclick="">Valider</button>
+        <button class="btn btn-ghost btn-sm" id="psd-copy-btn" onclick="copyProgSeance()">Copier</button>
         <button class="btn btn-danger btn-sm" id="psd-delete-btn" onclick="">Supprimer</button>
         <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="document.getElementById('modal-prog-detail').classList.remove('open')">Fermer</button>
       </div>
@@ -1265,6 +1306,39 @@ CREATE POLICY "Allow all anon on seance_echauffement"
     </div>
     <div class="modal-body">
       <div id="gm-body" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : CRÉER UN GROUPE DE MÉTRIQUES ═══════════════ -->
+<div class="modal-overlay" id="modal-groupe-metrique">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Nouveau groupe de métriques</div>
+      <button class="modal-close" onclick="document.getElementById('modal-groupe-metrique').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Nom du groupe</label>
+      <input class="form-input" id="gm2-nom" placeholder="ex : Suivi prise de masse" style="width:100%;margin-bottom:12px;">
+      <label class="form-label" style="display:block;margin-bottom:6px;">Métriques à inclure</label>
+      <div id="gm2-metric-picker" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:42vh;overflow-y:auto;"></div>
+      <div class="form-row">
+        <button class="btn btn-accent" onclick="saveGroupeMetrique()">Créer le groupe</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-groupe-metrique').classList.remove('open')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : APPLIQUER UN GROUPE À LA CLIENTE ═══════════════ -->
+<div class="modal-overlay" id="modal-appliquer-groupe">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Appliquer un groupe de métriques</div>
+      <button class="modal-close" onclick="document.getElementById('modal-appliquer-groupe').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="ag-groupes-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
   </div>
 </div>
@@ -1623,6 +1697,7 @@ function showScreen(id, navEl) {
   document.getElementById('topbar-title').textContent = titles[id] || '';
   if (id === 'biblio-exos')    loadExercices();
   if (id === 'biblio-habits')  loadBiblioHabits();
+  if (id === 'biblio-metrics') loadGroupesMetriques();
   if (id === 'clients')        loadClients();
   if (id === 'prog')           initProgScreen();
 }
@@ -3063,6 +3138,184 @@ async function addMetric() {
   await loadClientMetrics(currentClientId);
 }
 
+// ─── GROUPES DE MÉTRIQUES ───────────────────────────────────────
+// Liste fusionnée bibliothèque DOM + LIB_METRICS (icône, type, cible, inverse, fréquence)
+function getLibMetricsList() {
+  const libRows = document.querySelectorAll('#lib-metrics-list .lib-metric-row');
+  const libMetrics = [];
+  libRows.forEach(r => {
+    const nom   = r.querySelector('.lib-metric-name')?.textContent || '';
+    const unite = r.querySelector('.lib-metric-unit')?.textContent.split('·')[0].trim() || '';
+    const icon  = r.querySelector('.lib-metric-icon')?.textContent || '📊';
+    const type    = r.dataset.type || 'mesure';
+    const cible   = r.dataset.cible || '';
+    const inverse = r.dataset.inverse === 'true';
+    libMetrics.push({ icon, nom, unite, freq:'Quotidien', type, cible, inverse });
+  });
+  LIB_METRICS.forEach(lm => {
+    const existing = libMetrics.find(m => m.nom === lm.nom);
+    if (existing) {
+      existing.freq = lm.freq;
+      if (!existing.type || existing.type === 'mesure') existing.type = lm.type || existing.type;
+      if (!existing.cible) existing.cible = lm.cible || '';
+      if (!existing.inverse) existing.inverse = !!lm.inverse;
+    } else {
+      libMetrics.push({ icon: lm.icon, nom: lm.nom, unite: lm.unite, freq: lm.freq, type: lm.type, cible: lm.cible||'', inverse: !!lm.inverse });
+    }
+  });
+  return libMetrics;
+}
+
+let selectedGroupeMetrics = [];
+
+function openCreateGroupe() {
+  selectedGroupeMetrics = [];
+  if (document.getElementById('gm2-nom')) document.getElementById('gm2-nom').value = '';
+  const libMetrics = getLibMetricsList();
+  const container = document.getElementById('gm2-metric-picker');
+  container.innerHTML = libMetrics.map((m, i) => `
+    <label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;font-size:13px;">
+      <input type="checkbox" style="width:auto" onchange="toggleGroupeMetricPick(${i}, this.checked)">
+      <span style="font-size:15px;">${m.icon}</span>
+      <span style="flex:1;font-weight:600;">${m.nom}</span>
+      <span style="font-size:11px;color:var(--muted);">${m.unite||''}</span>
+    </label>`
+  ).join('');
+  container.dataset.libMetrics = JSON.stringify(libMetrics);
+  document.getElementById('modal-groupe-metrique').classList.add('open');
+}
+
+function toggleGroupeMetricPick(index, checked) {
+  const libMetrics = JSON.parse(document.getElementById('gm2-metric-picker')?.dataset.libMetrics || '[]');
+  const m = libMetrics[index];
+  if (!m) return;
+  if (checked) {
+    if (!selectedGroupeMetrics.find(x => x.nom === m.nom)) selectedGroupeMetrics.push(m);
+  } else {
+    selectedGroupeMetrics = selectedGroupeMetrics.filter(x => x.nom !== m.nom);
+  }
+}
+
+async function saveGroupeMetrique() {
+  const nom = (document.getElementById('gm2-nom')?.value||'').trim();
+  if (!nom) { toast('Donne un nom au groupe'); return; }
+  if (selectedGroupeMetrics.length === 0) { toast('Sélectionne au moins une métrique'); return; }
+
+  const { data: groupe, error } = await db.from('groupes_metriques').insert({ nom }).select().single();
+  if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 21)'); return; }
+
+  const items = selectedGroupeMetrics.map((m, i) => ({
+    groupe_id: groupe.id, nom: m.nom, unite: m.unite || null, icone: m.icon || '📊',
+    frequence: m.freq || 'Hebdomadaire', type: m.type || 'mesure',
+    cible: (m.type === 'objectif' && m.cible) ? parseFloat(m.cible) : null,
+    inverse: !!m.inverse, ordre: i
+  }));
+  const { error: itemsErr } = await db.from('groupe_metriques_items').insert(items);
+  if (itemsErr) { toast('Erreur : ' + itemsErr.message); return; }
+
+  document.getElementById('modal-groupe-metrique').classList.remove('open');
+  toast('Groupe créé ✓');
+  await loadGroupesMetriques();
+}
+
+async function loadGroupesMetriques() {
+  const list = document.getElementById('groupes-metriques-list');
+  if (!list) return;
+  const { data: groupes, error } = await db.from('groupes_metriques').select('*').order('created_at', { ascending: true });
+  if (error) {
+    list.innerHTML = '<div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Groupes indisponibles — exécute le SQL (section 21).</div>';
+    return;
+  }
+  if (!groupes || groupes.length === 0) {
+    list.innerHTML = '<div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Aucun groupe créé</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  for (const g of groupes) {
+    const { data: items } = await db.from('groupe_metriques_items').select('nom,icone').eq('groupe_id', g.id).order('ordre', { ascending: true });
+    const icons = (items || []).map(it => it.icone || '📊').join(' ');
+    const names = (items || []).map(it => it.nom).join(', ');
+    const row = document.createElement('div');
+    row.className = 'lib-metric-row';
+    row.innerHTML = `<div class="lib-metric-icon">${icons || '🗂️'}</div>
+      <div class="lib-metric-info"><div class="lib-metric-name">${g.nom}</div><div class="lib-metric-unit">${names || '—'}</div></div>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="deleteGroupeMetrique('${g.id}', this)">Supprimer</button>`;
+    list.appendChild(row);
+  }
+}
+
+async function deleteGroupeMetrique(id, btn) {
+  if (!confirm('Supprimer ce groupe de métriques ?')) return;
+  await db.from('groupes_metriques').delete().eq('id', id);
+  btn.closest('.lib-metric-row').remove();
+  if (!document.querySelector('#groupes-metriques-list .lib-metric-row')) {
+    document.getElementById('groupes-metriques-list').innerHTML = '<div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Aucun groupe créé</div>';
+  }
+  toast('Groupe supprimé');
+}
+
+// ─── APPLIQUER UN GROUPE À LA CLIENTE ──────────────────────────
+async function openAppliquerGroupe() {
+  if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
+  const list = document.getElementById('ag-groupes-list');
+  list.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Chargement…</div>';
+  document.getElementById('modal-appliquer-groupe').classList.add('open');
+
+  const { data: groupes, error } = await db.from('groupes_metriques').select('*').order('created_at', { ascending: true });
+  if (error) {
+    list.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Groupes indisponibles — exécute le SQL (section 21).</div>';
+    return;
+  }
+  if (!groupes || groupes.length === 0) {
+    list.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Aucun groupe créé. Crée-en un depuis Bibliothèque → Métriques.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  for (const g of groupes) {
+    const { data: items } = await db.from('groupe_metriques_items').select('*').eq('groupe_id', g.id).order('ordre', { ascending: true });
+    const names = (items || []).map(it => it.nom).join(', ');
+    const row = document.createElement('div');
+    row.className = 'lib-metric-row';
+    row.style.cursor = 'pointer';
+    row.innerHTML = `<div class="lib-metric-icon">🗂️</div>
+      <div class="lib-metric-info"><div class="lib-metric-name">${g.nom}</div><div class="lib-metric-unit">${names || '—'}</div></div>
+      <button class="btn btn-accent btn-sm" style="margin-left:auto">Appliquer</button>`;
+    row.querySelector('button').onclick = () => applyGroupeToClient(g.id, g.nom);
+    list.appendChild(row);
+  }
+}
+
+async function applyGroupeToClient(groupeId, groupeNom) {
+  if (!currentClientId) return;
+  const { data: items, error } = await db.from('groupe_metriques_items').select('*').eq('groupe_id', groupeId).order('ordre', { ascending: true });
+  if (error || !items || items.length === 0) { toast('Groupe vide ou indisponible'); return; }
+
+  // Déterminer l'ordre de départ (après les métriques déjà assignées)
+  let startOrdre = 0;
+  const { data: existing, error: exErr } = await db.from('client_metriques').select('ordre')
+    .eq('client_id', currentClientId).order('ordre', { ascending: false }).limit(1);
+  if (!exErr && existing && existing[0] && existing[0].ordre != null) startOrdre = existing[0].ordre + 1;
+
+  const payload = items.map((it, i) => ({
+    client_id: currentClientId, nom: it.nom, unite: it.unite, icone: it.icone || '📊',
+    frequence: it.frequence || 'Hebdomadaire', type: it.type || 'mesure',
+    cible: it.cible, inverse: it.inverse, ordre: startOrdre + i
+  }));
+  let { error: insErr } = await db.from('client_metriques').insert(payload);
+  if (insErr) {
+    // Colonne "ordre" probablement absente (SQL section 21 non exécuté) : retente sans
+    const payloadNoOrdre = payload.map(({ ordre, ...rest }) => rest);
+    ({ error: insErr } = await db.from('client_metriques').insert(payloadNoOrdre));
+  }
+  if (insErr) { toast('Erreur : ' + insErr.message); return; }
+
+  document.getElementById('modal-appliquer-groupe').classList.remove('open');
+  toast(`Groupe "${groupeNom}" appliqué ✓`);
+  await loadClientMetrics(currentClientId);
+}
+
 async function addHabit() {
   const nom  = (document.getElementById('ch-nom')?.value||'').trim();
   const type = document.getElementById('ch-type')?.value || 'oui-non';
@@ -3091,11 +3344,21 @@ async function loadClientMetrics(clientId) {
   const emptyEl = document.getElementById('coach-metrics-empty');
   if (!list) return;
 
-  const { data: metriques } = await db
+  let { data: metriques, error: metriquesErr } = await db
     .from('client_metriques')
     .select('*')
     .eq('client_id', clientId)
+    .order('ordre', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
+
+  if (metriquesErr) {
+    // Colonne "ordre" pas encore créée (SQL section 21 non exécuté) : fallback
+    ({ data: metriques } = await db
+      .from('client_metriques')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: true }));
+  }
 
   list.querySelectorAll('.metric-manage-row').forEach(r => r.remove());
   if (emptyEl) emptyEl.style.display = 'none';
@@ -3121,7 +3384,14 @@ async function loadClientMetrics(clientId) {
         const row = document.createElement('div');
         row.className = 'metric-manage-row';
         row.dataset.metriqueId = m.id;
-        row.innerHTML = `<div class="metric-manage-icon">${m.icone||'📊'}</div>
+        row.draggable = true;
+        row.ondragstart = (e) => onMetricDragStart(e, m.id);
+        row.ondragend   = onMetricDragEnd;
+        row.ondragover  = (e) => onMetricDragOver(e);
+        row.ondragleave = (e) => onMetricDragLeave(e);
+        row.ondrop      = (e) => onMetricDrop(e, m.id);
+        row.innerHTML = `<div class="metric-drag-handle" title="Glisser pour réordonner">⠿</div>
+          <div class="metric-manage-icon">${m.icone||'📊'}</div>
           <div class="metric-manage-info">
             <div class="metric-manage-name">${m.nom}</div>
             <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence} · ${typeLabel}</div>
@@ -3308,6 +3578,69 @@ async function removeMetricDB(id, btn) {
   await db.from('client_metriques').delete().eq('id', id);
   btn.closest('.metric-manage-row').remove();
   toast('Métrique retirée');
+}
+
+// ─── RÉORGANISATION DES MÉTRIQUES (drag & drop) ────────────────
+let metricDragId = null;
+
+function onMetricDragStart(e, id) {
+  metricDragId = id;
+  e.currentTarget.classList.add('dragging');
+  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); } catch (err) {}
+}
+
+function onMetricDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('#coach-metrics-list .metric-manage-row.drag-over')
+    .forEach(r => r.classList.remove('drag-over', 'drag-over-bottom'));
+}
+
+function onMetricDragOver(e) {
+  e.preventDefault();
+  if (!metricDragId) return;
+  const row = e.currentTarget;
+  if (row.dataset.metriqueId === metricDragId) return;
+  const rect = row.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  row.classList.add('drag-over');
+  row.classList.toggle('drag-over-bottom', !before);
+}
+
+function onMetricDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over', 'drag-over-bottom');
+}
+
+async function onMetricDrop(e, targetId) {
+  e.preventDefault();
+  const row = e.currentTarget;
+  row.classList.remove('drag-over', 'drag-over-bottom');
+  if (!metricDragId || metricDragId === targetId) return;
+
+  const list = document.getElementById('coach-metrics-list');
+  const dragEl   = list.querySelector(`.metric-manage-row[data-metrique-id="${metricDragId}"]`);
+  const targetEl = list.querySelector(`.metric-manage-row[data-metrique-id="${targetId}"]`);
+  if (!dragEl || !targetEl) return;
+
+  const rect = targetEl.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  if (before) targetEl.parentNode.insertBefore(dragEl, targetEl);
+  else targetEl.parentNode.insertBefore(dragEl, targetEl.nextSibling);
+
+  metricDragId = null;
+  await persistMetricsOrder();
+}
+
+async function persistMetricsOrder() {
+  const rows = document.querySelectorAll('#coach-metrics-list .metric-manage-row');
+  const updates = Array.from(rows).map((r, i) =>
+    db.from('client_metriques').update({ ordre: i }).eq('id', r.dataset.metriqueId)
+  );
+  const results = await Promise.all(updates);
+  if (results.some(r => r.error)) {
+    toast('Ordre non sauvegardé — exécute le SQL (section 21)');
+  } else {
+    toast('Ordre mis à jour ✓');
+  }
 }
 
 async function removeHabitDB(id, btn) {
@@ -3646,6 +3979,7 @@ let progSeancesAll = [];
 let progBilanAll   = [];
 let progDragSeanceId = null; // séance en cours de glissement (drag & drop)
 let progClickDate  = null;
+let progClipboardSeance = null; // séance copiée (titre + exercices + échauffement), mode collage actif si non-null
 
 async function initProgScreen() {
   // Charger la liste des clientes pour le select
@@ -3742,6 +4076,16 @@ function renderProgGrid() {
     w0.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) + ' – ' +
     w3end.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
 
+  // Mode collage : afficher la bannière
+  const pasteBanner = document.getElementById('prog-paste-banner');
+  if (progClipboardSeance) {
+    pasteBanner.classList.add('active');
+    document.getElementById('prog-paste-banner-text').textContent =
+      `Mode collage : "${progClipboardSeance.titre}" — clique sur un jour pour coller (plusieurs fois possible)`;
+  } else {
+    pasteBanner.classList.remove('active');
+  }
+
   // Build seances map: date string → [seances]
   const seanceMap = {};
   progSeancesAll.forEach(s => {
@@ -3798,12 +4142,16 @@ function renderProgGrid() {
           title="${bilanActive ? 'Bilan programmé — cliquer pour retirer' : 'Programmer un bilan ce jour'}"
           onclick="event.stopPropagation();toggleBilanDay('${key}')"
         >Bilan</button>`;
-      html += `<div class="prog-day-cell${isToday?' today-col':''}" onclick="openProgAddSeance('${key}')"
+      const isPasteMode = !!progClipboardSeance;
+      const dayClickHandler = isPasteMode ? `pasteSeanceTo('${key}')` : `openProgAddSeance('${key}')`;
+      const pasteHint = isPasteMode ? '<div class="prog-paste-hint">Coller ici</div>' : '';
+      html += `<div class="prog-day-cell${isToday?' today-col':''}${isPasteMode?' paste-mode':''}" onclick="${dayClickHandler}"
         ondragover="onDayDragOver(event)" ondragleave="onDayDragLeave(event)" ondrop="onDayDrop(event,'${key}')">
         <div class="prog-day-num${isToday?' today-num':''}">${dayNum}</div>
         ${chips}
         ${bilanChip}
         <div class="prog-add-hint">+</div>
+        ${pasteHint}
       </div>`;
     }
   }
@@ -3998,6 +4346,86 @@ async function loadProgDetailExos(seanceId) {
         </div>
       </div>`;
   }).join('');
+}
+
+// ─── COPIER / COLLER UNE SÉANCE (Programmation) ────────────
+async function copyProgSeance() {
+  const seanceId = progDetailSeanceId;
+  if (!seanceId) return;
+
+  const { data: exos, error: exosErr } = await db
+    .from('seance_exercices').select('*')
+    .eq('seance_id', seanceId)
+    .order('ordre', { ascending: true });
+
+  if (exosErr) { toast('Erreur : ' + exosErr.message); return; }
+
+  const { data: echauf } = await db
+    .from('seance_echauffement').select('*')
+    .eq('seance_id', seanceId)
+    .order('ordre', { ascending: true });
+
+  const titre = document.getElementById('psd-titre').textContent;
+  progClipboardSeance = {
+    titre,
+    exercices: exos || [],
+    echauffement: echauf || []
+  };
+
+  document.getElementById('modal-prog-detail').classList.remove('open');
+  toast(`Séance "${titre}" copiée — clique sur un jour pour la coller`);
+  renderProgGrid();
+}
+
+function cancelPasteMode() {
+  progClipboardSeance = null;
+  renderProgGrid();
+}
+
+async function pasteSeanceTo(dateStr) {
+  if (!progClipboardSeance || !progClientId) return;
+  const { titre, exercices, echauffement } = progClipboardSeance;
+
+  const { data: newSeance, error } = await db.from('seances')
+    .insert({ client_id: progClientId, titre, date: dateStr, statut: 'planifiée', notes: null })
+    .select().single();
+
+  if (error || !newSeance) { toast('Erreur : ' + (error ? error.message : 'séance non créée')); return; }
+
+  if (exercices.length > 0) {
+    const exoInserts = exercices.map(e => ({
+      seance_id:   newSeance.id,
+      exercice_id: e.exercice_id || null,
+      nom_exo:     e.nom_exo,
+      ordre:       e.ordre,
+      series:      e.series,
+      reps:        e.reps,
+      rir:         e.rir,
+      repos_serie: e.repos_serie,
+      repos_cote:  e.repos_cote,
+      charge:      e.charge,
+      charge_kg:   e.charge_kg,
+      unilateral:  e.unilateral,
+    }));
+    const { error: exErr } = await db.from('seance_exercices').insert(exoInserts);
+    if (exErr) toast('Séance créée, mais erreur exercices : ' + exErr.message);
+  }
+
+  if (echauffement.length > 0) {
+    const echInserts = echauffement.map(e => ({
+      seance_id:   newSeance.id,
+      exercice_id: e.exercice_id || null,
+      nom_exo:     e.nom_exo,
+      ordre:       e.ordre,
+      consigne:    e.consigne,
+    }));
+    const { error: echErr } = await db.from('seance_echauffement').insert(echInserts);
+    if (echErr) toast('Séance créée, mais erreur échauffement : ' + echErr.message);
+  }
+
+  toast(`Séance "${titre}" collée ✓ — clique sur un autre jour ou "Annuler"`);
+  await loadProgSeances();
+  if (currentClientId === progClientId) await loadSeances(currentClientId);
 }
 
 // ─── GÉRER MÉTRIQUE ─────────────────────────────────────────
