@@ -188,9 +188,35 @@ function checkAccountActive(session){
     background: var(--surface2); color: var(--text-muted); font-weight: 500;
   }
   .session-status.done { background: var(--success-bg); color: var(--success); font-weight: 600; }
+  .session-status.cardio { background: rgba(217,119,6,0.1); color: #D97706; font-weight: 600; }
+  .session-card.cardio-card::before { background: #D97706; }
   .session-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
   .session-info { display: none; }
   .session-muscles { display: none; }
+
+  /* ── CARDIO VIEW ── */
+  .cardio-view {
+    background: var(--surface); border-radius: var(--radius); padding: 18px 16px;
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    text-align: center;
+  }
+  .cardio-view-icon {
+    width: 56px; height: 56px; border-radius: 50%; background: rgba(217,119,6,0.1);
+    color: #D97706; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px;
+  }
+  .cardio-view-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .cardio-view-stats {
+    display: flex; justify-content: center; gap: 24px; margin: 14px 0 4px;
+  }
+  .cardio-view-stat { text-align: center; }
+  .cardio-view-stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+  .cardio-view-stat-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .cardio-view-note {
+    margin-top: 14px; padding: 10px 12px; background: var(--surface2);
+    border-radius: 8px; font-size: 13px; color: var(--text-muted);
+    text-align: left; line-height: 1.5;
+  }
 
   /* ── BILAN CARD ── */
   .bilan-card::before { background: #8B5CF6; }
@@ -552,7 +578,7 @@ function checkAccountActive(session){
         Drive
       </span>
     </div>
-    <div class="session-progress">
+    <div class="session-progress" id="session-progress">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="progress-label" id="progress-label">0 / 0 exercices</div>
     </div>
@@ -563,7 +589,7 @@ function checkAccountActive(session){
   <div class="exo-list" id="ech-list" style="display:none"></div>
 
   <!-- Exercices (chargés dynamiquement) -->
-  <div class="section-label">Exercices</div>
+  <div class="section-label" id="exo-section-label">Exercices</div>
   <div class="exo-list" id="exo-list">
     <div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>
   </div>
@@ -803,7 +829,9 @@ function checkAccountActive(session){
     const dateObj    = new Date(date + 'T12:00:00');
     const today      = new Date().toISOString().split('T')[0];
     const isToday    = date === today;
-    const clickable  = date <= today && !done;
+    // Toujours cliquable : la cliente peut faire son bilan en avance
+    // (avant la date programmée) ou ré-invalider un bilan déjà fait.
+    const clickable  = true;
 
     const dateStr     = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
@@ -812,7 +840,7 @@ function checkAccountActive(session){
     const statusLabel = done ? '✓ Fait' : (date <= today ? 'À faire' : 'Programmé');
     const statusClass = done ? 'done' : '';
     const cardClass   = 'session-card bilan-card' + (done ? ' done' : '') + (clickable ? '' : ' no-click');
-    const onClick     = clickable ? `onclick="markBilanDone('${date}')"` : '';
+    const onClick     = clickable ? `onclick="toggleBilanDone('${date}', ${done})"` : '';
 
     return `<div class="${cardClass}" ${onClick}>
       <div class="session-meta">
@@ -823,13 +851,21 @@ function checkAccountActive(session){
     </div>`;
   }
 
-  async function markBilanDone(date) {
+  // Toggle fait/à faire : un bilan validé par erreur peut être ré-invalidé
+  // d'un simple clic (même comportement que pour les séances).
+  async function toggleBilanDone(date, done) {
     if (!SESSION) return;
-    const { error } = await db.from('bilan_logs').upsert(
-      { client_id: SESSION.client_id, date },
-      { onConflict: 'client_id,date' }
-    );
-    if (error) return;
+    if (done) {
+      const { error } = await db.from('bilan_logs').delete()
+        .eq('client_id', SESSION.client_id).eq('date', date);
+      if (error) return;
+    } else {
+      const { error } = await db.from('bilan_logs').upsert(
+        { client_id: SESSION.client_id, date },
+        { onConflict: 'client_id,date' }
+      );
+      if (error) return;
+    }
     await loadWeekSessions();
   }
 
@@ -839,14 +875,15 @@ function checkAccountActive(session){
     const isToday = s.date === today;
     const isDone  = s.statut === 'validée';
     const isRest  = s.statut === 'repos';
+    const isCardio = s.type_seance === 'cardio';
 
     const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
     const dayLabel = capitalDate + (isToday ? ' · Aujourd\'hui' : '');
 
-    const statusLabel = isDone ? '✓ Validée' : isRest ? 'Repos' : 'À faire';
-    const statusClass = isDone ? 'done' : isRest ? 'rest' : '';
-    const cardClass   = isDone ? 'session-card done' : (isRest ? 'session-card rest-card' : 'session-card');
+    const statusLabel = isDone ? '✓ Validée' : isRest ? 'Repos' : (isCardio ? 'Cardio' : 'À faire');
+    const statusClass = isDone ? 'done' : isRest ? 'rest' : (isCardio ? 'cardio' : '');
+    const cardClass   = isDone ? 'session-card done' : (isRest ? 'session-card rest-card' : (isCardio ? 'session-card cardio-card' : 'session-card'));
 
     // Badge rouge si réponse coach non lue
     const badge = hasUnread ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#EF4444;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;">
@@ -865,6 +902,39 @@ function checkAccountActive(session){
     </div>`;
   }
 
+  // ── Rendu de la vue séance cardio ────────────────────────
+  function renderCardioView(seance) {
+    const typeLabels = { course:'Course', velo:'Vélo', natation:'Natation', rameur:'Rameur', marche:'Marche', autre:'Cardio' };
+    const typeLabel = typeLabels[seance.cardio_type] || 'Cardio';
+    const duree = seance.cardio_duree;
+    const intensite = seance.cardio_intensite
+      ? seance.cardio_intensite.charAt(0).toUpperCase() + seance.cardio_intensite.slice(1)
+      : '—';
+    const note = (seance.cardio_note || '').trim();
+
+    const noteBlock = note
+      ? `<div class="cardio-view-note">${note.replace(/\n/g, '<br>')}</div>`
+      : '';
+
+    return `<div class="cardio-view">
+      <div class="cardio-view-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div class="cardio-view-title">${typeLabel}</div>
+      <div class="cardio-view-stats">
+        <div class="cardio-view-stat">
+          <div class="cardio-view-stat-val">${duree ? duree + ' min' : '—'}</div>
+          <div class="cardio-view-stat-label">Durée</div>
+        </div>
+        <div class="cardio-view-stat">
+          <div class="cardio-view-stat-val">${intensite}</div>
+          <div class="cardio-view-stat-label">Intensité</div>
+        </div>
+      </div>
+      ${noteBlock}
+    </div>`;
+  }
+
   // ── Ouverture d'une séance ───────────────────────────────
   async function openSession(seanceId) {
     currentSeanceId = seanceId;
@@ -877,6 +947,8 @@ function checkAccountActive(session){
     document.getElementById('progress-label').textContent = '0 / 0 exercices';
     document.getElementById('progress-fill').style.width = '0%';
     document.getElementById('ech-section-label').style.display = 'none';
+    document.getElementById('exo-section-label').style.display = '';
+    document.getElementById('session-progress').style.display = '';
     const echListEl = document.getElementById('ech-list');
     echListEl.style.display = 'none';
     echListEl.innerHTML = '';
@@ -890,6 +962,28 @@ function checkAccountActive(session){
     const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     document.getElementById('session-title-text').textContent = seance.titre;
     document.getElementById('session-date-chip').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+    // ── Séance cardio : vue dédiée (pas d'exercices/échauffement) ──
+    if (seance.type_seance === 'cardio') {
+      document.getElementById('exo-section-label').style.display = 'none';
+      document.getElementById('session-progress').style.display = 'none';
+      document.getElementById('ech-section-label').style.display = 'none';
+      document.getElementById('ech-list').style.display = 'none';
+      document.getElementById('exo-list').innerHTML = renderCardioView(seance);
+
+      // État du bouton valider
+      const btnCardio = document.getElementById('validate-btn');
+      if (seance.statut === 'validée') {
+        btnCardio.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg> Invalider la séance';
+        btnCardio.classList.add('btn-invalidate');
+      } else {
+        btnCardio.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
+        btnCardio.classList.remove('btn-invalidate');
+      }
+      btnCardio.disabled = false;
+      btnCardio.style.opacity = '1';
+      return;
+    }
 
     // Charger les exercices (sans join pour éviter les erreurs schema cache)
     const { data: exos } = await db
