@@ -718,6 +718,16 @@ function checkAccountActive(session){
     window.open(clientDriveUrl, '_blank', 'noopener');
   }
 
+  // Convertit une Date en "YYYY-MM-DD" en utilisant le calendrier LOCAL
+  // (contrairement à toISOString() qui convertit en UTC et peut décaler
+  // la date d'un jour pour les fuseaux horaires positifs comme la France).
+  function toLocalDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // ── Helpers semaine ──────────────────────────────────────
   function getWeekRange(offset) {
     const now = new Date();
@@ -727,7 +737,7 @@ function checkAccountActive(session){
     lundi.setDate(now.getDate() + diffLun + offset * 7);
     const dimanche = new Date(lundi);
     dimanche.setDate(lundi.getDate() + 6);
-    const fmt = d => d.toISOString().split('T')[0];
+    const fmt = d => toLocalDateStr(d);
     return { lundi: fmt(lundi), dimanche: fmt(dimanche), lundiDate: lundi, dimancheDate: dimanche };
   }
 
@@ -773,7 +783,7 @@ function checkAccountActive(session){
 
     // Bilans programmés par le coach pour cette semaine — un bilan passé non
     // validé disparaît de la vue (mais reste comptabilisé comme "non fait" dans la jauge Métriques)
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateStr(new Date());
     let visibleBilans = [];
     try {
       const { data: bilanSchedule } = await db.from('bilan_schedule')
@@ -827,7 +837,7 @@ function checkAccountActive(session){
 
   function renderBilanCard(date, done) {
     const dateObj    = new Date(date + 'T12:00:00');
-    const today      = new Date().toISOString().split('T')[0];
+    const today      = toLocalDateStr(new Date());
     const isToday    = date === today;
     // Toujours cliquable : la cliente peut faire son bilan en avance
     // (avant la date programmée) ou ré-invalider un bilan déjà fait.
@@ -871,7 +881,7 @@ function checkAccountActive(session){
 
   function renderSessionCard(s, hasUnread = false) {
     const dateObj = new Date(s.date + 'T12:00:00');
-    const today   = new Date().toISOString().split('T')[0];
+    const today   = toLocalDateStr(new Date());
     const isToday = s.date === today;
     const isDone  = s.statut === 'validée';
     const isRest  = s.statut === 'repos';
@@ -1330,7 +1340,7 @@ function checkAccountActive(session){
     const input = document.getElementById('exo-note-input');
     const contenu = input.value.trim();
     if (!contenu || !currentExoNoteName) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateStr(new Date());
     const { error } = await db.from('notes_exercice_perso').insert({
       client_id: SESSION.client_id,
       nom_exo: currentExoNoteName,
@@ -1784,13 +1794,13 @@ function checkAccountActive(session){
   async function loadDayScore() {
     if (!SESSION) return;
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(today);
 
     // Semaine ISO en cours (lundi → dimanche)
     const dow = today.getDay();
     const diffToMonday = dow === 0 ? -6 : 1 - dow;
     const monday = new Date(today); monday.setDate(today.getDate() + diffToMonday);
-    const weekStart = monday.toISOString().split('T')[0];
+    const weekStart = toLocalDateStr(monday);
 
     // ── Habitudes : moyenne de progression de chaque habitude vs son objectif (semaine en cours) ──
     let habitsPct = null;
@@ -1818,7 +1828,7 @@ function checkAccountActive(session){
           target = fu === 'semaine' ? fc : Math.max(1, Math.round(fc / 4)); // mois → ramené à la semaine
           let count = 0;
           for (let d = new Date(monday); d <= today; d.setDate(d.getDate() + 1)) {
-            const ds = d.toISOString().split('T')[0];
+            const ds = toLocalDateStr(d);
             if (isHabitDoneSimple(map[ds], type)) count++;
           }
           current = count;
