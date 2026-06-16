@@ -676,9 +676,21 @@ async function hashPin(pin) {
   }
   .prog-chip.validée { color: var(--success); background: rgba(22,163,74,0.09); }
   .prog-chip.annulée { color: var(--danger); background: rgba(220,38,38,0.08); text-decoration: line-through; }
+  .prog-chip.repos { color: var(--muted); background: var(--surface2); }
+  .prog-chip.cardio-type { color: var(--warning); background: rgba(217,119,6,0.09); }
   .prog-chip[draggable="true"] { cursor: grab; }
   .prog-chip[draggable="true"]:active { cursor: grabbing; }
   .prog-chip.dragging { opacity: 0.35; }
+  .prog-quick-actions { display: none; gap: 3px; margin-top: 2px; }
+  .prog-day-cell:hover .prog-quick-actions { display: flex; }
+  .prog-quick-btn {
+    flex: 1; font-size: 9px; font-weight: 700; text-align: center;
+    border-radius: 4px; padding: 2px 0; border: 1px dashed var(--border);
+    color: var(--muted); background: transparent; cursor: pointer;
+    font-family: inherit; transition: var(--t); white-space: nowrap;
+  }
+  .prog-quick-btn:hover { background: var(--surface2); color: var(--text); }
+  .prog-quick-btn.cardio:hover { color: var(--warning); border-color: rgba(217,119,6,0.3); background: rgba(217,119,6,0.07); }
   .prog-bilan-chip {
     display: block; font-size: 10px; font-weight: 600; text-align: center;
     border-radius: 4px; padding: 2px 4px; margin-bottom: 2px;
@@ -955,7 +967,7 @@ async function hashPin(pin) {
             </select>
           </div>
           <div>
-            <div style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Compliance bilans (4 dernières périodes)</div>
+            <div style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Compliance bilans (programmés)</div>
             <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:5px">
               <div id="bilan-coach-bar" style="height:100%;border-radius:3px;background:var(--accent);width:0%;transition:width 0.5s ease"></div>
             </div>
@@ -1139,11 +1151,7 @@ async function hashPin(pin) {
         </div>
       </div>
       <div class="lib-metrics-list" id="lib-metrics-list">
-        <div class="lib-metric-row" data-type="mesure"><div class="lib-metric-icon">⚖️</div><div class="lib-metric-info"><div class="lib-metric-name">Poids</div><div class="lib-metric-unit">kg · Mesure (courbe)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Poids','kg',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row" data-type="mesure"><div class="lib-metric-icon">📏</div><div class="lib-metric-info"><div class="lib-metric-name">Tour de taille</div><div class="lib-metric-unit">cm · Mesure (courbe)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Tour de taille','cm',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row" data-type="score5" data-inverse="false"><div class="lib-metric-icon">⚡</div><div class="lib-metric-info"><div class="lib-metric-name">Énergie subjective</div><div class="lib-metric-unit">/5 · Score 1-5 (jauge)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Énergie subjective','/5',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row" data-type="objectif" data-cible="8"><div class="lib-metric-icon">😴</div><div class="lib-metric-info"><div class="lib-metric-name">Heures de sommeil</div><div class="lib-metric-unit">h · Objectif : 8 (anneau)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Heures de sommeil','h',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
-        <div class="lib-metric-row" data-type="objectif" data-cible="10000"><div class="lib-metric-icon">👟</div><div class="lib-metric-info"><div class="lib-metric-name">Pas quotidiens</div><div class="lib-metric-unit">pas · Objectif : 10000 (anneau)</div></div><div class="assign-pills"></div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('Pas quotidiens','pas',[])">Gérer</button><button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button></div>
+        <div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Chargement…</div>
       </div>
 
       <div class="section-title" style="margin-top:24px;">
@@ -1436,6 +1444,7 @@ CREATE POLICY "Allow all anon on seance_echauffement"
     </div>
     <div class="modal-body">
       <div class="history-list" id="mh-list"></div>
+      <div id="mh-add-form" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -1471,6 +1480,48 @@ CREATE POLICY "Allow all anon on seance_echauffement"
         </div>
         <div id="ps-error" style="display:none;font-size:12px;color:var(--danger);background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:var(--rs);padding:10px;"></div>
         <button class="btn btn-accent" id="btn-save-ps" onclick="saveProgSeance()">Créer →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-prog-cardio">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">Séance cardio</div>
+      <button class="modal-close" onclick="document.getElementById('modal-prog-cardio').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label class="form-label">Type d'activité</label>
+          <select class="form-select" id="pc-type">
+            <option value="course">Course</option>
+            <option value="velo">Vélo</option>
+            <option value="natation">Natation</option>
+            <option value="rameur">Rameur</option>
+            <option value="marche">Marche</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Durée (minutes)</label>
+          <input class="form-input" id="pc-duree" type="number" min="0" step="5" value="30">
+        </div>
+        <div>
+          <label class="form-label">Intensité</label>
+          <select class="form-select" id="pc-intensite">
+            <option value="faible">Faible</option>
+            <option value="modérée" selected>Modérée</option>
+            <option value="élevée">Élevée</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Note (optionnel)</label>
+          <textarea class="form-input" id="pc-note" rows="2" placeholder="ex : zone 2, fractionné 30/30…"></textarea>
+        </div>
+        <div id="pc-error" style="display:none;font-size:12px;color:var(--danger);background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:var(--rs);padding:10px;"></div>
+        <button class="btn btn-accent" id="btn-save-pc" onclick="saveCardioDay()">Ajouter →</button>
       </div>
     </div>
   </div>
@@ -1697,7 +1748,7 @@ function showScreen(id, navEl) {
   document.getElementById('topbar-title').textContent = titles[id] || '';
   if (id === 'biblio-exos')    loadExercices();
   if (id === 'biblio-habits')  loadBiblioHabits();
-  if (id === 'biblio-metrics') loadGroupesMetriques();
+  if (id === 'biblio-metrics') { loadBiblioMetrics(); loadGroupesMetriques(); }
   if (id === 'clients')        loadClients();
   if (id === 'prog')           initProgScreen();
 }
@@ -2285,16 +2336,22 @@ async function deleteSeanceEchExo(id, seanceId) {
 let pickerSeanceId   = null;
 let pickerSelectedId = null;
 let pickerSelectedNom= null;
+let editingExoRowId  = null; // id de seance_exercices en cours d'édition (null = mode ajout)
 
 async function openExoPicker(seanceId) {
   pickerSeanceId    = seanceId;
   pickerSelectedId  = null;
   pickerSelectedNom = null;
+  editingExoRowId   = null;
   document.getElementById('picker-search').value = '';
+  document.getElementById('picker-search').style.display = '';
+  document.getElementById('picker-list').style.display = '';
   document.getElementById('exo-params-form').classList.remove('open');
   document.getElementById('picker-error').style.display = 'none';
   document.getElementById('p-uni').checked = false;
   document.getElementById('uni-extra').classList.remove('open');
+  document.querySelector('#modal-exo-picker .modal-header-title').textContent = 'Ajouter un exercice';
+  document.getElementById('btn-save-picker').textContent = 'Ajouter à la séance';
   document.getElementById('modal-exo-picker').classList.add('open');
   // Charger les exercices si pas encore fait
   if (allExercices.length === 0) {
@@ -2340,19 +2397,93 @@ function toggleUniExtra() {
   document.getElementById('uni-extra').classList.toggle('open', c);
 }
 
+function openEditPickerExo(seanceId, index) {
+  const exo = progDetailExosData[index];
+  if (!exo) return;
+
+  pickerSeanceId    = seanceId;
+  pickerSelectedId  = exo.exercice_id || null;
+  pickerSelectedNom = exo.nom_exo;
+  editingExoRowId   = exo.id;
+
+  document.getElementById('picker-search').value = '';
+  document.getElementById('picker-search').style.display = 'none';
+  document.getElementById('picker-list').style.display = 'none';
+  document.getElementById('picker-selected-name').textContent = pickerSelectedNom;
+  document.getElementById('exo-params-form').classList.add('open');
+  document.getElementById('picker-error').style.display = 'none';
+
+  document.getElementById('p-series').value = exo.series ?? 3;
+  document.getElementById('p-reps').value    = exo.reps ?? '10';
+  document.getElementById('p-rir').value     = (exo.rir !== null && exo.rir !== undefined) ? exo.rir : 2;
+  document.getElementById('p-repos').value   = exo.repos_serie ?? 90;
+  document.getElementById('p-charge').value  = exo.charge || '';
+
+  const uni = !!exo.unilateral;
+  document.getElementById('p-uni').checked = uni;
+  document.getElementById('uni-extra').classList.toggle('open', uni);
+  document.getElementById('p-repos-cote').value = exo.repos_cote ?? 40;
+
+  document.querySelector('#modal-exo-picker .modal-header-title').textContent = 'Modifier l\'exercice';
+  document.getElementById('btn-save-picker').textContent = 'Enregistrer les modifications';
+
+  document.getElementById('modal-exo-picker').classList.add('open');
+}
+
 async function savePickerExo() {
   const errEl = document.getElementById('picker-error');
   errEl.style.display = 'none';
   if (!pickerSeanceId || !pickerSelectedNom) {
     errEl.style.display = 'block'; errEl.textContent = 'Sélectionne un exercice d\'abord.'; return;
   }
-  // Get next ordre
-  const { data: existing } = await db.from('seance_exercices').select('ordre').eq('seance_id', pickerSeanceId).order('ordre', {ascending:false}).limit(1);
-  const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
 
   const uni = document.getElementById('p-uni').checked;
   const chargeText = document.getElementById('p-charge').value.trim();
   const chargeKg   = parseFloat(chargeText); // NaN si texte type "BW+10"
+  const btn = document.getElementById('btn-save-picker');
+
+  // ─── Mode édition : UPDATE de l'exercice existant ───
+  if (editingExoRowId) {
+    const updatePayload = {
+      series:      parseInt(document.getElementById('p-series').value) || 3,
+      reps:        document.getElementById('p-reps').value || '10',
+      rir:         parseInt(document.getElementById('p-rir').value) ?? 2,
+      repos_serie: parseInt(document.getElementById('p-repos').value) || 90,
+      charge:      chargeText || null,
+      charge_kg:   (!isNaN(chargeKg) && chargeKg > 0) ? chargeKg : null,
+      unilateral:  uni,
+      repos_cote:  uni ? (parseInt(document.getElementById('p-repos-cote').value)||40) : null,
+    };
+
+    btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+    let { error } = await db.from('seance_exercices').update(updatePayload).eq('id', editingExoRowId);
+
+    // Si charge_kg n'existe pas encore → réessayer sans ce champ
+    if (error && error.message && error.message.includes('charge_kg')) {
+      const { charge_kg, ...updateSansChargeKg } = updatePayload;
+      ({ error } = await db.from('seance_exercices').update(updateSansChargeKg).eq('id', editingExoRowId));
+    }
+
+    btn.disabled = false; btn.textContent = 'Enregistrer les modifications';
+
+    if (error) {
+      errEl.style.display = 'block'; errEl.textContent = 'Erreur : ' + error.message; return;
+    }
+
+    const seanceId = pickerSeanceId;
+    editingExoRowId = null;
+    document.getElementById('modal-exo-picker').classList.remove('open');
+    toast('Exercice modifié ✓');
+    await loadProgDetailExos(seanceId);
+    return;
+  }
+
+  // ─── Mode ajout : INSERT d'un nouvel exercice ───
+  // Get next ordre
+  const { data: existing } = await db.from('seance_exercices').select('ordre').eq('seance_id', pickerSeanceId).order('ordre', {ascending:false}).limit(1);
+  const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
+
   const payload = {
     seance_id:   pickerSeanceId,
     exercice_id: pickerSelectedId || null,
@@ -2368,7 +2499,6 @@ async function savePickerExo() {
     repos_cote:  uni ? (parseInt(document.getElementById('p-repos-cote').value)||40) : null,
   };
 
-  const btn = document.getElementById('btn-save-picker');
   btn.disabled = true; btn.textContent = 'Ajout…';
 
   let { error } = await db.from('seance_exercices').insert(payload);
@@ -3407,33 +3537,10 @@ async function loadClientMetrics(clientId) {
 // Charger les habitudes d'une cliente
 // ─── BILAN CONFIG (coach) ─────────────────────────────────────
 
-function getBilanPeriodsCoach(freq) {
-  const now = new Date(), N = 4, periods = [];
-  if (freq === 'semaine' || freq === 'deux_semaines') {
-    const step = freq === 'semaine' ? 7 : 14;
-    const day = now.getDay() || 7;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - day + 1);
-    monday.setHours(0, 0, 0, 0);
-    for (let i = N - 1; i >= 0; i--) {
-      const start = new Date(monday);
-      start.setDate(monday.getDate() - i * step);
-      const end = new Date(start);
-      end.setDate(start.getDate() + step - 1);
-      end.setHours(23, 59, 59, 999);
-      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
-    }
-  } else {
-    for (let i = N - 1; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-      end.setHours(23, 59, 59, 999);
-      if (start <= now) periods.push({ start, end: new Date(Math.min(end.getTime(), now.getTime())) });
-    }
-  }
-  return periods;
-}
-
+// % bilans réalisés = bilans programmés (bilan_schedule) dont la date est
+// passée (<= aujourd'hui) ET pour lesquels une entrée bilan_logs existe,
+// rapporté au nombre total de bilans programmés passés.
+// Ex : 4 bilans programmés à ce jour, 3 remplis → 75%. Même calcul que côté cliente (module3).
 async function loadBilanCoach(clientId) {
   if (!clientId) return;
   const { data: clientData } = await db.from('clients').select('bilan_frequence').eq('id', clientId).single();
@@ -3441,25 +3548,28 @@ async function loadBilanCoach(clientId) {
   const sel = document.getElementById('bilan-freq-select');
   if (sel) sel.value = freq;
 
-  const since = new Date();
-  since.setMonth(since.getMonth() - 3);
-  const { data: logs } = await db.from('bilan_logs').select('date')
-    .eq('client_id', clientId).gte('date', since.toISOString().split('T')[0]);
-  const bilanDates = (logs || []).map(l => l.date);
+  const today = toLocalDateStr(new Date());
 
-  const periods = getBilanPeriodsCoach(freq);
+  // Bilans programmés jusqu'à aujourd'hui (inclus)
+  const { data: schedule } = await db.from('bilan_schedule').select('date')
+    .eq('client_id', clientId).lte('date', today);
+  const scheduledDates = (schedule || []).map(b => b.date);
+
+  // Parmi ces bilans, combien ont été remplis (bilan_logs)
   let done = 0;
-  periods.forEach(p => {
-    const s = p.start.toISOString().split('T')[0];
-    const e = p.end.toISOString().split('T')[0];
-    if (bilanDates.some(d => d >= s && d <= e)) done++;
-  });
-  const pct = periods.length ? Math.round(done / periods.length * 100) : 0;
+  if (scheduledDates.length) {
+    const { data: logs } = await db.from('bilan_logs').select('date')
+      .eq('client_id', clientId).in('date', scheduledDates);
+    done = (logs || []).length;
+  }
+
+  const total = scheduledDates.length;
+  const pct = total ? Math.round(done / total * 100) : 0;
 
   const bar  = document.getElementById('bilan-coach-bar');
   const text = document.getElementById('bilan-coach-text');
   if (bar)  bar.style.width = pct + '%';
-  if (text) text.textContent = `${pct}% — ${done}/${periods.length} périodes`;
+  if (text) text.textContent = `${pct}% — ${done}/${total} bilans`;
 }
 
 async function saveBilanFreq() {
@@ -3486,7 +3596,7 @@ function getHabitWindow(freqUnite) {
   } else if (freqUnite === 'mois') {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    return { start: toLocalDateStr(start), end: toLocalDateStr(end) };
   } else {
     const start = new Date(now); start.setDate(now.getDate() - 6);
     return { start: start.toISOString().split('T')[0], end: todayStr };
@@ -3661,32 +3771,58 @@ function onNmTypeChange() {
 
 const TYPE_LABELS = { mesure: 'Mesure (courbe)', score5: 'Score 1-5 (jauge)', objectif: 'Objectif' };
 
-function saveNewMetric() {
+// Charge la bibliothèque de métriques depuis Supabase (table metriques_lib)
+// et la rend dans #lib-metrics-list. Remplace l'ancienne liste codée en dur :
+// chaque métrique créée via "+ Créer" est désormais persistée et survit
+// au rechargement de la page.
+async function loadBiblioMetrics() {
+  const list = document.getElementById('lib-metrics-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Chargement…</div>';
+
+  const { data, error } = await db.from('metriques_lib').select('*').order('created_at', { ascending: true });
+
+  if (error) {
+    list.innerHTML = `<div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">
+      Bibliothèque indisponible — exécute le SQL (section 22).<br>Erreur : ${error.message}
+    </div>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div style="padding:14px 0;font-size:12px;color:var(--dim);text-align:center;">Aucune métrique dans la bibliothèque.<br>Clique sur "+ Créer" pour en ajouter une.</div>';
+    return;
+  }
+
+  list.innerHTML = data.map(m => {
+    let typeLabel = TYPE_LABELS[m.type] || 'Mesure (courbe)';
+    if (m.type === 'objectif' && m.cible != null) typeLabel = `Objectif : ${m.cible} (anneau)`;
+    const unitDisplay = `${m.unite || ''} · ${typeLabel}`;
+    const nomEsc = (m.nom || '').replace(/'/g, "\\'");
+    return `<div class="lib-metric-row" data-id="${m.id}" data-type="${m.type || 'mesure'}"${m.type === 'objectif' && m.cible != null ? ` data-cible="${m.cible}"` : ''}${m.type === 'score5' ? ` data-inverse="${m.inverse ? 'true' : 'false'}"` : ''}>
+      <div class="lib-metric-icon">${m.icone || '📊'}</div>
+      <div class="lib-metric-info"><div class="lib-metric-name">${m.nom}</div><div class="lib-metric-unit">${unitDisplay}</div></div>
+      <div class="assign-pills"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('${nomEsc}','${m.unite || ''}',[],'${m.id}')">Gérer</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteMetricLib('${m.id}','${nomEsc}')">Supprimer</button>
+    </div>`;
+  }).join('');
+}
+
+async function saveNewMetric() {
   const nom  = (document.getElementById('nm-nom')?.value||'').trim();
   const unit = (document.getElementById('nm-unite')?.value||'').trim();
   const type = document.getElementById('nm-type')?.value || 'mesure';
-  const cible   = (document.getElementById('nm-cible')?.value||'').trim();
-  const inverse = !!document.getElementById('nm-inverse')?.checked;
+  const cibleRaw = (document.getElementById('nm-cible')?.value||'').trim();
+  const cible = (type === 'objectif' && cibleRaw) ? parseFloat(cibleRaw) : null;
+  const inverse = type === 'score5' && !!document.getElementById('nm-inverse')?.checked;
   if (!nom) { toast('Saisis un nom'); return; }
-  // Add to lib list
-  const list = document.querySelector('#screen-biblio-metrics .lib-metrics-list');
-  if (!list) { toast('Erreur interne'); return; }
 
-  let typeLabel = TYPE_LABELS[type] || 'Mesure (courbe)';
-  if (type === 'objectif' && cible) typeLabel = `Objectif : ${cible} (anneau)`;
-  const unitDisplay = `${unit} · ${typeLabel}`;
+  const { error } = await db.from('metriques_lib').insert({
+    nom, unite: unit || null, icone: '📊', type, cible, inverse
+  });
+  if (error) { toast('Erreur : ' + error.message); return; }
 
-  const row = document.createElement('div');
-  row.className = 'lib-metric-row';
-  row.dataset.type = type;
-  if (type === 'objectif' && cible) row.dataset.cible = cible;
-  if (type === 'score5') row.dataset.inverse = inverse ? 'true' : 'false';
-  row.innerHTML = `<div class="lib-metric-icon">📊</div>
-    <div class="lib-metric-info"><div class="lib-metric-name">${nom}</div><div class="lib-metric-unit">${unitDisplay}</div></div>
-    <div class="assign-pills"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-left:auto">Gérer</button>
-    <button class="btn btn-danger btn-sm" onclick="removeMetric(this)">Supprimer</button>`;
-  list.appendChild(row);
   if (document.getElementById('nm-nom')) document.getElementById('nm-nom').value = '';
   if (document.getElementById('nm-unite')) document.getElementById('nm-unite').value = '';
   if (document.getElementById('nm-cible')) document.getElementById('nm-cible').value = '';
@@ -3695,6 +3831,15 @@ function saveNewMetric() {
   onNmTypeChange();
   document.getElementById('new-metric-form').classList.remove('open');
   toast('Métrique créée ✓');
+  await loadBiblioMetrics();
+}
+
+async function deleteMetricLib(id, nom) {
+  if (!confirm(`Supprimer "${nom}" de la bibliothèque ?`)) return;
+  const { error } = await db.from('metriques_lib').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Métrique supprimée');
+  await loadBiblioMetrics();
 }
 
 function removeMetric(btn) {
@@ -3908,31 +4053,79 @@ async function showMetricHistory(metriqueId, nom, unit) {
 
   if (!valeurs || valeurs.length === 0) {
     list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée.</div>';
-    return;
+  } else {
+    list.innerHTML = valeurs.map((v, i) => {
+      const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      let delta = '—', dir = 'eq';
+      if (i < valeurs.length - 1) {
+        const diff = v.valeur - valeurs[i + 1].valeur;
+        if (diff !== 0) {
+          dir   = diff > 0 ? 'up' : 'down';
+          delta = (diff > 0 ? '▲ +' : '▼ ') + Math.abs(diff).toFixed(1);
+        }
+      }
+      return `<div class="history-row">
+        <div class="history-date">${dateStr}</div>
+        <div class="history-val">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
+        <div class="history-delta ${dir}">${delta}</div>
+      </div>`;
+    }).join('');
   }
 
-  list.innerHTML = valeurs.map((v, i) => {
-    const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    let delta = '—', dir = 'eq';
-    if (i < valeurs.length - 1) {
-      const diff = v.valeur - valeurs[i + 1].valeur;
-      if (diff !== 0) {
-        dir   = diff > 0 ? 'up' : 'down';
-        delta = (diff > 0 ? '▲ +' : '▼ ') + Math.abs(diff).toFixed(1);
-      }
-    }
-    return `<div class="history-row">
-      <div class="history-date">${dateStr}</div>
-      <div class="history-val">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
-      <div class="history-delta ${dir}">${delta}</div>
+  // Permet au coach d'ajouter (ou de corriger) une valeur, y compris pour
+  // une date passée — utile pour saisir des anciennes mesures de la cliente.
+  const today = new Date().toISOString().split('T')[0];
+  const addForm = document.getElementById('mh-add-form');
+  const nomEsc = (nom || '').replace(/'/g, "\\'");
+  const unitEsc = (unit || '').replace(/'/g, "\\'");
+  addForm.style.display = '';
+  addForm.innerHTML = `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">Ajouter une valeur (passée ou actuelle)</div>
+      <div class="form-row">
+        <div style="flex:1">
+          <label class="form-label">Date</label>
+          <input class="form-input" type="date" id="mh-add-date" max="${today}" value="${today}">
+        </div>
+        <div style="flex:1">
+          <label class="form-label">Valeur ${unit ? '(' + unit + ')' : ''}</label>
+          <input class="form-input" type="number" step="any" id="mh-add-value" placeholder="ex : 62.5">
+        </div>
+      </div>
+      <div class="form-row">
+        <button class="btn btn-accent btn-sm" onclick="addMetricHistoryValue('${metriqueId}','${nomEsc}','${unitEsc}')">Ajouter</button>
+      </div>
     </div>`;
-  }).join('');
+}
+
+// Ajoute/écrase une valeur historique pour une métrique (upsert sur metrique_id+date) —
+// permet au coach de saisir des anciennes mesures de la cliente.
+async function addMetricHistoryValue(metriqueId, nom, unit) {
+  const dateInput = document.getElementById('mh-add-date');
+  const valInput  = document.getElementById('mh-add-value');
+  const today = new Date().toISOString().split('T')[0];
+  let date = dateInput?.value || today;
+  if (date > today) date = today;
+
+  const v = parseFloat(valInput?.value);
+  if (isNaN(v)) { toast('Entre une valeur numérique'); return; }
+
+  const { error } = await db.from('metrique_valeurs').upsert(
+    { metrique_id: metriqueId, valeur: v, date },
+    { onConflict: 'metrique_id,date' }
+  );
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  toast('Valeur ajoutée ✓');
+  await showMetricHistory(metriqueId, nom, unit);
 }
 
 async function showHabitHistory(habitudeId, nom, type) {
   document.getElementById('mh-title').textContent = 'Gérer — ' + nom;
   const list = document.getElementById('mh-list');
   list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Chargement…</div>';
+  const addForm = document.getElementById('mh-add-form');
+  if (addForm) { addForm.style.display = 'none'; addForm.innerHTML = ''; }
   document.getElementById('modal-metric-history').classList.add('open');
 
   const { data: valeurs } = await db
@@ -3972,6 +4165,17 @@ async function showHabitHistory(habitudeId, nom, type) {
 // ═══════════════════════════════════════════════════════════
 //  PROGRAMMATION 4 SEMAINES
 // ═══════════════════════════════════════════════════════════
+
+// Convertit une Date en "YYYY-MM-DD" en utilisant le calendrier LOCAL
+// (contrairement à toISOString() qui convertit en UTC et peut décaler
+// la date d'un jour pour les fuseaux horaires positifs comme la France).
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 let progOffset     = 0;   // décalage en semaines depuis aujourd'hui
 let progClients    = [];
 let progClientId   = null;
@@ -4010,13 +4214,21 @@ async function loadProgSeances() {
   const today = new Date();
   const start = new Date(today); start.setDate(start.getDate() - 7 + progOffset * 7);
   const end   = new Date(start); end.setDate(end.getDate() + 6 * 7);
-  const startStr = start.toISOString().slice(0,10);
-  const endStr   = end.toISOString().slice(0,10);
+  const startStr = toLocalDateStr(start);
+  const endStr   = toLocalDateStr(end);
 
-  const { data } = await db.from('seances').select('id,titre,date,statut')
+  let { data, error: pse } = await db.from('seances').select('id,titre,date,statut,type_seance')
     .eq('client_id', progClientId)
     .gte('date', startStr).lte('date', endStr)
     .order('date');
+
+  // Si la colonne type_seance n'existe pas encore → réessayer sans elle
+  if (pse && pse.message && pse.message.includes('type_seance')) {
+    ({ data } = await db.from('seances').select('id,titre,date,statut')
+      .eq('client_id', progClientId)
+      .gte('date', startStr).lte('date', endStr)
+      .order('date'));
+  }
   progSeancesAll = data || [];
 
   const { data: bilanData } = await db.from('bilan_schedule').select('date')
@@ -4108,7 +4320,7 @@ function renderProgGrid() {
     const wSeances = [];
     for (let d = 0; d < 7; d++) {
       const dt = new Date(wStart); dt.setDate(wStart.getDate() + d);
-      const key = dt.toISOString().slice(0,10);
+      const key = toLocalDateStr(dt);
       (seanceMap[key]||[]).forEach(s => wSeances.push(s));
     }
 
@@ -4122,14 +4334,15 @@ function renderProgGrid() {
 
     for (let d = 0; d < 7; d++) {
       const dt = new Date(wStart); dt.setDate(wStart.getDate() + d);
-      const key = dt.toISOString().slice(0,10);
+      const key = toLocalDateStr(dt);
       const dayNum = dt.getDate();
       const isToday = dt.getTime() === today.getTime();
       const daySeances = seanceMap[key] || [];
       const chips = daySeances.map(s => {
         const movable = s.statut !== 'validée';
+        const extraClass = (s.type_seance === 'cardio') ? ' cardio-type' : '';
         const titleAttr = movable ? s.titre : `${s.titre} (validée — déplacement bloqué)`;
-        return `<span class="prog-chip ${s.statut}" title="${titleAttr}"
+        return `<span class="prog-chip ${s.statut}${extraClass}" title="${titleAttr}"
           draggable="${movable}"
           data-seance-id="${s.id}"
           ondragstart="onChipDragStart(event,'${s.id}')"
@@ -4142,6 +4355,10 @@ function renderProgGrid() {
           title="${bilanActive ? 'Bilan programmé — cliquer pour retirer' : 'Programmer un bilan ce jour'}"
           onclick="event.stopPropagation();toggleBilanDay('${key}')"
         >Bilan</button>`;
+      const quickActions = `<div class="prog-quick-actions">
+          <button type="button" class="prog-quick-btn off" title="Marquer ce jour comme repos (OFF)" onclick="event.stopPropagation();addOffDay('${key}')">OFF</button>
+          <button type="button" class="prog-quick-btn cardio" title="Programmer une séance cardio" onclick="event.stopPropagation();openCardioModal('${key}')">Cardio</button>
+        </div>`;
       const isPasteMode = !!progClipboardSeance;
       const dayClickHandler = isPasteMode ? `pasteSeanceTo('${key}')` : `openProgAddSeance('${key}')`;
       const pasteHint = isPasteMode ? '<div class="prog-paste-hint">Coller ici</div>' : '';
@@ -4150,6 +4367,7 @@ function renderProgGrid() {
         <div class="prog-day-num${isToday?' today-num':''}">${dayNum}</div>
         ${chips}
         ${bilanChip}
+        ${quickActions}
         <div class="prog-add-hint">+</div>
         ${pasteHint}
       </div>`;
@@ -4212,8 +4430,8 @@ async function duplicateWeek(weekIndex) {
   if (!progClientId) return;
   const wStart = getWeekStart(weekIndex);
   const wEnd   = new Date(wStart); wEnd.setDate(wStart.getDate() + 6);
-  const startStr = wStart.toISOString().slice(0,10);
-  const endStr   = wEnd.toISOString().slice(0,10);
+  const startStr = toLocalDateStr(wStart);
+  const endStr   = toLocalDateStr(wEnd);
 
   // Fetch sessions of this week
   const { data: weekSeances, error } = await db.from('seances').select('*')
@@ -4224,24 +4442,71 @@ async function duplicateWeek(weekIndex) {
     toast('Aucune séance dans cette semaine à dupliquer'); return;
   }
 
-  // Clone to next week
-  const inserts = weekSeances.map(s => {
+  // Récupérer le contenu (exercices + échauffement) de toutes les séances de la semaine
+  const seanceIds = weekSeances.map(s => s.id);
+  const { data: allExercices }    = await db.from('seance_exercices').select('*').in('seance_id', seanceIds);
+  const { data: allEchauffement } = await db.from('seance_echauffement').select('*').in('seance_id', seanceIds);
+
+  let dupCount = 0;
+  for (const s of weekSeances) {
     const origDate = new Date(s.date + 'T12:00:00');
     const newDate  = new Date(origDate);
     newDate.setDate(origDate.getDate() + 7);
-    return {
-      client_id: progClientId,
-      titre:     s.titre,
-      date:      newDate.toISOString().slice(0,10),
-      statut:    'planifiée',
-      notes:     s.notes || null,
-    };
-  });
 
-  const { error: insErr } = await db.from('seances').insert(inserts);
-  if (insErr) { toast('Erreur : ' + insErr.message); return; }
+    const { data: newSeance, error: insErr } = await db.from('seances').insert({
+      client_id:    progClientId,
+      titre:        s.titre,
+      date:         toLocalDateStr(newDate),
+      statut:       'planifiée',
+      notes:        s.notes || null,
+      type_seance:  s.type_seance || null,
+      cardio_type:      s.cardio_type || null,
+      cardio_duree:     s.cardio_duree || null,
+      cardio_intensite: s.cardio_intensite || null,
+      cardio_note:      s.cardio_note || null,
+    }).select().single();
 
-  toast(`✓ ${inserts.length} séance(s) dupliquée(s) vers la semaine suivante`);
+    if (insErr || !newSeance) { toast('Erreur séance : ' + (insErr ? insErr.message : '?')); continue; }
+
+    // Copier les exercices
+    const exos = (allExercices || []).filter(e => e.seance_id === s.id);
+    if (exos.length > 0) {
+      const exoInserts = exos.map(e => ({
+        seance_id:   newSeance.id,
+        exercice_id: e.exercice_id || null,
+        nom_exo:     e.nom_exo,
+        ordre:       e.ordre,
+        series:      e.series,
+        reps:        e.reps,
+        rir:         e.rir,
+        repos_serie: e.repos_serie,
+        repos_cote:  e.repos_cote,
+        charge:      e.charge,
+        charge_kg:   e.charge_kg,
+        unilateral:  e.unilateral,
+      }));
+      const { error: exErr } = await db.from('seance_exercices').insert(exoInserts);
+      if (exErr) toast('Séance dupliquée, mais erreur exercices : ' + exErr.message);
+    }
+
+    // Copier l'échauffement
+    const echs = (allEchauffement || []).filter(e => e.seance_id === s.id);
+    if (echs.length > 0) {
+      const echInserts = echs.map(e => ({
+        seance_id:   newSeance.id,
+        exercice_id: e.exercice_id || null,
+        nom_exo:     e.nom_exo,
+        ordre:       e.ordre,
+        consigne:    e.consigne,
+      }));
+      const { error: echErr } = await db.from('seance_echauffement').insert(echInserts);
+      if (echErr) toast('Séance dupliquée, mais erreur échauffement : ' + echErr.message);
+    }
+
+    dupCount++;
+  }
+
+  toast(`✓ ${dupCount} séance(s) dupliquée(s) vers la semaine suivante`);
   await loadProgSeances();
 }
 
@@ -4263,6 +4528,7 @@ function openProgAddSeance(dateStr) {
 let progDetailSeanceId = null;
 let progDetailStatut   = null;
 let progDetailDate     = null;
+let progDetailExosData = [];
 
 async function openProgSeanceDetail(seanceId, titre, date, statut) {
   progDetailSeanceId = seanceId;
@@ -4328,9 +4594,12 @@ async function loadProgDetailExos(seanceId) {
     .order('ordre', { ascending: true });
 
   if (error || !data || data.length === 0) {
+    progDetailExosData = [];
     container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--dim);">Aucun exercice pour le moment.</div>';
     return;
   }
+
+  progDetailExosData = data;
 
   container.innerHTML = data.map((e, i) => {
     let params = `${e.series}×${e.reps}`;
@@ -4344,6 +4613,7 @@ async function loadProgDetailExos(seanceId) {
           <div style="font-size:13px;font-weight:600;">${e.nom_exo}</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">${params}</div>
         </div>
+        <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditPickerExo('${seanceId}', ${i})">Modifier</button>
       </div>`;
   }).join('');
 }
@@ -4429,8 +4699,12 @@ async function pasteSeanceTo(dateStr) {
 }
 
 // ─── GÉRER MÉTRIQUE ─────────────────────────────────────────
-function openMetricGerer(nom, unite, assignees) {
+function openMetricGerer(nom, unite, assignees, id) {
   document.getElementById('gm-title').textContent = 'Gérer — ' + nom;
+  const nomEsc = (nom || '').replace(/'/g, "\\'");
+  const deleteBtn = id
+    ? `<button class="btn btn-danger btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open');deleteMetricLib('${id}','${nomEsc}')">Supprimer de la bibliothèque</button>`
+    : '';
   document.getElementById('gm-body').innerHTML = `
     <div style="margin-bottom:12px;">
       <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Assignée à</div>
@@ -4443,18 +4717,10 @@ function openMetricGerer(nom, unite, assignees) {
       <div style="font-size:13px;font-weight:600;">${nom} <span style="font-weight:400;color:var(--muted);">(${unite})</span></div>
     </div>
     <div style="display:flex;gap:7px;margin-top:14px;">
-      <button class="btn btn-danger btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open');removeMetricFromLib('${nom}')">Supprimer de la bibliothèque</button>
+      ${deleteBtn}
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal-gerer-metric').classList.remove('open')">Fermer</button>
     </div>`;
   document.getElementById('modal-gerer-metric').classList.add('open');
-}
-
-function removeMetricFromLib(nom) {
-  const rows = document.querySelectorAll('#screen-biblio-metrics .lib-metric-row');
-  rows.forEach(r => {
-    if (r.querySelector('.lib-metric-name')?.textContent === nom) r.remove();
-  });
-  toast('Métrique supprimée de la bibliothèque');
 }
 
 async function saveProgSeance() {
@@ -4474,6 +4740,72 @@ async function saveProgSeance() {
   if (error) { errEl.style.display='block'; errEl.textContent='Erreur : '+error.message; return; }
   document.getElementById('modal-prog-seance').classList.remove('open');
   toast('Séance créée ✓');
+  await loadProgSeances();
+}
+
+// ─── JOUR OFF (Programmation) ────────────────────────────────
+async function addOffDay(dateStr) {
+  if (!progClientId) return;
+  const payload = { client_id: progClientId, titre: 'Repos', date: dateStr, statut: 'repos', type_seance: 'training', notes: null };
+  let { error } = await db.from('seances').insert(payload);
+
+  // Si type_seance n'existe pas encore → réessayer sans ce champ
+  if (error && error.message && error.message.includes('type_seance')) {
+    const { type_seance, ...payloadSansTypeSeance } = payload;
+    ({ error } = await db.from('seances').insert(payloadSansTypeSeance));
+  }
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Jour OFF ajouté ✓');
+  await loadProgSeances();
+}
+
+// ─── SÉANCE CARDIO (Programmation) ──────────────────────────
+let progCardioDate = null;
+
+function openCardioModal(dateStr) {
+  if (!progClientId) return;
+  progCardioDate = dateStr;
+  document.getElementById('pc-type').value = 'course';
+  document.getElementById('pc-duree').value = 30;
+  document.getElementById('pc-intensite').value = 'modérée';
+  document.getElementById('pc-note').value = '';
+  document.getElementById('pc-error').style.display = 'none';
+  document.getElementById('modal-prog-cardio').classList.add('open');
+}
+
+async function saveCardioDay() {
+  const errEl = document.getElementById('pc-error');
+  errEl.style.display = 'none';
+  if (!progCardioDate || !progClientId) return;
+
+  const type      = document.getElementById('pc-type').value;
+  const duree     = parseInt(document.getElementById('pc-duree').value) || 0;
+  const intensite = document.getElementById('pc-intensite').value;
+  const note      = document.getElementById('pc-note').value.trim() || null;
+  const typeLabels = { course:'Course', velo:'Vélo', natation:'Natation', rameur:'Rameur', marche:'Marche', autre:'Cardio' };
+  const titre = `Cardio – ${typeLabels[type] || 'Cardio'}`;
+
+  const btn = document.getElementById('btn-save-pc');
+  btn.disabled = true; btn.textContent = 'Ajout…';
+
+  const payload = {
+    client_id: progClientId, titre, date: progCardioDate, statut: 'planifiée', notes: null,
+    type_seance: 'cardio', cardio_type: type, cardio_duree: duree, cardio_intensite: intensite, cardio_note: note,
+  };
+  let { error } = await db.from('seances').insert(payload);
+
+  // Si les colonnes cardio_* n'existent pas encore → réessayer sans ces champs
+  if (error && error.message && /type_seance|cardio_/.test(error.message)) {
+    const { type_seance, cardio_type, cardio_duree, cardio_intensite, cardio_note, ...payloadSansCardio } = payload;
+    ({ error } = await db.from('seances').insert(payloadSansCardio));
+  }
+
+  btn.disabled = false; btn.textContent = 'Ajouter →';
+
+  if (error) { errEl.style.display = 'block'; errEl.textContent = 'Erreur : ' + error.message; return; }
+  document.getElementById('modal-prog-cardio').classList.remove('open');
+  toast('Séance cardio ajoutée ✓');
   await loadProgSeances();
 }
 
