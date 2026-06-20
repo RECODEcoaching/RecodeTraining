@@ -7,6 +7,16 @@
 const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Convertit une Date en "YYYY-MM-DD" en utilisant le calendrier LOCAL
+// (contrairement à toISOString() qui convertit en UTC et peut décaler
+// la date d'un jour pour les fuseaux horaires positifs comme la France,
+// notamment pour les Date construites à minuit local).
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
 function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
@@ -129,6 +139,19 @@ function checkAccountActive(session){
 
   /* ═══════ MÉTRIQUES ═══════ */
   .metrics-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .metric-group { display: flex; flex-direction: column; gap: 10px; }
+  .metric-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 2px; cursor: pointer; user-select: none;
+  }
+  .metric-group-title {
+    font-size: 12px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .metric-group-chevron { color: var(--text-dim); transition: transform 0.2s; flex: 0 0 auto; }
+  .metric-group.collapsed .metric-group-chevron { transform: rotate(-90deg); }
+  .metric-group.collapsed .metric-group-body { display: none; }
+  .metric-group-body { display: flex; flex-direction: column; gap: 10px; }
   .metric-card {
     background: var(--surface); border-radius: var(--radius);
     overflow: hidden; border: 1px solid var(--border);
@@ -1053,21 +1076,83 @@ async function loadMetrics() {
   }
   if (loading) loading.remove();
 
-  for (const m of metriques) {
-    const { data: valeurs } = await db
-      .from('metrique_valeurs')
-      .select('valeur, date')
-      .eq('metrique_id', m.id)
-      .order('date', { ascending: true })
-      .limit(10);
+  // Noms des groupes éventuellement utilisés par le coach pour organiser
+  // l'affichage (cf. SQL section 24 — colonne groupe_id sur client_metriques).
+  // Si la colonne n'existe pas encore, m.groupe_id est simplement undefined
+  // pour toutes les métriques → tout s'affiche à plat comme avant, sans erreur.
+  let groupNomById = {};
+  try {
+    const groupIds = [...new Set(metriques.map(m => m.groupe_id).filter(Boolean))];
+    if (groupIds.length) {
+      const { data: groupes } = await db.from('groupes_metriques').select('id,nom').in('id', groupIds);
+      (groupes || []).forEach(g => { groupNomById[g.id] = g.nom; });
+    }
+  } catch (e) {}
 
-    metricsStore[m.id] = { m, valeurs: valeurs || [] };
-    container.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
+  // Regrouper les métriques par groupe d'affichage, en conservant leur ordre
+  // (les métriques sans groupe sont affichées en dernier, sous "Sans groupe"
+  // seulement si au moins un groupe est utilisé — sinon tout reste à plat).
+  const groupOrder = [];
+  const groupBuckets = {};
+  const ungrouped = [];
+  metriques.forEach(m => {
+    const gid = m.groupe_id || null;
+    if (!gid) { ungrouped.push(m); return; }
+    if (!groupBuckets[gid]) { groupBuckets[gid] = []; groupOrder.push(gid); }
+    groupBuckets[gid].push(m);
+  });
+  const hasGroups = groupOrder.length > 0;
+
+  async function renderMetricsInto(target, list) {
+    for (const m of list) {
+      const { data: valeurs } = await db
+        .from('metrique_valeurs')
+        .select('valeur, date')
+        .eq('metrique_id', m.id)
+        .order('date', { ascending: true })
+        .limit(10);
+
+      metricsStore[m.id] = { m, valeurs: valeurs || [] };
+      target.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
+    }
   }
+
+  for (const gid of groupOrder) {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="metric-group" id="metric-group-${gid}">
+        <div class="metric-group-header" onclick="toggleMetricGroup('${gid}')">
+          <span class="metric-group-title">${groupNomById[gid] || 'Groupe'}</span>
+          <svg class="metric-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="metric-group-body" id="metric-group-${gid}-body"></div>
+      </div>`);
+    await renderMetricsInto(document.getElementById(`metric-group-${gid}-body`), groupBuckets[gid]);
+  }
+
+  if (ungrouped.length) {
+    let target = container;
+    if (hasGroups) {
+      container.insertAdjacentHTML('beforeend', `
+        <div class="metric-group" id="metric-group-none">
+          <div class="metric-group-header" onclick="toggleMetricGroup('none')">
+            <span class="metric-group-title">Sans groupe</span>
+            <svg class="metric-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="metric-group-body" id="metric-group-none-body"></div>
+        </div>`);
+      target = document.getElementById('metric-group-none-body');
+    }
+    await renderMetricsInto(target, ungrouped);
+  }
+
   requestAnimationFrame(() => {
     drawAllMetricCharts();
     document.querySelectorAll('#metrics-list .metric-mini-gauge').forEach(g => animateGaugeFill(g));
   });
+}
+
+function toggleMetricGroup(id) {
+  document.getElementById('metric-group-' + id)?.classList.toggle('collapsed');
 }
 
 function renderMetricCard(m, valeurs) {
@@ -1532,8 +1617,8 @@ function isOvulationDate(date) {
 async function loadCalendarLogs(year, month) {
   if (!SESSION) return;
   // Charger tous les logs du mois + mois précédent (pour la vue)
-  const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
-  const lastDay  = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const firstDay = toLocalDateStr(new Date(year, month, 1));
+  const lastDay  = toLocalDateStr(new Date(year, month + 1, 0));
   const { data } = await db.from('cycle_daily_log')
     .select('date, temperature, glaire, saignement, spotting')
     .eq('client_id', SESSION.client_id)
@@ -1556,7 +1641,7 @@ async function buildCycleCalendar() {
   pastCycles.forEach(d => calJ1Set.add(d.toISOString().split('T')[0]));
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(today);
   const firstDate = new Date(calViewYear, calViewMonth, 1);
   const lastDate  = new Date(calViewYear, calViewMonth + 1, 0);
   let startWd = firstDate.getDay();
@@ -1738,7 +1823,7 @@ function getHabitWindow(freqUnite) {
   } else if (freqUnite === 'mois') {
     const first = new Date(today.getFullYear(), today.getMonth(), 1);
     const last  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    return { start: first.toISOString().split('T')[0], end: last.toISOString().split('T')[0] };
+    return { start: toLocalDateStr(first), end: toLocalDateStr(last) };
   } else {
     // jour : fenêtre glissante de 7 jours (J-6 → J)
     const start = new Date(today);
@@ -2530,65 +2615,34 @@ function animateGaugeFill(containerEl) {
   });
 }
 
-// Toutes les périodes depuis la création du compte (pour le % global "depuis le début")
-function getBilanPeriodsGlobal(freq, createdAt) {
-  const now = new Date();
-  const start0 = new Date(createdAt);
-  start0.setHours(0, 0, 0, 0);
-  if (isNaN(start0.getTime()) || start0 > now) return [{ start: now, end: now }];
-
-  const periods = [];
-  if (freq === 'semaine' || freq === 'deux_semaines') {
-    const step = freq === 'semaine' ? 7 : 14;
-    const day = start0.getDay() || 7; // 1=Lun … 7=Dim
-    let cursor = new Date(start0);
-    cursor.setDate(start0.getDate() - day + 1); // lundi de la semaine de création
-    while (cursor <= now) {
-      const end = new Date(cursor);
-      end.setDate(cursor.getDate() + step - 1);
-      end.setHours(23, 59, 59, 999);
-      periods.push({ start: new Date(cursor), end: new Date(Math.min(end.getTime(), now.getTime())) });
-      cursor = new Date(cursor);
-      cursor.setDate(cursor.getDate() + step);
-    }
-  } else { // mois
-    let cursor = new Date(start0.getFullYear(), start0.getMonth(), 1);
-    while (cursor <= now) {
-      const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
-      periods.push({ start: new Date(cursor), end: new Date(Math.min(end.getTime(), now.getTime())) });
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-  }
-  return periods.length ? periods : [{ start: now, end: now }];
-}
-
+// % bilans réalisés = bilans programmés (bilan_schedule) dont la date est
+// passée (<= aujourd'hui) ET pour lesquels une entrée bilan_logs existe,
+// rapporté au nombre total de bilans programmés passés.
+// Ex : 4 bilans programmés à ce jour, 3 remplis → 75%.
 async function loadBilan() {
   if (!SESSION) return;
 
-  // 1. Fréquence + date de création du compte
-  const { data: clientData } = await db.from('clients')
-    .select('bilan_frequence,created_at').eq('id', SESSION.client_id).single();
-  const freq      = clientData?.bilan_frequence || 'semaine';
-  const createdAt = clientData?.created_at || new Date().toISOString();
+  const today = toLocalDateStr(new Date());
 
-  // 2. Tous les logs de bilans depuis le début
-  const { data: logs } = await db.from('bilan_logs')
+  // 1. Bilans programmés dont la date est aujourd'hui ou avant
+  const { data: schedule } = await db.from('bilan_schedule')
     .select('date').eq('client_id', SESSION.client_id)
-    .order('date', { ascending: false });
-  const bilanDates = (logs || []).map(l => l.date); // tri desc
+    .lte('date', today);
+  const scheduledDates = (schedule || []).map(b => b.date);
 
-  // 3. Calcul % bilans depuis le début (toutes les périodes depuis la création du compte)
-  const allPeriods = getBilanPeriodsGlobal(freq, createdAt);
-  let bilanDoneGlobal = 0;
-  allPeriods.forEach(p => {
-    const s = p.start.toISOString().split('T')[0];
-    const e = p.end.toISOString().split('T')[0];
-    if (bilanDates.some(d => d >= s && d <= e)) bilanDoneGlobal++;
-  });
-  const bilanPct = allPeriods.length ? bilanDoneGlobal / allPeriods.length : 0;
+  // 2. Parmi ces bilans, combien ont été remplis (bilan_logs)
+  let doneCount = 0;
+  if (scheduledDates.length) {
+    const { data: logs } = await db.from('bilan_logs')
+      .select('date').eq('client_id', SESSION.client_id)
+      .in('date', scheduledDates);
+    doneCount = (logs || []).length;
+  }
 
-  // 4. Gauge (vue d'ensemble, onglet Métriques) — % depuis le début
+  // 3. % = bilans faits / bilans programmés passés
+  const bilanPct = scheduledDates.length ? doneCount / scheduledDates.length : 0;
+
+  // 4. Gauge (vue d'ensemble, onglet Métriques)
   const gaugeEl = document.getElementById('gauge-bilans-svg');
   gaugeEl.innerHTML = renderArcGauge(bilanPct, Math.round(bilanPct*100)+'%');
   animateGaugeFill(gaugeEl);

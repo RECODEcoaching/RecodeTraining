@@ -302,6 +302,16 @@ async function hashPin(pin) {
   .metric-manage-row.dragging { opacity: .4; }
   .metric-manage-row.drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
   .metric-manage-row.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--accent); }
+  .metric-group-header-row {
+    font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.6px; padding: 10px 4px 2px; margin-top: 2px;
+  }
+  .metric-group-header-row:first-child { margin-top: 0; }
+  .metric-groupe-select {
+    flex: 0 0 auto; max-width: 110px; font-size: 11px; font-weight: 600;
+    color: var(--muted); background: var(--surface2); border: 1px solid var(--border-md);
+    border-radius: var(--rs); padding: 5px 6px; cursor: pointer; font-family: inherit;
+  }
   .metric-manage-val { font-size: 16px; font-weight: 800; color: var(--accent); margin-right: 8px; flex: 0 0 auto; }
   .metric-manage-val span { font-size: 10px; color: var(--muted); font-weight: 500; }
 
@@ -530,6 +540,14 @@ async function hashPin(pin) {
   .seance-exo-row {
     display: flex; align-items: center; gap: 11px; padding: 10px 14px;
     border-bottom: 1px solid var(--border);
+  }
+  .seance-exo-row[draggable="true"] { transition: box-shadow .15s ease, opacity .15s ease; }
+  .seance-exo-row.dragging { opacity: .4; }
+  .seance-exo-row.drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
+  .seance-exo-row.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--accent); }
+  .seance-exo-drag-handle {
+    flex: 0 0 auto; width: 14px; text-align: center; cursor: grab;
+    color: var(--muted); font-size: 14px; letter-spacing: -1px; line-height: 1;
   }
   .seance-exo-num {
     width: 22px; height: 22px; border-radius: 6px; background: transparent;
@@ -2186,14 +2204,21 @@ async function loadSeanceEchauffement(seanceId) {
   }
 
   container.innerHTML = items.map((e, i) => `
-    <div class="seance-exo-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
+    <div class="seance-exo-row" draggable="true" data-row-id="${e.id}"
+         ondragstart="onSeanceRowDragStart(event,'ech','${seanceId}','${e.id}')"
+         ondragend="onSeanceRowDragEnd(event)"
+         ondragover="onSeanceRowDragOver(event)"
+         ondragleave="onSeanceRowDragLeave(event)"
+         ondrop="onSeanceRowDrop(event,'ech','${seanceId}','${e.id}')"
+         style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
       <div style="display:flex;width:100%;align-items:center;gap:8px">
+        <div class="seance-exo-drag-handle" title="Glisser pour réordonner">⠿</div>
         <div class="seance-exo-num">${i+1}</div>
         <div class="seance-exo-info" style="flex:1">
           <div class="seance-exo-name">${e.nom_exo}</div>
           ${e.consigne ? `<div class="seance-exo-params" style="color:var(--dim)">${e.consigne}</div>` : ''}
         </div>
-        <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditEchFromSeance('${seanceId}', ${i})">Modifier</button>
+        <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditEchFromSeance('${seanceId}', '${e.id}')">Modifier</button>
         <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceEchExo('${e.id}','${seanceId}')">×</button>
       </div>
     </div>`).join('');
@@ -2288,19 +2313,103 @@ async function loadSeanceExercices(seanceId) {
     }
 
     return `
-      <div class="seance-exo-row" style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
+      <div class="seance-exo-row" draggable="true" data-row-id="${e.id}"
+           ondragstart="onSeanceRowDragStart(event,'exo','${seanceId}','${e.id}')"
+           ondragend="onSeanceRowDragEnd(event)"
+           ondragover="onSeanceRowDragOver(event)"
+           ondragleave="onSeanceRowDragLeave(event)"
+           ondrop="onSeanceRowDrop(event,'exo','${seanceId}','${e.id}')"
+           style="flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px">
         <div style="display:flex;width:100%;align-items:center;gap:8px">
+          <div class="seance-exo-drag-handle" title="Glisser pour réordonner">⠿</div>
           <div class="seance-exo-num">${i+1}</div>
           <div class="seance-exo-info" style="flex:1">
             <div class="seance-exo-name">${e.nom_exo}</div>
             <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
             ${realiséHtml}
           </div>
-          <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditExoFromSeance('${seanceId}', ${i})">Modifier</button>
+          <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditExoFromSeance('${seanceId}', '${e.id}')">Modifier</button>
           <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
         </div>
       </div>`;
   }).join('');
+}
+
+// ─── Drag&drop générique : réordonner exercices/échauffement d'une séance ──
+// (même principe que le drag&drop des métriques — onMetricDragStart/onMetricDrop —
+// mais paramétré par "kind" pour servir aux deux listes : seance_exercices et
+// seance_echauffement, qui partagent toutes deux la classe .seance-exo-row.)
+let seanceDragState = null; // { kind: 'exo'|'ech', seanceId, rowId }
+
+function onSeanceRowDragStart(e, kind, seanceId, rowId) {
+  seanceDragState = { kind, seanceId, rowId };
+  e.currentTarget.classList.add('dragging');
+  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', rowId); } catch (err) {}
+}
+
+function onSeanceRowDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.seance-exo-row.drag-over')
+    .forEach(r => r.classList.remove('drag-over', 'drag-over-bottom'));
+}
+
+function onSeanceRowDragOver(e) {
+  e.preventDefault();
+  if (!seanceDragState) return;
+  const row = e.currentTarget;
+  if (row.dataset.rowId === seanceDragState.rowId) return;
+  const rect = row.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  row.classList.add('drag-over');
+  row.classList.toggle('drag-over-bottom', !before);
+}
+
+function onSeanceRowDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over', 'drag-over-bottom');
+}
+
+async function onSeanceRowDrop(e, targetKind, targetSeanceId, targetRowId) {
+  e.preventDefault();
+  const row = e.currentTarget;
+  row.classList.remove('drag-over', 'drag-over-bottom');
+  if (!seanceDragState || seanceDragState.rowId === targetRowId) return;
+  if (seanceDragState.kind !== targetKind || seanceDragState.seanceId !== targetSeanceId) { seanceDragState = null; return; }
+
+  const containerId = targetKind === 'exo' ? 'exo-list-' + targetSeanceId : 'ech-list-' + targetSeanceId;
+  const list = document.getElementById(containerId);
+  if (!list) { seanceDragState = null; return; }
+  const dragEl   = list.querySelector(`.seance-exo-row[data-row-id="${seanceDragState.rowId}"]`);
+  const targetEl = list.querySelector(`.seance-exo-row[data-row-id="${targetRowId}"]`);
+  if (!dragEl || !targetEl) { seanceDragState = null; return; }
+
+  const rect = targetEl.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  if (before) targetEl.parentNode.insertBefore(dragEl, targetEl);
+  else targetEl.parentNode.insertBefore(dragEl, targetEl.nextSibling);
+
+  seanceDragState = null;
+  await persistSeanceRowOrder(targetKind, targetSeanceId);
+}
+
+async function persistSeanceRowOrder(kind, seanceId) {
+  const containerId = kind === 'exo' ? 'exo-list-' + seanceId : 'ech-list-' + seanceId;
+  const table       = kind === 'exo' ? 'seance_exercices' : 'seance_echauffement';
+  const list = document.getElementById(containerId);
+  if (!list) return;
+  const rows = list.querySelectorAll('.seance-exo-row');
+  const updates = Array.from(rows).map((r, i) =>
+    db.from(table).update({ ordre: i }).eq('id', r.dataset.rowId)
+  );
+  const results = await Promise.all(updates);
+  if (results.some(r => r.error)) {
+    toast('Ordre non sauvegardé');
+    return;
+  }
+  toast('Ordre mis à jour ✓');
+  // Recharger pour resynchroniser le cache local (utilisé par les boutons
+  // "Modifier") et renuméroter proprement les badges 1/2/3.
+  if (kind === 'exo') await loadSeanceExercices(seanceId);
+  else await loadSeanceEchauffement(seanceId);
 }
 
 async function toggleSeanceValidation(seanceId, isCurrentlyValidee) {
@@ -2413,8 +2522,8 @@ function openEditPickerExo(seanceId, index) {
 // cliente (loadSeances/loadSeanceExercices) — utilise le cache local rempli
 // au chargement de la liste plutôt que progDetailExosData (qui n'existe que
 // pour le modal de la grille Programmation).
-function openEditExoFromSeance(seanceId, index) {
-  const exo = ((window._seanceExosCache || {})[seanceId] || [])[index];
+function openEditExoFromSeance(seanceId, exoId) {
+  const exo = ((window._seanceExosCache || {})[seanceId] || []).find(x => x.id === exoId);
   if (!exo) return;
   openEditExoCommon(seanceId, exo);
 }
@@ -2572,8 +2681,8 @@ async function openEchPicker(seanceId) {
 }
 
 // Édition d'un exercice d'échauffement existant (depuis loadSeanceEchauffement)
-function openEditEchFromSeance(seanceId, index) {
-  const item = ((window._seanceEchCache || {})[seanceId] || [])[index];
+function openEditEchFromSeance(seanceId, echId) {
+  const item = ((window._seanceEchCache || {})[seanceId] || []).find(x => x.id === echId);
   if (!item) return;
 
   echPickerSeanceId    = seanceId;
@@ -3505,12 +3614,18 @@ async function applyGroupeToClient(groupeId, groupeNom) {
   const payload = items.map((it, i) => ({
     client_id: currentClientId, nom: it.nom, unite: it.unite, icone: it.icone || '📊',
     frequence: it.frequence || 'Hebdomadaire', type: it.type || 'mesure',
-    cible: it.cible, inverse: it.inverse, ordre: startOrdre + i
+    cible: it.cible, inverse: it.inverse, ordre: startOrdre + i,
+    groupe_id: groupeId, // mémorise la provenance pour l'affichage en section (cf. SQL section 24)
   }));
   let { error: insErr } = await db.from('client_metriques').insert(payload);
+  if (insErr && insErr.message && insErr.message.includes('groupe_id')) {
+    // Colonne "groupe_id" probablement absente (SQL section 24 non exécuté) : retente sans
+    const payloadNoGroupe = payload.map(({ groupe_id, ...rest }) => rest);
+    ({ error: insErr } = await db.from('client_metriques').insert(payloadNoGroupe));
+  }
   if (insErr) {
     // Colonne "ordre" probablement absente (SQL section 21 non exécuté) : retente sans
-    const payloadNoOrdre = payload.map(({ ordre, ...rest }) => rest);
+    const payloadNoOrdre = payload.map(({ ordre, groupe_id, ...rest }) => rest);
     ({ error: insErr } = await db.from('client_metriques').insert(payloadNoOrdre));
   }
   if (insErr) { toast('Erreur : ' + insErr.message); return; }
@@ -3564,7 +3679,7 @@ async function loadClientMetrics(clientId) {
       .order('created_at', { ascending: true }));
   }
 
-  list.querySelectorAll('.metric-manage-row').forEach(r => r.remove());
+  list.querySelectorAll('.metric-manage-row, .metric-group-header-row').forEach(r => r.remove());
   if (emptyEl) emptyEl.style.display = 'none';
 
   if (!metriques || metriques.length === 0) {
@@ -3572,13 +3687,41 @@ async function loadClientMetrics(clientId) {
     return;
   }
 
+  // Tous les groupes existants (pour le sélecteur "Groupe" de chaque ligne),
+  // et les noms des groupes effectivement utilisés par cette cliente (pour
+  // les en-têtes de section). cf. SQL section 24 — colonne groupe_id.
+  const { data: allGroupes } = await db.from('groupes_metriques').select('id,nom').order('created_at', { ascending: true });
+  const groupesList = allGroupes || [];
+  const groupNomById = {};
+  groupesList.forEach(g => { groupNomById[g.id] = g.nom; });
+
+  const groupeOptionsHtml = groupesList.map(g => `<option value="${g.id}">${g.nom}</option>`).join('');
+
   // Important : les lignes sont créées et insérées dans le DOM de façon
   // SYNCHRONE, dans l'ordre déjà trié par "ordre" venant de Supabase.
   // (Avant : chaque ligne n'était ajoutée qu'à l'intérieur du .then() de sa
   // propre requête metrique_valeurs — l'ordre d'affichage dépendait alors de
   // l'ordre de résolution des promesses, pas du tri voulu, ce qui donnait
   // l'impression que le glisser-déposer ne persistait pas dans le temps.)
+  // Les métriques sont regroupées en sections par groupe_id (dans l'ordre
+  // d'apparition), les métriques sans groupe restant en dehors de toute
+  // section (ou sous "Sans groupe" s'il existe au moins un groupe utilisé).
+  let lastGroupKey = undefined; // undefined ≠ déjà rencontré une fois (évite l'en-tête en double)
+  const anyGrouped = metriques.some(m => m.groupe_id);
+
   metriques.forEach(m => {
+    const groupKey = m.groupe_id || null;
+    if (groupKey !== lastGroupKey) {
+      lastGroupKey = groupKey;
+      if (groupKey || anyGrouped) {
+        const headerLabel = groupKey ? (groupNomById[groupKey] || 'Groupe') : 'Sans groupe';
+        const header = document.createElement('div');
+        header.className = 'metric-group-header-row';
+        header.textContent = headerLabel;
+        list.appendChild(header);
+      }
+    }
+
     let typeLabel = TYPE_LABELS[m.type] || 'Mesure (courbe)';
     if (m.type === 'objectif' && m.cible != null) typeLabel = `Objectif : ${m.cible}`;
     if (m.type === 'score5' && m.inverse) typeLabel = 'Score 1-5 (inversé)';
@@ -3599,6 +3742,10 @@ async function loadClientMetrics(clientId) {
         <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence} · ${typeLabel}</div>
       </div>
       <div class="metric-manage-val" id="metric-val-${m.id}">… <br><small style="color:var(--muted);font-size:10px">…</small></div>
+      ${groupesList.length ? `<select class="metric-groupe-select" title="Groupe d'affichage" onclick="event.stopPropagation()" onchange="changeMetricGroupe('${m.id}', this.value)">
+        <option value=""${!m.groupe_id ? ' selected' : ''}>Sans groupe</option>
+        ${groupesList.map(g => `<option value="${g.id}"${g.id === m.groupe_id ? ' selected' : ''}>${g.nom}</option>`).join('')}
+      </select>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
       <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
     list.appendChild(row);
@@ -3617,6 +3764,17 @@ async function loadClientMetrics(clientId) {
         valEl.innerHTML = `${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small>`;
       });
   });
+}
+
+// Changer le groupe d'affichage d'une métrique déjà assignée à une cliente
+// (sélecteur sur chaque ligne de loadClientMetrics). "" = retirer du groupe.
+async function changeMetricGroupe(metriqueId, groupeId) {
+  const { error } = await db.from('client_metriques')
+    .update({ groupe_id: groupeId || null })
+    .eq('id', metriqueId);
+  if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 24)'); return; }
+  toast('Groupe mis à jour ✓');
+  await loadClientMetrics(currentClientId);
 }
 
 // Charger les habitudes d'une cliente
@@ -3771,8 +3929,10 @@ async function loadClientHabits(clientId) {
 async function removeMetricDB(id, btn) {
   if (!confirm('Retirer cette métrique et toutes ses valeurs ?')) return;
   await db.from('client_metriques').delete().eq('id', id);
-  btn.closest('.metric-manage-row').remove();
   toast('Métrique retirée');
+  // Recharger plutôt que retirer juste la ligne du DOM : évite de laisser un
+  // en-tête de groupe orphelin si c'était la dernière métrique de ce groupe.
+  await loadClientMetrics(currentClientId);
 }
 
 // ─── RÉORGANISATION DES MÉTRIQUES (drag & drop) ────────────────
@@ -3833,9 +3993,12 @@ async function persistMetricsOrder() {
   const results = await Promise.all(updates);
   if (results.some(r => r.error)) {
     toast('Ordre non sauvegardé — exécute le SQL (section 21)');
-  } else {
-    toast('Ordre mis à jour ✓');
+    return;
   }
+  toast('Ordre mis à jour ✓');
+  // Recharger pour recalculer les en-têtes de groupe proprement (un
+  // déplacement peut faire apparaître/disparaître des frontières de groupe).
+  await loadClientMetrics(currentClientId);
 }
 
 async function removeHabitDB(id, btn) {
