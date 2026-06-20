@@ -1089,9 +1089,10 @@ async function loadMetrics() {
     }
   } catch (e) {}
 
-  // Regrouper les métriques par groupe d'affichage, en conservant leur ordre
-  // (les métriques sans groupe sont affichées en dernier, sous "Sans groupe"
-  // seulement si au moins un groupe est utilisé — sinon tout reste à plat).
+  // Regrouper les métriques par groupe d'affichage, en conservant leur ordre.
+  // Les métriques sans groupe sont affichées EN PREMIER, à plat (sans en-tête
+  // ni section repliable — comme avant l'introduction des groupes). Les
+  // groupes nommés viennent ensuite, chacun en section repliable.
   const groupOrder = [];
   const groupBuckets = {};
   const ungrouped = [];
@@ -1101,7 +1102,6 @@ async function loadMetrics() {
     if (!groupBuckets[gid]) { groupBuckets[gid] = []; groupOrder.push(gid); }
     groupBuckets[gid].push(m);
   });
-  const hasGroups = groupOrder.length > 0;
 
   async function renderMetricsInto(target, list) {
     for (const m of list) {
@@ -1117,9 +1117,17 @@ async function loadMetrics() {
     }
   }
 
+  // 1) Métriques sans groupe d'abord, affichées normalement (à plat, sans
+  //    en-tête ni encart "Sans groupe") — exactement comme avant les groupes.
+  if (ungrouped.length) {
+    await renderMetricsInto(container, ungrouped);
+  }
+
+  // 2) Puis les groupes nommés, en sections repliables, FERMÉES par défaut
+  //    (la cliente clique sur le chevron pour les ouvrir).
   for (const gid of groupOrder) {
     container.insertAdjacentHTML('beforeend', `
-      <div class="metric-group" id="metric-group-${gid}">
+      <div class="metric-group collapsed" id="metric-group-${gid}">
         <div class="metric-group-header" onclick="toggleMetricGroup('${gid}')">
           <span class="metric-group-title">${groupNomById[gid] || 'Groupe'}</span>
           <svg class="metric-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1127,22 +1135,6 @@ async function loadMetrics() {
         <div class="metric-group-body" id="metric-group-${gid}-body"></div>
       </div>`);
     await renderMetricsInto(document.getElementById(`metric-group-${gid}-body`), groupBuckets[gid]);
-  }
-
-  if (ungrouped.length) {
-    let target = container;
-    if (hasGroups) {
-      container.insertAdjacentHTML('beforeend', `
-        <div class="metric-group" id="metric-group-none">
-          <div class="metric-group-header" onclick="toggleMetricGroup('none')">
-            <span class="metric-group-title">Sans groupe</span>
-            <svg class="metric-group-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </div>
-          <div class="metric-group-body" id="metric-group-none-body"></div>
-        </div>`);
-      target = document.getElementById('metric-group-none-body');
-    }
-    await renderMetricsInto(target, ungrouped);
   }
 
   requestAnimationFrame(() => {
