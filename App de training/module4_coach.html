@@ -2131,16 +2131,16 @@ CREATE POLICY "Allow all anon on seances"
         <div class="seance-exo-panel" id="exo-panel-${s.id}">
           <div class="seance-section-label ech">Échauffement</div>
           <div id="ech-list-${s.id}" class="seance-exo-empty">Chargement…</div>
-          ${!isValidee ? `<button class="seance-exo-add" onclick="openEchPicker('${s.id}')">
+          <button class="seance-exo-add" onclick="openEchPicker('${s.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Ajouter un exercice d'échauffement
-          </button>` : ''}
+          </button>
           <div class="seance-section-label">Exercices</div>
           <div id="exo-list-${s.id}" class="seance-exo-empty">Chargement…</div>
-          ${!isValidee ? `<button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
+          <button class="seance-exo-add" onclick="openExoPicker('${s.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Ajouter un exercice
-          </button>` : ''}
+          </button>
           <div style="padding:8px 14px 10px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center;">
             ${s.notes ? `<span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.notes}</span>` : '<span style="flex:1"></span>'}
             <button class="btn ${isValidee ? 'btn-ghost' : 'btn-accent'} btn-sm" onclick="event.stopPropagation();toggleSeanceValidation('${s.id}', ${isValidee})">${isValidee ? 'Invalider' : 'Valider'}</button>
@@ -2176,8 +2176,10 @@ async function loadSeanceEchauffement(seanceId) {
     return;
   }
 
-  const isValidee = (window._seanceStatuts || {})[seanceId] === 'validée';
   const items = data || [];
+  window._seanceEchCache = window._seanceEchCache || {};
+  window._seanceEchCache[seanceId] = items;
+
   if (items.length === 0) {
     container.innerHTML = '<div class="seance-exo-empty">Aucun exercice d\'échauffement — ajoutes-en un ci-dessous.</div>';
     return;
@@ -2191,13 +2193,15 @@ async function loadSeanceEchauffement(seanceId) {
           <div class="seance-exo-name">${e.nom_exo}</div>
           ${e.consigne ? `<div class="seance-exo-params" style="color:var(--dim)">${e.consigne}</div>` : ''}
         </div>
-        ${!isValidee ? `<button class="seance-exo-del" title="Retirer" onclick="deleteSeanceEchExo('${e.id}','${seanceId}')">×</button>` : ''}
+        <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditEchFromSeance('${seanceId}', ${i})">Modifier</button>
+        <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceEchExo('${e.id}','${seanceId}')">×</button>
       </div>
     </div>`).join('');
 }
 
 async function loadSeanceExercices(seanceId) {
   const container = document.getElementById('exo-list-' + seanceId);
+  if (!container) return;
   container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
 
   // Fallback à 3 niveaux : on essaie du plus complet au plus basique
@@ -2222,9 +2226,10 @@ async function loadSeanceExercices(seanceId) {
     return;
   }
 
-  const isValidee = (window._seanceStatuts || {})[seanceId] === 'validée';
-
   const exos = data || [];
+  window._seanceExosCache = window._seanceExosCache || {};
+  window._seanceExosCache[seanceId] = exos;
+
   if (exos.length === 0) {
     container.innerHTML = '<div class="seance-exo-empty">Aucun exercice — ajoutes-en un ci-dessous.</div>';
     return;
@@ -2291,7 +2296,8 @@ async function loadSeanceExercices(seanceId) {
             <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
             ${realiséHtml}
           </div>
-          ${!isValidee ? `<button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>` : ''}
+          <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditExoFromSeance('${seanceId}', ${i})">Modifier</button>
+          <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
         </div>
       </div>`;
   }).join('');
@@ -2400,7 +2406,20 @@ function toggleUniExtra() {
 function openEditPickerExo(seanceId, index) {
   const exo = progDetailExosData[index];
   if (!exo) return;
+  openEditExoCommon(seanceId, exo);
+}
 
+// Édition d'un exercice planifié depuis la liste "Programme" de la fiche
+// cliente (loadSeances/loadSeanceExercices) — utilise le cache local rempli
+// au chargement de la liste plutôt que progDetailExosData (qui n'existe que
+// pour le modal de la grille Programmation).
+function openEditExoFromSeance(seanceId, index) {
+  const exo = ((window._seanceExosCache || {})[seanceId] || [])[index];
+  if (!exo) return;
+  openEditExoCommon(seanceId, exo);
+}
+
+function openEditExoCommon(seanceId, exo) {
   pickerSeanceId    = seanceId;
   pickerSelectedId  = exo.exercice_id || null;
   pickerSelectedNom = exo.nom_exo;
@@ -2475,7 +2494,10 @@ async function savePickerExo() {
     editingExoRowId = null;
     document.getElementById('modal-exo-picker').classList.remove('open');
     toast('Exercice modifié ✓');
-    await loadProgDetailExos(seanceId);
+    // Rafraîchir quelle que soit la vue d'où l'édition a été lancée
+    // (grille Programmation et/ou liste "Programme" de la fiche cliente).
+    if (progDetailSeanceId === seanceId) await loadProgDetailExos(seanceId);
+    if (document.getElementById('exo-list-' + seanceId)) await loadSeanceExercices(seanceId);
     return;
   }
 
@@ -2516,22 +2538,29 @@ async function savePickerExo() {
   }
   document.getElementById('modal-exo-picker').classList.remove('open');
   toast('Exercice ajouté ✓');
-  await loadSeanceExercices(pickerSeanceId);
+  if (progDetailSeanceId === pickerSeanceId) await loadProgDetailExos(pickerSeanceId);
+  if (document.getElementById('exo-list-' + pickerSeanceId)) await loadSeanceExercices(pickerSeanceId);
 }
 
 // ─── ÉCHAUFFEMENT PICKER ─────────────────────────────────────
 let echPickerSeanceId   = null;
 let echPickerSelectedId = null;
 let echPickerSelectedNom= null;
+let echEditingRowId     = null; // id de seance_echauffement en cours d'édition (null = mode ajout)
 
 async function openEchPicker(seanceId) {
   echPickerSeanceId    = seanceId;
   echPickerSelectedId  = null;
   echPickerSelectedNom = null;
+  echEditingRowId      = null;
   document.getElementById('ech-picker-search').value = '';
+  document.getElementById('ech-picker-search').style.display = '';
+  document.getElementById('ech-picker-list').style.display = '';
   document.getElementById('ech-params-form').classList.remove('open');
   document.getElementById('ech-picker-error').style.display = 'none';
   document.getElementById('ech-consigne').value = '';
+  document.querySelector('#modal-ech-picker .modal-header-title').textContent = "Ajouter à l'échauffement";
+  document.getElementById('btn-save-ech-picker').textContent = "Ajouter à l'échauffement";
   document.getElementById('modal-ech-picker').classList.add('open');
   // Charger les exercices si pas encore fait
   if (allExercices.length === 0) {
@@ -2540,6 +2569,30 @@ async function openEchPicker(seanceId) {
     await loadExercices();
   }
   renderEchPickerList('');
+}
+
+// Édition d'un exercice d'échauffement existant (depuis loadSeanceEchauffement)
+function openEditEchFromSeance(seanceId, index) {
+  const item = ((window._seanceEchCache || {})[seanceId] || [])[index];
+  if (!item) return;
+
+  echPickerSeanceId    = seanceId;
+  echPickerSelectedId  = item.exercice_id || null;
+  echPickerSelectedNom = item.nom_exo;
+  echEditingRowId      = item.id;
+
+  document.getElementById('ech-picker-search').value = '';
+  document.getElementById('ech-picker-search').style.display = 'none';
+  document.getElementById('ech-picker-list').style.display = 'none';
+  document.getElementById('ech-picker-selected-name').textContent = echPickerSelectedNom;
+  document.getElementById('ech-params-form').classList.add('open');
+  document.getElementById('ech-picker-error').style.display = 'none';
+  document.getElementById('ech-consigne').value = item.consigne || '';
+
+  document.querySelector('#modal-ech-picker .modal-header-title').textContent = 'Modifier l\'exercice d\'échauffement';
+  document.getElementById('btn-save-ech-picker').textContent = 'Enregistrer les modifications';
+
+  document.getElementById('modal-ech-picker').classList.add('open');
 }
 
 function renderEchPickerList(query) {
@@ -2578,11 +2631,33 @@ async function saveEchPickerExo() {
   if (!echPickerSeanceId || !echPickerSelectedNom) {
     errEl.style.display = 'block'; errEl.textContent = 'Sélectionne un exercice d\'abord.'; return;
   }
+  const consigne = document.getElementById('ech-consigne').value.trim();
+  const btn = document.getElementById('btn-save-ech-picker');
+
+  // ─── Mode édition : UPDATE de la consigne ───
+  if (echEditingRowId) {
+    btn.disabled = true; btn.textContent = 'Enregistrement…';
+    const { error } = await db.from('seance_echauffement')
+      .update({ consigne: consigne || null })
+      .eq('id', echEditingRowId);
+    btn.disabled = false; btn.textContent = 'Enregistrer les modifications';
+
+    if (error) {
+      errEl.style.display = 'block'; errEl.textContent = 'Erreur : ' + error.message; return;
+    }
+    const seanceId = echPickerSeanceId;
+    echEditingRowId = null;
+    document.getElementById('modal-ech-picker').classList.remove('open');
+    toast('Exercice d\'échauffement modifié ✓');
+    if (document.getElementById('ech-list-' + seanceId)) await loadSeanceEchauffement(seanceId);
+    return;
+  }
+
+  // ─── Mode ajout : INSERT ───
   // Get next ordre
   const { data: existing } = await db.from('seance_echauffement').select('ordre').eq('seance_id', echPickerSeanceId).order('ordre', {ascending:false}).limit(1);
   const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
 
-  const consigne = document.getElementById('ech-consigne').value.trim();
   const payload = {
     seance_id:   echPickerSeanceId,
     exercice_id: echPickerSelectedId || null,
@@ -2591,7 +2666,6 @@ async function saveEchPickerExo() {
     consigne:    consigne || null,
   };
 
-  const btn = document.getElementById('btn-save-ech-picker');
   btn.disabled = true; btn.textContent = 'Ajout…';
 
   const { error } = await db.from('seance_echauffement').insert(payload);
@@ -3498,38 +3572,49 @@ async function loadClientMetrics(clientId) {
     return;
   }
 
+  // Important : les lignes sont créées et insérées dans le DOM de façon
+  // SYNCHRONE, dans l'ordre déjà trié par "ordre" venant de Supabase.
+  // (Avant : chaque ligne n'était ajoutée qu'à l'intérieur du .then() de sa
+  // propre requête metrique_valeurs — l'ordre d'affichage dépendait alors de
+  // l'ordre de résolution des promesses, pas du tri voulu, ce qui donnait
+  // l'impression que le glisser-déposer ne persistait pas dans le temps.)
   metriques.forEach(m => {
-    // Charger la dernière valeur
+    let typeLabel = TYPE_LABELS[m.type] || 'Mesure (courbe)';
+    if (m.type === 'objectif' && m.cible != null) typeLabel = `Objectif : ${m.cible}`;
+    if (m.type === 'score5' && m.inverse) typeLabel = 'Score 1-5 (inversé)';
+
+    const row = document.createElement('div');
+    row.className = 'metric-manage-row';
+    row.dataset.metriqueId = m.id;
+    row.draggable = true;
+    row.ondragstart = (e) => onMetricDragStart(e, m.id);
+    row.ondragend   = onMetricDragEnd;
+    row.ondragover  = (e) => onMetricDragOver(e);
+    row.ondragleave = (e) => onMetricDragLeave(e);
+    row.ondrop      = (e) => onMetricDrop(e, m.id);
+    row.innerHTML = `<div class="metric-drag-handle" title="Glisser pour réordonner">⠿</div>
+      <div class="metric-manage-icon">${m.icone||'📊'}</div>
+      <div class="metric-manage-info">
+        <div class="metric-manage-name">${m.nom}</div>
+        <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence} · ${typeLabel}</div>
+      </div>
+      <div class="metric-manage-val" id="metric-val-${m.id}">… <br><small style="color:var(--muted);font-size:10px">…</small></div>
+      <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
+      <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
+    list.appendChild(row);
+
+    // Charger la dernière valeur en asynchrone — ne touche plus qu'au
+    // contenu de la cellule valeur, jamais à la position de la ligne.
     db.from('metrique_valeurs').select('valeur,date').eq('metrique_id', m.id)
       .order('date', { ascending: false }).limit(1)
       .then(({ data: vals }) => {
+        const valEl = document.getElementById('metric-val-' + m.id);
+        if (!valEl) return;
         const lastVal  = vals && vals[0] ? vals[0].valeur : '—';
         const lastDate = vals && vals[0]
           ? new Date(vals[0].date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
           : '—';
-        let typeLabel = TYPE_LABELS[m.type] || 'Mesure (courbe)';
-        if (m.type === 'objectif' && m.cible != null) typeLabel = `Objectif : ${m.cible}`;
-        if (m.type === 'score5' && m.inverse) typeLabel = 'Score 1-5 (inversé)';
-
-        const row = document.createElement('div');
-        row.className = 'metric-manage-row';
-        row.dataset.metriqueId = m.id;
-        row.draggable = true;
-        row.ondragstart = (e) => onMetricDragStart(e, m.id);
-        row.ondragend   = onMetricDragEnd;
-        row.ondragover  = (e) => onMetricDragOver(e);
-        row.ondragleave = (e) => onMetricDragLeave(e);
-        row.ondrop      = (e) => onMetricDrop(e, m.id);
-        row.innerHTML = `<div class="metric-drag-handle" title="Glisser pour réordonner">⠿</div>
-          <div class="metric-manage-icon">${m.icone||'📊'}</div>
-          <div class="metric-manage-info">
-            <div class="metric-manage-name">${m.nom}</div>
-            <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence} · ${typeLabel}</div>
-          </div>
-          <div class="metric-manage-val">${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small></div>
-          <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
-          <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
-        list.appendChild(row);
+        valEl.innerHTML = `${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small>`;
       });
   });
 }
