@@ -499,6 +499,15 @@ function checkAccountActive(session){
   .cycle-daily-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
   .cycle-daily-title { font-size: 14px; font-weight: 700; }
   .cycle-daily-date { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .cycle-daily-nav { display:flex; align-items:center; gap:7px; }
+  .cycle-daily-nav-btn {
+    width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
+    transition: color var(--transition,.15s ease), border-color var(--transition,.15s ease), opacity .15s ease;
+  }
+  .cycle-daily-nav-btn:active { color: var(--accent); border-color: var(--accent); }
+  .cycle-daily-nav-btn:disabled { opacity: 0.3; cursor: default; }
   .cycle-field { margin-bottom: 18px; }
   .cycle-field:last-of-type { margin-bottom: 0; }
   .cycle-field-label {
@@ -747,7 +756,15 @@ function checkAccountActive(session){
   <div class="cycle-daily-log">
     <div class="cycle-daily-header">
       <div class="cycle-daily-title">Saisie du jour</div>
-      <div class="cycle-daily-date" id="cycle-daily-title">—</div>
+      <div class="cycle-daily-nav">
+        <button class="cycle-daily-nav-btn" onclick="navDailyLog(-1)" title="Jour précédent">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="cycle-daily-date" id="cycle-daily-title">—</div>
+        <button class="cycle-daily-nav-btn" id="cycle-daily-next-btn" onclick="navDailyLog(1)" title="Jour suivant">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </div>
 
     <div class="cycle-field">
@@ -1360,12 +1377,8 @@ function updateCycleDisplay(currentDay, avgLen) {
   const sdl = document.getElementById('stat-current-day');
   if (sdl) sdl.textContent = currentDay;
 
-  // Date saisie
-  const titleEl = document.getElementById('cycle-daily-title');
-  if (titleEl) {
-    const today = new Date();
-    titleEl.textContent = today.toLocaleDateString('fr-FR', { day:'numeric', month:'long' });
-  }
+  // Date saisie — gérée par refreshDailyLogForm() (navigation entre les jours)
+  refreshDailyLogForm();
 }
 
 function getPhasePct(day, L, reglesLen) {
@@ -1428,6 +1441,11 @@ let periodEnds = []; // chargé depuis Supabase — dates de fin des règles
 let selectedGlaireValue = null;
 let spottingValue = false;
 
+// Date actuellement affichée/éditée dans la carte "Saisie du jour" — par
+// défaut aujourd'hui, navigable vers le passé (pas le futur) via navDailyLog.
+let selectedLogDate = new Date();
+selectedLogDate.setHours(0, 0, 0, 0);
+
 /* Durée réelle des règles pour un cycle donné (cycleStart inclus, avant cycleEnd
    exclu si fourni). Retourne 5 par défaut si aucune fin n'a été déclarée. */
 function getReglesLenForCycle(cycleStart, cycleEnd) {
@@ -1460,7 +1478,12 @@ async function loadCycleData() {
   const today = new Date();
   const lastCycle = pastCycles.length ? pastCycles[pastCycles.length - 1] : null;
   const dayOfCycle = lastCycle ? Math.round((today - lastCycle) / 86400000) + 1 : null;
-  updateCycleDisplay(dayOfCycle || 1, avg);
+
+  // Revenir sur "aujourd'hui" dans la carte "Saisie du jour" à chaque
+  // (re)chargement de l'onglet Cycle (navigation gérée par navDailyLog).
+  selectedLogDate = new Date(); selectedLogDate.setHours(0, 0, 0, 0);
+
+  updateCycleDisplay(dayOfCycle || 1, avg); // appelle refreshDailyLogForm() en interne
   updateEndPeriodButtonVisibility();
 
   // 2. Afficher/masquer les insights selon le nombre de cycles
@@ -1474,34 +1497,7 @@ async function loadCycleData() {
     }
   }
 
-  // 3. Charger la saisie du jour
-  const todayStr = today.toISOString().split('T')[0];
-  const { data: dayLog } = await db.from('cycle_daily_log')
-    .select('*').eq('client_id', SESSION.client_id).eq('date', todayStr).single();
-
-  if (dayLog) {
-    if (dayLog.temperature) document.getElementById('temp-input').value = dayLog.temperature;
-    if (dayLog.glaire) {
-      selectedGlaireValue = dayLog.glaire;
-      document.querySelectorAll('.glaire-card').forEach(c => {
-        c.classList.toggle('selected', c.getAttribute('onclick')?.includes(`'${dayLog.glaire}'`));
-      });
-    }
-    if (dayLog.saignement) {
-      document.querySelectorAll('.saignement-btn').forEach(b => {
-        if (b.dataset.val === dayLog.saignement) selectSaignement(b);
-      });
-    }
-    if (dayLog.spotting) {
-      spottingValue = true;
-      const cb = document.getElementById('spotting-checkbox');
-      if (cb) cb.checked = true;
-    }
-    // Ajouter ce log au map calendrier
-    calDailyMap[todayStr] = dayLog;
-  }
-
-  // 4. Construire le calendrier
+  // 3. Construire le calendrier
   calViewYear  = today.getFullYear();
   calViewMonth = today.getMonth();
   await buildCycleCalendar();
@@ -2149,16 +2145,80 @@ function selectGlaire(card, type) {
   selectedGlaireValue = type;
 }
 
+// ── Navigation entre les jours dans la carte "Saisie du jour" ──
+// Permet à la cliente de revenir sur un jour passé pour y saisir/modifier
+// température, glaire, saignement, spotting (avant : uniquement "aujourd'hui").
+async function navDailyLog(deltaDays) {
+  const next = new Date(selectedLogDate);
+  next.setDate(next.getDate() + deltaDays);
+  next.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (next.getTime() > today.getTime()) return; // pas de saisie dans le futur
+  selectedLogDate = next;
+  await refreshDailyLogForm();
+}
+
+async function refreshDailyLogForm() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isToday = selectedLogDate.getTime() === today.getTime();
+
+  const titleEl = document.getElementById('cycle-daily-title');
+  if (titleEl) {
+    const label = selectedLogDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    titleEl.textContent = isToday ? "Aujourd'hui · " + label : label;
+  }
+  const nextBtn = document.getElementById('cycle-daily-next-btn');
+  if (nextBtn) nextBtn.disabled = isToday;
+
+  // Récupérer l'éventuelle saisie déjà existante pour ce jour (déjà en cache
+  // si le mois est chargé dans le calendrier, sinon on va la chercher).
+  const dateStr = toLocalDateStr(selectedLogDate);
+  let log = calDailyMap[dateStr];
+  if (log === undefined) {
+    const { data } = await db.from('cycle_daily_log').select('*')
+      .eq('client_id', SESSION.client_id).eq('date', dateStr).maybeSingle();
+    log = data || null;
+    calDailyMap[dateStr] = log;
+  }
+
+  // Pré-remplir (ou réinitialiser) le formulaire avec cette saisie
+  const tempInput = document.getElementById('temp-input');
+  if (tempInput) tempInput.value = log?.temperature ?? '';
+
+  selectedGlaireValue = log?.glaire || null;
+  document.querySelectorAll('.glaire-card').forEach(c => c.classList.remove('selected'));
+  if (selectedGlaireValue) {
+    const card = Array.from(document.querySelectorAll('.glaire-card'))
+      .find(c => (c.getAttribute('onclick') || '').includes(`'${selectedGlaireValue}'`));
+    if (card) card.classList.add('selected');
+  }
+
+  document.querySelectorAll('.saignement-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.style.borderColor = 'var(--border)';
+    b.style.background  = 'var(--surface2)';
+    b.style.color       = 'var(--text-muted)';
+  });
+  if (log?.saignement) {
+    const btn = document.querySelector(`.saignement-btn[data-val="${log.saignement}"]`);
+    if (btn) selectSaignement(btn);
+  }
+
+  spottingValue = !!log?.spotting;
+  const spottingCb = document.getElementById('spotting-checkbox');
+  if (spottingCb) spottingCb.checked = spottingValue;
+}
+
 async function saveDailyLog() {
   if (!SESSION) return;
-  const today = new Date().toISOString().split('T')[0];
+  const dateStr = toLocalDateStr(selectedLogDate);
   const tempVal = parseFloat(document.getElementById('temp-input').value) || null;
   const saignementEl = document.querySelector('.saignement-btn.selected');
   const saignement = saignementEl ? saignementEl.dataset.val : null;
 
   const payload = {
     client_id:   SESSION.client_id,
-    date:        today,
+    date:        dateStr,
     glaire:      selectedGlaireValue || null,
     temperature: tempVal,
     saignement:  saignement,
@@ -2171,7 +2231,7 @@ async function saveDailyLog() {
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Saisie enregistrée ✓');
   // Mettre à jour le map local et rafraîchir le calendrier
-  calDailyMap[today] = payload;
+  calDailyMap[dateStr] = payload;
   buildCycleCalendar();
 }
 

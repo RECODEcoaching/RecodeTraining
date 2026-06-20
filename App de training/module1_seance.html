@@ -293,6 +293,29 @@ function checkAccountActive(session){
   }
   .exo-video-btn:active { color: var(--accent); border-color: var(--accent); }
 
+  /* Super-set : deux exercices liés, regroupés visuellement */
+  .superset-pair {
+    display: flex; flex-direction: column; gap: 6px;
+    border: 1.5px solid var(--accent); border-radius: var(--radius);
+    padding: 7px; background: var(--accent-bg);
+  }
+  .superset-pair .exo-card { box-shadow: none; }
+  .superset-pair-label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.4px; padding: 0 5px;
+  }
+
+  /* Triangle d'alerte exercice */
+  .exo-alert-btn {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto; cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+  }
+  .exo-alert-btn.active { color: #d97706; border-color: #d97706; background: rgba(217,119,6,0.08); }
+
   /* Échauffement */
   .ech-card {
     background: var(--surface); border-radius: var(--radius);
@@ -1025,6 +1048,14 @@ function checkAccountActive(session){
       db.from('seance_exercices').update({ reponse_lue: true }).in('id', unreadIds).then(() => {});
     }
 
+    // Alertes actives (triangle ⚠️) posées par la cliente sur certains exercices
+    // (persistent par nom d'exercice jusqu'à ce qu'elle les retire elle-même)
+    window._alertesByName = {};
+    try {
+      const { data: alertes } = await db.from('exo_alertes').select('*').eq('client_id', SESSION.client_id);
+      (alertes || []).forEach(a => { window._alertesByName[(a.nom_exo || '').trim().toLowerCase()] = a; });
+    } catch (e) {}
+
     // Charger l'échauffement (encart optionnel, pas d'erreur bloquante si table absente)
     const { data: echs, error: echError } = await db
       .from('seance_echauffement')
@@ -1058,7 +1089,7 @@ function checkAccountActive(session){
       exoList.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:14px">Aucun exercice dans cette séance.</div>';
       document.getElementById('progress-label').textContent = '0 / 0 exercices';
     } else {
-      exoList.innerHTML = exos.map((exo, i) => renderExoCard(exo, i)).join('');
+      exoList.innerHTML = renderExoListHtml(exos);
       document.getElementById('progress-label').textContent = '0 / ' + exos.length + ' exercices';
       // Mettre à jour le compteur sur la card semaine
       const cardInfo = document.getElementById('card-info-' + seanceId);
@@ -1108,7 +1139,39 @@ function checkAccountActive(session){
   }
 
   // ── Rendu d'un exercice ──────────────────────────────────
-  function renderExoCard(exo, index) {
+  // ── Liste d'exercices avec regroupement des super-sets ──────
+  // Deux exercices partageant le même superset_group sont rendus côte à
+  // côte dans un même encart, visuellement liés. Le repos n'est déclenché
+  // qu'après le 2e (cf. checkDone/checkSide + data-superset-role).
+  function renderExoListHtml(exos) {
+    const rendered = new Set();
+    let html = '';
+    let n = 0;
+    exos.forEach(exo => {
+      if (rendered.has(exo.id)) return;
+      if (exo.superset_group) {
+        const partner = exos.find(o => o.id !== exo.id && o.superset_group === exo.superset_group && !rendered.has(o.id));
+        if (partner) {
+          rendered.add(exo.id); rendered.add(partner.id);
+          const cardA = renderExoCard(exo, n++, 'first');
+          const cardB = renderExoCard(partner, n++, 'second');
+          html += `<div class="superset-pair">
+            <div class="superset-pair-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Super-set — repos partagé après les deux exercices
+            </div>
+            ${cardA}${cardB}
+          </div>`;
+          return;
+        }
+      }
+      rendered.add(exo.id);
+      html += renderExoCard(exo, n++, null);
+    });
+    return html;
+  }
+
+  function renderExoCard(exo, index, supersetRole) {
     const reposSerie = exo.repos_serie || 90;
     const reposCote  = exo.repos_cote  || 45;
     const reposStr   = formatRepos(reposSerie);
@@ -1119,6 +1182,16 @@ function checkAccountActive(session){
     // Bouton historique commun
     const histBtn = `<div class="exo-video-btn" onclick="event.stopPropagation();openExoHistory('${safeNomExo}')" title="Historique" style="background:var(--accent-bg);color:var(--accent);">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    </div>`;
+
+    // Triangle d'alerte (posée par la cliente, visible cliente + coach, persiste tant qu'elle ne la retire pas)
+    const alertKey    = (exo.nom_exo || '').trim().toLowerCase();
+    const activeAlert = (window._alertesByName || {})[alertKey];
+    const alertTitle  = activeAlert
+      ? (activeAlert.note ? activeAlert.note.replace(/'/g,"\\'").replace(/"/g,'&quot;') : 'Alerte active — appuie pour retirer')
+      : 'Marquer une alerte pour la prochaine fois';
+    const alertBtn = `<div class="exo-alert-btn${activeAlert ? ' active' : ''}" onclick="event.stopPropagation();toggleExoAlert('${safeNomExo}')" title="${alertTitle}">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="${activeAlert ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
     </div>`;
 
     if (exo.unilateral) {
@@ -1149,7 +1222,7 @@ function checkAccountActive(session){
       const rawTagsUni = exo.exercices?.tags || [];
       const tagsUni = Array.isArray(rawTagsUni) ? rawTagsUni : (rawTagsUni ? String(rawTagsUni).split(',').map(t=>t.trim()).filter(Boolean) : []);
       const tagsHtmlUni = tagsUni.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tagsUni.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
-      return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}">
+      return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
         <div class="exo-header" onclick="toggleExo(this)">
           <div class="exo-num">${index + 1}</div>
           <div class="exo-info">
@@ -1157,7 +1230,7 @@ function checkAccountActive(session){
             <div class="exo-params">${params}</div>
             ${tagsHtmlUni}
           </div>
-          ${histBtn}${videoBtnUni}
+          ${histBtn}${alertBtn}${videoBtnUni}
           <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
         <div class="series-body">
@@ -1197,7 +1270,7 @@ function checkAccountActive(session){
     const tags = Array.isArray(rawTags) ? rawTags : (rawTags ? String(rawTags).split(',').map(t=>t.trim()).filter(Boolean) : []);
     const tagsHtml = tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tags.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
     const savedNote = exo.notes_client || '';
-    return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}">
+    return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
       <div class="exo-header" onclick="toggleExo(this)">
         <div class="exo-num">${index + 1}</div>
         <div class="exo-info">
@@ -1205,7 +1278,7 @@ function checkAccountActive(session){
           <div class="exo-params">${params}</div>
           ${tagsHtml}
         </div>
-        ${histBtn}${videoBtnHtml}
+        ${histBtn}${alertBtn}${videoBtnHtml}
         <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
       <div class="series-body">
@@ -1357,6 +1430,29 @@ function checkAccountActive(session){
     const { error } = await db.from('notes_exercice_perso').delete().eq('id', noteId);
     if (error) { alert('Erreur : ' + error.message); return; }
     await loadExoNotes(currentExoNoteName);
+  }
+
+  // ── Triangle d'alerte sur un exercice ────────────────────────
+  // Posée par la cliente, visible cliente + coach, persiste tant qu'elle ne
+  // la retire pas elle-même (peu importe la semaine — rattachée par nom).
+  async function toggleExoAlert(nomExo) {
+    const key = (nomExo || '').trim().toLowerCase();
+    const existing = (window._alertesByName || {})[key];
+    if (existing) {
+      if (!confirm('Retirer l\'alerte sur « ' + nomExo + ' » ?')) return;
+      const { error } = await db.from('exo_alertes').delete().eq('id', existing.id);
+      if (error) { alert('Erreur : ' + error.message); return; }
+    } else {
+      const note = prompt('Note (optionnel) — ex : baisser la charge, attention au dos, ça stagne…', '');
+      if (note === null) return; // annulé
+      const { error } = await db.from('exo_alertes').insert({
+        client_id: SESSION.client_id,
+        nom_exo: nomExo,
+        note: note ? note.trim() : null,
+      });
+      if (error) { alert('Erreur : ' + error.message + ' — exécute le SQL (section 26)'); return; }
+    }
+    if (currentSeanceId) await openSession(currentSeanceId);
   }
 
   // ── Thread de conversation coach/client sur un exercice ─────
@@ -1720,8 +1816,10 @@ function checkAccountActive(session){
     const row = input.closest('.series-row');
     if (row) {
       const rowInputs = row.querySelectorAll('.serie-input:not(.prescribed)');
-      if (Array.from(rowInputs).every(i => i.value.trim() !== '')) {
-        startRest(parseRest(input.closest('.exo-card'), 'series'), 'Repos série');
+      const card = input.closest('.exo-card');
+      // 1er exercice d'un super-set : pas de repos, on enchaîne direct sur le 2e
+      if (Array.from(rowInputs).every(i => i.value.trim() !== '') && card.dataset.supersetRole !== 'first') {
+        startRest(parseRest(card, 'series'), 'Repos série');
       }
     }
     updateProgress();
@@ -1732,14 +1830,15 @@ function checkAccountActive(session){
     if (input.value) input.classList.add('done'); else input.classList.remove('done');
     const card = input.closest('.exo-card');
     const row  = input.closest('.series-row');
+    const isSupersetFirst = card.dataset.supersetRole === 'first';
     if (input.classList.contains('side-g') && input.value.trim() !== '') {
-      startRest(parseRest(card, 'side'), 'Repos côté');
+      if (!isSupersetFirst) startRest(parseRest(card, 'side'), 'Repos côté');
     } else if (input.classList.contains('side-d') && input.value.trim() !== '') {
       const charge = row.querySelector('.serie-input:not(.prescribed):not(.side-g):not(.side-d)');
-      if (!charge || charge.value.trim() !== '') startRest(parseRest(card, 'series'), 'Repos série');
+      if ((!charge || charge.value.trim() !== '') && !isSupersetFirst) startRest(parseRest(card, 'series'), 'Repos série');
     } else if (!input.classList.contains('side-g') && !input.classList.contains('side-d')) {
       const sideD = row.querySelector('.side-d');
-      if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '') {
+      if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '' && !isSupersetFirst) {
         startRest(parseRest(card, 'series'), 'Repos série');
       }
     }

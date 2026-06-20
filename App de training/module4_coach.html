@@ -545,6 +545,7 @@ async function hashPin(pin) {
   .seance-exo-row.dragging { opacity: .4; }
   .seance-exo-row.drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
   .seance-exo-row.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--accent); }
+  .seance-exo-row.superset-linked { border-left: 3px solid var(--accent); background: var(--accent-bg); }
   .seance-exo-drag-handle {
     flex: 0 0 auto; width: 14px; text-align: center; cursor: grab;
     color: var(--muted); font-size: 14px; letter-spacing: -1px; line-height: 1;
@@ -1100,6 +1101,8 @@ async function hashPin(pin) {
         Bibliothèque d'exercices
         <button class="btn btn-accent btn-sm" onclick="openAddExo()">+ Ajouter</button>
       </div>
+      <input class="exo-picker-search" id="exo-lib-search" placeholder="Rechercher un exercice…"
+             style="margin-bottom:10px" oninput="filterExoLibSearch(this.value)">
       <div style="display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm filtre-groupe" style="border-color:var(--accent);color:var(--accent);font-weight:600" onclick="filtrerExos('Tous',this)">Tous</button>
         <button class="btn btn-ghost btn-sm filtre-groupe" onclick="filtrerExos('Grands dorsal',this)">Grands dorsal</button>
@@ -1735,6 +1738,7 @@ let currentClientId   = null;
 let currentClientData = null;
 let allExercices      = [];
 let filtreGroupe      = 'Tous';
+let filtreRechercheExo = '';
 
 const CLIENT_COLORS = [
   { bg:'rgba(109,40,217,0.10)', text:'#6D28D9' },
@@ -2229,14 +2233,19 @@ async function loadSeanceExercices(seanceId) {
   if (!container) return;
   container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
 
-  // Fallback à 3 niveaux : on essaie du plus complet au plus basique
+  // Fallback à 4 niveaux : on essaie du plus complet au plus basique
+  const COLS_V4 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data, superset_group';
   const COLS_V3 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
   const COLS_V2 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
   const COLS_V1 = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
 
-  let { data, error } = await db.from('seance_exercices').select(COLS_V3)
+  let { data, error } = await db.from('seance_exercices').select(COLS_V4)
     .eq('seance_id', seanceId).order('ordre', { ascending: true });
 
+  if (error) {
+    ({ data, error } = await db.from('seance_exercices').select(COLS_V3)
+      .eq('seance_id', seanceId).order('ordre', { ascending: true }));
+  }
   if (error) {
     ({ data, error } = await db.from('seance_exercices').select(COLS_V2)
       .eq('seance_id', seanceId).order('ordre', { ascending: true }));
@@ -2258,6 +2267,19 @@ async function loadSeanceExercices(seanceId) {
   if (exos.length === 0) {
     container.innerHTML = '<div class="seance-exo-empty">Aucun exercice — ajoutes-en un ci-dessous.</div>';
     return;
+  }
+
+  // Alertes actives (triangle ⚠️) posées par la cliente — lecture seule ici,
+  // affichage en lecture côté coach (cf. SQL section 26). Chargé une fois par
+  // rendu de liste, peu coûteux et toujours à jour.
+  let alertedNames = new Set();
+  if (currentClientId) {
+    try {
+      const { data: alertes } = await db.from('exo_alertes').select('nom_exo,note').eq('client_id', currentClientId);
+      (alertes || []).forEach(a => alertedNames.add((a.nom_exo || '').trim().toLowerCase()));
+      window._exoAlertesNotes = {};
+      (alertes || []).forEach(a => { window._exoAlertesNotes[(a.nom_exo || '').trim().toLowerCase()] = a.note || ''; });
+    } catch (e) {}
   }
 
   container.innerHTML = exos.map((e, i) => {
@@ -2312,8 +2334,19 @@ async function loadSeanceExercices(seanceId) {
       </div>`;
     }
 
+    const isAlerted = alertedNames.has((e.nom_exo || '').trim().toLowerCase());
+    const alertNote = isAlerted ? (window._exoAlertesNotes?.[(e.nom_exo || '').trim().toLowerCase()] || '') : '';
+    const alertBadge = isAlerted
+      ? `<span title="${alertNote ? alertNote.replace(/"/g,'&quot;') : 'Alerte posée par la cliente'}" style="flex:0 0 auto;font-size:14px;cursor:help;">⚠️</span>`
+      : '';
+
+    const isPendingPick = pendingSupersetExoId === e.id;
+    const supersetBtn = e.superset_group
+      ? `<button class="btn btn-ghost btn-sm" style="flex:0 0 auto;color:var(--accent);border-color:var(--accent);" title="Lié en super-set — clique pour délier" onclick="toggleSupersetLink('${seanceId}','${e.id}')">🔗 Super-set</button>`
+      : `<button class="btn btn-ghost btn-sm" style="flex:0 0 auto;${isPendingPick ? 'color:var(--accent);border-color:var(--accent);font-weight:700;' : ''}" title="Lier en super-set avec un autre exercice" onclick="toggleSupersetLink('${seanceId}','${e.id}')">${isPendingPick ? '🔗 Choisis le 2e…' : '🔗'}</button>`;
+
     return `
-      <div class="seance-exo-row" draggable="true" data-row-id="${e.id}"
+      <div class="seance-exo-row${e.superset_group ? ' superset-linked' : ''}" draggable="true" data-row-id="${e.id}"
            ondragstart="onSeanceRowDragStart(event,'exo','${seanceId}','${e.id}')"
            ondragend="onSeanceRowDragEnd(event)"
            ondragover="onSeanceRowDragOver(event)"
@@ -2328,6 +2361,8 @@ async function loadSeanceExercices(seanceId) {
             <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
             ${realiséHtml}
           </div>
+          ${alertBadge}
+          ${supersetBtn}
           <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditExoFromSeance('${seanceId}', '${e.id}')">Modifier</button>
           <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceExo('${e.id}','${seanceId}')">×</button>
         </div>
@@ -2445,6 +2480,60 @@ async function deleteSeanceEchExo(id, seanceId) {
   if (!confirm("Retirer cet exercice de l'échauffement ?")) return;
   await db.from('seance_echauffement').delete().eq('id', id);
   await loadSeanceEchauffement(seanceId);
+}
+
+// ─── SUPER-SETS (lier deux exercices) ───────────────────────
+// Flux : 1er clic sur 🔗 = sélection en attente ; 2e clic sur 🔗 d'un AUTRE
+// exercice de la même séance = crée le lien (superset_group partagé, UUID
+// frais). Re-cliquer sur un exo déjà lié propose de le délier. Cliquer une
+// 2e fois sur l'exo déjà en attente annule la sélection.
+let pendingSupersetExoId    = null;
+let pendingSupersetSeanceId = null;
+
+async function toggleSupersetLink(seanceId, exoId) {
+  const exos = (window._seanceExosCache || {})[seanceId] || [];
+  const exo = exos.find(x => x.id === exoId);
+  if (!exo) return;
+
+  // Cas 1 : déjà lié → proposer de délier (les deux membres de la paire)
+  if (exo.superset_group) {
+    if (!confirm('Délier ce super-set ?')) return;
+    const { error } = await db.from('seance_exercices')
+      .update({ superset_group: null })
+      .eq('superset_group', exo.superset_group);
+    if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 25)'); return; }
+    toast('Super-set délié');
+    await loadSeanceExercices(seanceId);
+    return;
+  }
+
+  // Cas 2 : pas de sélection en attente, ou sélection dans une autre séance → on démarre/relance la sélection
+  if (!pendingSupersetExoId || pendingSupersetSeanceId !== seanceId) {
+    pendingSupersetExoId = exoId;
+    pendingSupersetSeanceId = seanceId;
+    toast('Sélectionne un 2e exercice à lier en super-set');
+    await loadSeanceExercices(seanceId);
+    return;
+  }
+
+  // Cas 3 : re-clic sur le même exo en attente → annule
+  if (pendingSupersetExoId === exoId) {
+    pendingSupersetExoId = null;
+    pendingSupersetSeanceId = null;
+    await loadSeanceExercices(seanceId);
+    return;
+  }
+
+  // Cas 4 : clic sur un 2e exo différent dans la même séance → crée le lien
+  const groupId = (crypto.randomUUID ? crypto.randomUUID() : ('sg-' + Date.now() + '-' + Math.random().toString(36).slice(2)));
+  const { error } = await db.from('seance_exercices')
+    .update({ superset_group: groupId })
+    .in('id', [pendingSupersetExoId, exoId]);
+  pendingSupersetExoId = null;
+  pendingSupersetSeanceId = null;
+  if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 25)'); return; }
+  toast('Super-set créé ✓ — repos partagé géré côté cliente par le repos du 2ᵉ exercice');
+  await loadSeanceExercices(seanceId);
 }
 
 // ─── EXO PICKER ──────────────────────────────────────────────
@@ -2955,6 +3044,13 @@ function filtrerExos(groupe, btn) {
   renderExoGrid(groupe);
 }
 
+// Recherche en direct dans la bibliothèque d'exercices (combinée au filtre
+// muscle déjà en place — il faut correspondre aux deux si les deux sont actifs).
+function filterExoLibSearch(query) {
+  filtreRechercheExo = (query || '').trim();
+  renderExoGrid(filtreGroupe);
+}
+
 function toEmbedUrlCoach(url) {
   if (!url) return null;
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
@@ -2989,12 +3085,17 @@ function closeCoachVideo() {
 function renderExoGrid(groupe) {
   const grid = document.getElementById('exo-grid');
   // Filtre : "Tous" → tout, sinon cherche dans tags (multi) ET groupe_musculaire
-  const filtered = groupe === 'Tous'
+  let filtered = groupe === 'Tous'
     ? allExercices
     : allExercices.filter(e => {
         const allTags = [e.groupe_musculaire, ...(e.tags ? e.tags.split(',').map(t => t.trim()) : [])];
         return allTags.some(t => t === groupe);
       });
+  // Recherche texte (combinée au filtre muscle ci-dessus si les deux sont actifs)
+  if (filtreRechercheExo) {
+    const q = filtreRechercheExo.toLowerCase();
+    filtered = filtered.filter(e => (e.nom || '').toLowerCase().includes(q));
+  }
   const hasVideo = url => url && (url.includes('vimeo') || url.includes('youtube') || url.includes('youtu.be'));
 
   const cardsHTML = filtered.map(e => {
