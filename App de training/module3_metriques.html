@@ -454,6 +454,7 @@ function checkAccountActive(session){
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; position: relative; z-index: 1; height: 36px;
   }
+  .cal-cell.cal-cell-clickable { cursor: pointer; }
   .cal-num {
     font-size: 11px; font-weight: 500; color: var(--text);
     width: 22px; height: 22px; display: flex; align-items: center;
@@ -461,6 +462,7 @@ function checkAccountActive(session){
   }
   .cal-num-today { background: var(--accent); color: #fff; font-weight: 700; }
   .cal-num-muted { color: var(--text-dim); }
+  .cal-num-selected { box-shadow: 0 0 0 2px var(--accent); }
   .cal-dots { display:flex; gap:2px; margin-top:1px; }
   .cal-dot { width: 3px; height: 3px; border-radius: 50%; }
   .cal-dot-temp  { background: #6D28D9; }
@@ -1687,10 +1689,14 @@ async function buildCycleCalendar() {
       if (log?.glaire && log.glaire !== 'absente')      dots += '<span class="cal-dot cal-dot-mucus"></span>';
       if (log?.saignement && log.saignement !== 'aucun') dots += '<span class="cal-dot cal-dot-saign"></span>';
       const numCls = cell.isToday ? 'cal-num cal-num-today' : (cell.isFuture ? 'cal-num cal-num-muted' : 'cal-num');
-      html += `<div class="cal-cell">
+      // Cliquable pour aujourd'hui et le passé — permet à la cliente de choisir
+      // un jour pour la carte "Saisie du jour" (saisie/édition rétroactive).
+      const clickAttr = cell.isFuture ? '' : ` onclick="selectCalDay('${cell.dateStr}')"`;
+      const cellCls = cell.isFuture ? 'cal-cell' : 'cal-cell cal-cell-clickable';
+      html += `<div class="${cellCls}"${clickAttr}>
         ${cell.isJ1 ? '<div class="cal-j1-dot"></div>' : ''}
         ${cell.isOvulation ? '<div class="cal-ov-marker" title="Ovulation estimée">★</div>' : ''}
-        <span class="${numCls}">${cell.d}</span>
+        <span class="${numCls}" data-datestr="${cell.dateStr}">${cell.d}</span>
         ${dots ? `<div class="cal-dots">${dots}</div>` : ''}
       </div>`;
     });
@@ -1699,6 +1705,7 @@ async function buildCycleCalendar() {
   });
 
   grid.innerHTML = html;
+  updateCalSelectedHighlight();
 }
 
 async function calNavMonth(delta) {
@@ -2145,6 +2152,28 @@ function selectGlaire(card, type) {
   selectedGlaireValue = type;
 }
 
+// Clic sur un jour du calendrier → sélectionne ce jour pour la carte
+// "Saisie du jour" (équivalent à naviguer avec les flèches, mais direct).
+async function selectCalDay(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (d.getTime() > today.getTime()) return; // pas de saisie dans le futur
+  selectedLogDate = d;
+  await refreshDailyLogForm();
+  document.querySelector('.cycle-daily-log')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Met en surbrillance, dans le calendrier déjà rendu, le jour actuellement
+// sélectionné pour la carte "Saisie du jour" (sans tout reconstruire).
+function updateCalSelectedHighlight() {
+  const selectedStr = toLocalDateStr(selectedLogDate);
+  document.querySelectorAll('#cal-grid .cal-num').forEach(el => {
+    const isSelected = el.dataset.datestr === selectedStr && !el.classList.contains('cal-num-today');
+    el.classList.toggle('cal-num-selected', isSelected);
+  });
+}
+
 // ── Navigation entre les jours dans la carte "Saisie du jour" ──
 // Permet à la cliente de revenir sur un jour passé pour y saisir/modifier
 // température, glaire, saignement, spotting (avant : uniquement "aujourd'hui").
@@ -2207,6 +2236,8 @@ async function refreshDailyLogForm() {
   spottingValue = !!log?.spotting;
   const spottingCb = document.getElementById('spotting-checkbox');
   if (spottingCb) spottingCb.checked = spottingValue;
+
+  updateCalSelectedHighlight();
 }
 
 async function saveDailyLog() {
