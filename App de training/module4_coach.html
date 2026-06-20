@@ -3605,33 +3605,68 @@ async function applyGroupeToClient(groupeId, groupeNom) {
   const { data: items, error } = await db.from('groupe_metriques_items').select('*').eq('groupe_id', groupeId).order('ordre', { ascending: true });
   if (error || !items || items.length === 0) { toast('Groupe vide ou indisponible'); return; }
 
+  // Métriques déjà présentes chez cette cliente (créées avant la feature
+  // groupes, ou assignées individuellement) : si une métrique du groupe a
+  // exactement le même nom, on la RATTACHE au groupe (UPDATE groupe_id) au
+  // lieu d'en créer un doublon vide — l'historique (metrique_valeurs, lié
+  // au metrique_id existant) est ainsi préservé et reste visible.
+  const { data: existingMetrics } = await db.from('client_metriques')
+    .select('id,nom,ordre').eq('client_id', currentClientId).order('ordre', { ascending: false });
+  const existingByName = {};
+  (existingMetrics || []).forEach(m => { existingByName[(m.nom || '').trim().toLowerCase()] = m; });
+
   // Déterminer l'ordre de départ (après les métriques déjà assignées)
   let startOrdre = 0;
-  const { data: existing, error: exErr } = await db.from('client_metriques').select('ordre')
-    .eq('client_id', currentClientId).order('ordre', { ascending: false }).limit(1);
-  if (!exErr && existing && existing[0] && existing[0].ordre != null) startOrdre = existing[0].ordre + 1;
+  if (existingMetrics && existingMetrics[0] && existingMetrics[0].ordre != null) startOrdre = existingMetrics[0].ordre + 1;
 
-  const payload = items.map((it, i) => ({
-    client_id: currentClientId, nom: it.nom, unite: it.unite, icone: it.icone || '📊',
-    frequence: it.frequence || 'Hebdomadaire', type: it.type || 'mesure',
-    cible: it.cible, inverse: it.inverse, ordre: startOrdre + i,
-    groupe_id: groupeId, // mémorise la provenance pour l'affichage en section (cf. SQL section 24)
-  }));
-  let { error: insErr } = await db.from('client_metriques').insert(payload);
-  if (insErr && insErr.message && insErr.message.includes('groupe_id')) {
-    // Colonne "groupe_id" probablement absente (SQL section 24 non exécuté) : retente sans
-    const payloadNoGroupe = payload.map(({ groupe_id, ...rest }) => rest);
-    ({ error: insErr } = await db.from('client_metriques').insert(payloadNoGroupe));
+  const toInsert = [];
+  const toUpdate = []; // { id, ordre, groupe_id }
+  items.forEach((it, i) => {
+    const match = existingByName[(it.nom || '').trim().toLowerCase()];
+    if (match) {
+      toUpdate.push({ id: match.id, ordre: startOrdre + i, groupe_id: groupeId });
+    } else {
+      toInsert.push({
+        client_id: currentClientId, nom: it.nom, unite: it.unite, icone: it.icone || '📊',
+        frequence: it.frequence || 'Hebdomadaire', type: it.type || 'mesure',
+        cible: it.cible, inverse: it.inverse, ordre: startOrdre + i,
+        groupe_id: groupeId, // mémorise la provenance pour l'affichage en section (cf. SQL section 24)
+      });
+    }
+  });
+
+  let insErr = null;
+  if (toInsert.length) {
+    ({ error: insErr } = await db.from('client_metriques').insert(toInsert));
+    if (insErr && insErr.message && insErr.message.includes('groupe_id')) {
+      // Colonne "groupe_id" probablement absente (SQL section 24 non exécuté) : retente sans
+      const payloadNoGroupe = toInsert.map(({ groupe_id, ...rest }) => rest);
+      ({ error: insErr } = await db.from('client_metriques').insert(payloadNoGroupe));
+    }
+    if (insErr) {
+      // Colonne "ordre" probablement absente (SQL section 21 non exécuté) : retente sans
+      const payloadNoOrdre = toInsert.map(({ ordre, groupe_id, ...rest }) => rest);
+      ({ error: insErr } = await db.from('client_metriques').insert(payloadNoOrdre));
+    }
+    if (insErr) { toast('Erreur : ' + insErr.message); return; }
   }
-  if (insErr) {
-    // Colonne "ordre" probablement absente (SQL section 21 non exécuté) : retente sans
-    const payloadNoOrdre = payload.map(({ ordre, groupe_id, ...rest }) => rest);
-    ({ error: insErr } = await db.from('client_metriques').insert(payloadNoOrdre));
+
+  if (toUpdate.length) {
+    const updates = await Promise.all(toUpdate.map(u =>
+      db.from('client_metriques').update({ ordre: u.ordre, groupe_id: u.groupe_id }).eq('id', u.id)
+    ));
+    if (updates.some(r => r.error)) { toast('Groupe partiellement appliqué — erreur sur certaines métriques existantes'); return; }
   }
-  if (insErr) { toast('Erreur : ' + insErr.message); return; }
+
+  if (toUpdate.length) {
+    toast(toInsert.length
+      ? `Groupe "${groupeNom}" appliqué ✓ (${toUpdate.length} fusionnée(s) avec l'historique existant, ${toInsert.length} ajoutée(s))`
+      : `Groupe "${groupeNom}" appliqué ✓ (${toUpdate.length} métrique(s) déjà existante(s) rattachée(s), historique conservé)`);
+  } else {
+    toast(`Groupe "${groupeNom}" appliqué ✓`);
+  }
 
   document.getElementById('modal-appliquer-groupe').classList.remove('open');
-  toast(`Groupe "${groupeNom}" appliqué ✓`);
   await loadClientMetrics(currentClientId);
 }
 
