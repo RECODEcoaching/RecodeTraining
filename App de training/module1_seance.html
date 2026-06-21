@@ -1219,6 +1219,8 @@ function checkAccountActive(session){
         </div>`;
       }
       const savedNote = exo.notes_client || '';
+      window._exoInitialNote = window._exoInitialNote || {};
+      window._exoInitialNote[exo.id] = savedNote;
       const rawTagsUni = exo.exercices?.tags || [];
       const tagsUni = Array.isArray(rawTagsUni) ? rawTagsUni : (rawTagsUni ? String(rawTagsUni).split(',').map(t=>t.trim()).filter(Boolean) : []);
       const tagsHtmlUni = tagsUni.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tagsUni.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
@@ -1270,6 +1272,8 @@ function checkAccountActive(session){
     const tags = Array.isArray(rawTags) ? rawTags : (rawTags ? String(rawTags).split(',').map(t=>t.trim()).filter(Boolean) : []);
     const tagsHtml = tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tags.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
     const savedNote = exo.notes_client || '';
+    window._exoInitialNote = window._exoInitialNote || {};
+    window._exoInitialNote[exo.id] = savedNote;
     return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
       <div class="exo-header" onclick="toggleExo(this)">
         <div class="exo-num">${index + 1}</div>
@@ -1618,6 +1622,14 @@ function checkAccountActive(session){
     const commentInput = card.querySelector('.exo-comment-input');
     const notesClient = commentInput?.value?.trim() || null;
 
+    // Notification coach : on ne marque "non lu" que si la note a vraiment
+    // changé depuis le dernier rendu (sinon chaque autosave de séries/charges
+    // re-déclencherait l'alerte alors que la note elle-même n'a pas bougé).
+    window._exoInitialNote = window._exoInitialNote || {};
+    const initialNote = window._exoInitialNote[exoId] || '';
+    const noteChanged = (notesClient || '') !== initialNote;
+    if (noteChanged) window._exoInitialNote[exoId] = notesClient || '';
+
     const hasData = seriesData.some(s => s.charge !== null || s.reps !== null || s.reps_g !== null || s.reps_d !== null);
 
     const promises = [];
@@ -1627,8 +1639,18 @@ function checkAccountActive(session){
     if (chargeReelle !== null) baseUpdate.charge_reelle = chargeReelle;
     if (repsReelles  !== null) baseUpdate.reps_reelles  = repsReelles;
     if (notesClient)           baseUpdate.notes_client  = notesClient;
+    if (noteChanged && notesClient) baseUpdate.lu_coach = false;
     if (Object.keys(baseUpdate).length > 0) {
-      promises.push(db.from('seance_exercices').update(baseUpdate).eq('id', exoId));
+      // lu_coach peut ne pas encore exister si la migration SQL (section 27)
+      // n'a pas été exécutée — on retombe alors sur l'update sans ce champ
+      // pour ne pas perdre la sauvegarde des séries/charges/note.
+      promises.push((async () => {
+        const { error } = await db.from('seance_exercices').update(baseUpdate).eq('id', exoId);
+        if (error && 'lu_coach' in baseUpdate) {
+          const { lu_coach, ...withoutLuCoach } = baseUpdate;
+          await db.from('seance_exercices').update(withoutLuCoach).eq('id', exoId);
+        }
+      })());
     }
 
     // Update 2 : series_data (peut échouer si la colonne n'existe pas encore)

@@ -955,7 +955,11 @@ function checkAccountActive(session){
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:500;">Date</div>
       <input type="date" id="log-date-input" style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;outline:none;width:100%;font-family:inherit;">
     </div>
-    <textarea class="modal-note" rows="2" placeholder="Note optionnelle…"></textarea>
+    <div id="log-coach-reply" style="display:none;background:var(--accent-bg);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+      <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Réponse du coach</div>
+      <div id="log-coach-reply-text" style="font-size:13px;color:var(--text);"></div>
+    </div>
+    <textarea class="modal-note" id="log-note-input" rows="2" placeholder="Note pour le coach (optionnel)…"></textarea>
     <button class="btn-primary" onclick="saveLog()">Enregistrer</button>
     <button class="btn-ghost" onclick="closeLog()">Annuler</button>
   </div>
@@ -1062,6 +1066,7 @@ let currentMetriqueId = null;
 let currentMetriqueUnit = '';
 let currentMetriqueType = 'mesure';
 let currentLogEditDate = null; // si non-null : on édite une saisie existante (date d'origine)
+let initialNoteForLog  = '';   // note déjà existante au moment de l'ouverture de la modale (pour détecter un vrai changement)
 
 // ─── Données métriques en mémoire (pour la vue détail) ────
 let metricsStore = {};
@@ -1124,12 +1129,22 @@ async function loadMetrics() {
 
   async function renderMetricsInto(target, list) {
     for (const m of list) {
-      const { data: valeurs } = await db
+      // Colonnes étendues (note client + réponse coach) — fallback si la
+      // migration SQL (section 27) n'a pas encore été exécutée.
+      let { data: valeurs, error: valErr } = await db
         .from('metrique_valeurs')
-        .select('valeur, date')
+        .select('valeur, date, commentaire, reponse_coach, reponse_lue')
         .eq('metrique_id', m.id)
         .order('date', { ascending: true })
         .limit(10);
+      if (valErr) {
+        ({ data: valeurs } = await db
+          .from('metrique_valeurs')
+          .select('valeur, date')
+          .eq('metrique_id', m.id)
+          .order('date', { ascending: true })
+          .limit(10));
+      }
 
       metricsStore[m.id] = { m, valeurs: valeurs || [] };
       target.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
@@ -1205,6 +1220,12 @@ function renderMetricCard(m, valeurs) {
     }
   }
 
+  // Badge rouge si une réponse coach n'a pas encore été lue par la cliente
+  const hasUnreadReply = valeurs.some(v => v.reponse_coach && v.reponse_lue === false);
+  const replyBadge = hasUnreadReply ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#EF4444;color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:6px;">
+    <span style="display:inline-block;width:4px;height:4px;background:#fff;border-radius:50%;"></span>Coach
+  </span>` : '';
+
   return `<div class="metric-card">
     <div class="metric-card-top" onclick="openMetricDetail('${m.id}')">
       <div class="ic ic-md icon-primary">
@@ -1213,7 +1234,7 @@ function renderMetricCard(m, valeurs) {
         </svg>
       </div>
       <div class="metric-info">
-        <div class="metric-name">${m.nom}</div>
+        <div class="metric-name">${m.nom}${replyBadge}</div>
         <div class="metric-last">Dernière saisie · ${lastDate}</div>
       </div>
       <div class="metric-current">
@@ -2292,6 +2313,11 @@ function openLog(metriqueId, name, unit, lastVal, type, cible) {
   const dateInput = document.getElementById('log-date-input');
   dateInput.max = today;
   dateInput.value = today;
+  // Nouvelle saisie : pas de note ni de réponse coach existantes
+  initialNoteForLog = '';
+  const noteInput = document.getElementById('log-note-input');
+  if (noteInput) noteInput.value = '';
+  document.getElementById('log-coach-reply').style.display = 'none';
   document.getElementById('modal-log').classList.add('open');
   setTimeout(() => input.focus(), 150);
 }
@@ -2320,6 +2346,26 @@ function openLogEdit(metriqueId, name, unit, type, cible, date, valeur) {
   const dateInput = document.getElementById('log-date-input');
   dateInput.max = today;
   dateInput.value = date;
+
+  // Pré-remplir la note + afficher l'éventuelle réponse coach déjà reçue
+  // (retrouvées via metricsStore plutôt que passées en paramètre, pour
+  // éviter les soucis d'échappement de guillemets/retours à la ligne).
+  const existing = (metricsStore[metriqueId]?.valeurs || []).find(v => v.date === date);
+  initialNoteForLog = existing?.commentaire || '';
+  const noteInput = document.getElementById('log-note-input');
+  if (noteInput) noteInput.value = initialNoteForLog;
+  const replyBox = document.getElementById('log-coach-reply');
+  if (existing?.reponse_coach) {
+    document.getElementById('log-coach-reply-text').textContent = existing.reponse_coach;
+    replyBox.style.display = 'block';
+    if (existing.reponse_lue === false) {
+      db.from('metrique_valeurs').update({ reponse_lue: true })
+        .eq('metrique_id', metriqueId).eq('date', date).then(() => {});
+    }
+  } else {
+    replyBox.style.display = 'none';
+  }
+
   document.getElementById('modal-log').classList.add('open');
   setTimeout(() => input.focus(), 150);
 }
@@ -2347,11 +2393,23 @@ async function saveLog() {
       .eq('date', currentLogEditDate);
   }
 
-  const { error } = await db.from('metrique_valeurs').upsert({
-    metrique_id: currentMetriqueId,
-    valeur: v,
-    date: chosenDate,
-  }, { onConflict: 'metrique_id,date' });
+  const noteInput = document.getElementById('log-note-input');
+  const noteVal = noteInput?.value?.trim() || null;
+  const noteChanged = (noteVal || '') !== (initialNoteForLog || '');
+
+  const payload = { metrique_id: currentMetriqueId, valeur: v, date: chosenDate };
+  if (noteVal)                    payload.commentaire = noteVal;
+  if (noteChanged && noteVal)     payload.lu_coach     = false;
+
+  let { error } = await db.from('metrique_valeurs').upsert(payload, { onConflict: 'metrique_id,date' });
+  if (error && ('commentaire' in payload || 'lu_coach' in payload)) {
+    // Migration SQL (section 27) pas encore exécutée — on retombe sur les
+    // colonnes de base pour ne pas bloquer la sauvegarde de la valeur.
+    ({ error } = await db.from('metrique_valeurs').upsert(
+      { metrique_id: currentMetriqueId, valeur: v, date: chosenDate },
+      { onConflict: 'metrique_id,date' }
+    ));
+  }
 
   if (error) { toast('Erreur : ' + error.message); return; }
   const savedMetriqueId = currentMetriqueId;
@@ -2468,8 +2526,15 @@ function openMetricDetail(id) {
     const safeUnit = (m.unite || '').replace(/'/g, "\\'");
     historyList.innerHTML = valeurs.slice().reverse().map(v => {
       const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const hasUnreadReply = v.reponse_coach && v.reponse_lue === false;
+      const noteLine = v.commentaire
+        ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:3px;">💬 ${v.commentaire}${hasUnreadReply ? ' <span style="display:inline-flex;align-items:center;gap:3px;background:#EF4444;color:#fff;font-size:9px;font-weight:700;font-style:normal;padding:1px 6px;border-radius:20px;margin-left:4px;">Réponse coach</span>' : ''}</div>`
+        : '';
       return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface2);border-radius:10px;padding:8px 12px;">
-        <div style="font-size:13px;color:var(--text);"><span style="font-weight:700;">${v.valeur}</span> ${m.unite || ''} <span style="color:var(--text-muted);font-size:12px;">· ${dateStr}</span></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;color:var(--text);"><span style="font-weight:700;">${v.valeur}</span> ${m.unite || ''} <span style="color:var(--text-muted);font-size:12px;">· ${dateStr}</span></div>
+          ${noteLine}
+        </div>
         <div style="display:flex;gap:6px;flex:0 0 auto;">
           <button onclick="openLogEdit('${id}','${safeNom}','${safeUnit}','${type}',${m.cible || 'null'},'${v.date}',${v.valeur})" style="background:none;border:none;color:var(--accent);cursor:pointer;padding:2px;display:flex;" title="Modifier">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
