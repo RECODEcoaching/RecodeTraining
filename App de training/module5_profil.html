@@ -394,6 +394,22 @@ function checkAccountActive(session){
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </div>
   </div>
+
+  <!-- Carte Drive vidéos -->
+  <div class="plan-card" id="card-drive" style="display:none;" onclick="openDriveLink()">
+    <div class="plan-card-icon" style="background:rgba(16,185,129,0.10);color:#059669;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+    <div class="plan-card-body">
+      <div class="plan-card-title">Mon Drive vidéos</div>
+      <div class="plan-card-sub">Déposer mes vidéos de séance</div>
+    </div>
+    <div class="plan-card-arrow">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </div>
+  </div>
 </div>
 
 <!-- ACTIONS -->
@@ -494,6 +510,7 @@ checkAccountActive(SESSION);
 const pds = document.querySelectorAll('.pin-d');
 
 let _notionUrl = '';
+let _driveUrl = '';
 
 async function loadProfile() {
   if (!SESSION) return;
@@ -509,8 +526,8 @@ async function loadProfile() {
   const savedPhoto = localStorage.getItem('recode_photo_' + SESSION.client_id);
   if (savedPhoto) showPhoto(savedPhoto);
 
-  // Date d'inscription + plan HTML depuis Supabase
-  const { data } = await db.from('clients').select('created_at, objectif, plan_html').eq('id', SESSION.client_id).single();
+  // Date d'inscription + plan HTML + Drive URL depuis Supabase
+  const { data } = await db.from('clients').select('created_at, objectif, plan_html, drive_url').eq('id', SESSION.client_id).single();
   if (data) {
     const d = new Date(data.created_at);
     document.getElementById('info-since').textContent = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -519,6 +536,13 @@ async function loadProfile() {
     // Afficher la carte "Mon programme" si le coach a défini un plan
     if (data.plan_html) {
       document.getElementById('card-plan').dataset.planHtml = data.plan_html;
+      document.getElementById('section-plan').style.display = 'block';
+    }
+
+    // Afficher la carte Drive si le coach a renseigné une URL
+    if (data.drive_url) {
+      _driveUrl = data.drive_url;
+      document.getElementById('card-drive').style.display = 'flex';
       document.getElementById('section-plan').style.display = 'block';
     }
   }
@@ -556,6 +580,10 @@ function closePlanModal() {
 
 function openNotionLink() {
   if (_notionUrl) window.open(_notionUrl, '_blank', 'noopener');
+}
+
+function openDriveLink() {
+  if (_driveUrl) window.open(_driveUrl, '_blank', 'noopener');
 }
 
 // ── Photo de profil ────────────────────────────────────────

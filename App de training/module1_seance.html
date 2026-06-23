@@ -242,8 +242,18 @@ function checkAccountActive(session){
     border: 1px solid var(--border);
   }
   .chip.accent { background: var(--accent-bg); color: var(--accent); border-color: rgba(109,40,217,0.15); font-weight: 600; }
-  .chip.drive { display: none; align-items: center; gap: 4px; cursor: pointer; }
-  .chip.drive:active { opacity: 0.65; }
+  .drive-reminder-banner {
+    display: none;
+    align-items: center; gap: 8px;
+    background: rgba(109,40,217,0.05);
+    border: 1px solid rgba(109,40,217,0.12);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin: 0 16px 10px;
+    font-size: 11px; font-weight: 500;
+    color: var(--text-dim);
+  }
+  .drive-reminder-banner svg { flex-shrink: 0; opacity: 0.5; }
 
   /* Warmup */
   .warmup-card {
@@ -280,6 +290,12 @@ function checkAccountActive(session){
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 500; flex: 0 0 auto;
     border: 1px solid var(--border);
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .exo-num.exo-done {
+    background: rgba(22,163,74,0.10);
+    border-color: rgba(22,163,74,0.30);
+    color: #16A34A;
   }
   .exo-info { flex: 1; min-width: 0; }
   .exo-name   { font-size: 13px; font-weight: 500; }
@@ -596,15 +612,17 @@ function checkAccountActive(session){
     <div class="session-title" id="session-title-text">Séance</div>
     <div class="session-chips">
       <span class="chip accent" id="session-date-chip">—</span>
-      <span class="chip drive" id="session-drive-chip" onclick="openClientDrive()">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        Drive
-      </span>
     </div>
     <div class="session-progress" id="session-progress">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="progress-label" id="progress-label">0 / 0 exercices</div>
     </div>
+  </div>
+
+  <!-- Bandeau rappel Drive (visible uniquement si clientDriveUrl est défini) -->
+  <div class="drive-reminder-banner" id="drive-reminder-banner">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+    N'oublie pas de prendre quelques vidéos de ta séance !
   </div>
 
   <!-- Échauffement (chargé dynamiquement, masqué si vide) -->
@@ -679,6 +697,11 @@ function checkAccountActive(session){
   <div class="success-title">Séance validée</div>
   <div class="success-sub">Bien joué ! La séance a été enregistrée.</div>
 
+  <div id="success-drive-msg" style="display:none;margin:16px 0 4px;background:rgba(109,40,217,0.07);border:1px solid rgba(109,40,217,0.15);border-radius:10px;padding:12px 16px;text-align:center;max-width:280px;">
+    <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px;">📹 Si tu as filmé ta séance</div>
+    <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">N'oublie pas de déposer tes vidéos dans ton Drive — retrouve le lien dans ton <strong style="color:var(--accent);cursor:pointer;" onclick="window.location.href='module5_profil.html'">Profil</strong>.</div>
+  </div>
+
   <button class="btn-secondary" onclick="closeSuccess()">Retour à la semaine</button>
 </div>
 
@@ -732,13 +755,12 @@ function checkAccountActive(session){
       const { data } = await db.from('clients').select('drive_url').eq('id', SESSION.client_id).single();
       clientDriveUrl = data?.drive_url || null;
     } catch(e) {}
-    const driveChip = document.getElementById('session-drive-chip');
-    if (driveChip) driveChip.style.display = clientDriveUrl ? 'inline-flex' : 'none';
-  }
-
-  function openClientDrive() {
-    if (!clientDriveUrl) return;
-    window.open(clientDriveUrl, '_blank', 'noopener');
+    // Bandeau de rappel pendant la séance
+    const banner = document.getElementById('drive-reminder-banner');
+    if (banner) banner.style.display = clientDriveUrl ? 'flex' : 'none';
+    // Message Drive dans le success overlay
+    const msg = document.getElementById('success-drive-msg');
+    if (msg) msg.style.display = clientDriveUrl ? 'block' : 'none';
   }
 
   // Convertit une Date en "YYYY-MM-DD" en utilisant le calendrier LOCAL
@@ -1090,6 +1112,8 @@ function checkAccountActive(session){
       document.getElementById('progress-label').textContent = '0 / 0 exercices';
     } else {
       exoList.innerHTML = renderExoListHtml(exos);
+      // Appliquer l'indicateur vert sur les exercices déjà complets (données sauvegardées)
+      exoList.querySelectorAll('.exo-card').forEach(updateExoNum);
       document.getElementById('progress-label').textContent = '0 / ' + exos.length + ' exercices';
       // Mettre à jour le compteur sur la card semaine
       const cardInfo = document.getElementById('card-info-' + seanceId);
@@ -1206,8 +1230,9 @@ function checkAccountActive(session){
       const sdArrUni = (() => { try { return Array.isArray(exo.series_data) ? exo.series_data : (exo.series_data ? JSON.parse(exo.series_data) : null); } catch(e) { return null; } })();
       let rows = '';
       for (let i = 1; i <= (exo.series || 3); i++) {
-        const sd = sdArrUni ? (sdArrUni[i-1] || {}) : null;
-        const chargeVal = sd?.charge ?? exo.charge_reelle ?? '';
+        const sd = sdArrUni ? (sdArrUni[i-1] ?? null) : null;
+        // Si series_data existe mais la série n'a pas encore été saisie → '' (jamais exo.charge_reelle)
+        const chargeVal = sd?.charge ?? (sdArrUni ? '' : (exo.charge_reelle ?? ''));
         const sideGVal  = sd?.reps_g ?? '';
         const sideDVal  = sd?.reps_d ?? '';
         rows += `<div class="series-row uni">
@@ -1258,9 +1283,10 @@ function checkAccountActive(session){
     const sdArr = (() => { try { return Array.isArray(exo.series_data) ? exo.series_data : (exo.series_data ? JSON.parse(exo.series_data) : null); } catch(e) { return null; } })();
     let rows = '';
     for (let i = 1; i <= (exo.series || 3); i++) {
-      const sd = sdArr ? (sdArr[i-1] || {}) : null;
-      const repsVal   = sd?.reps   ?? exo.reps_reelles  ?? '';
-      const chargeVal = sd?.charge ?? exo.charge_reelle ?? '';
+      const sd = sdArr ? (sdArr[i-1] ?? null) : null;
+      // Si series_data existe mais la série n'a pas encore été saisie → '' (jamais reps_reelles/charge_reelle)
+      const repsVal   = sd?.reps   ?? (sdArr ? '' : (exo.reps_reelles  ?? ''));
+      const chargeVal = sd?.charge ?? (sdArr ? '' : (exo.charge_reelle ?? ''));
       rows += `<div class="series-row">
         <div class="serie-num">${i}</div>
         <input class="serie-input prescribed" value="${exo.reps}" readonly>
@@ -1832,18 +1858,39 @@ function checkAccountActive(session){
     return parseInt(card.dataset.restSeries) || 90;
   }
 
+  // Indicateur vert léger sur le numéro de l'exercice quand toutes les séries sont saisies
+  function updateExoNum(card) {
+    if (!card) return;
+    const isUni = card.dataset.unilateral === 'true';
+    const rows  = card.querySelectorAll('.series-row');
+    let allFilled = rows.length > 0;
+    for (const row of rows) {
+      if (isUni) {
+        const g = row.querySelector('[data-field="reps-g"]');
+        const d = row.querySelector('[data-field="reps-d"]');
+        if (!g?.value.trim() || !d?.value.trim()) { allFilled = false; break; }
+      } else {
+        const r = row.querySelector('[data-field="reps"]');
+        if (!r?.value.trim()) { allFilled = false; break; }
+      }
+    }
+    const num = card.querySelector('.exo-num');
+    if (num) num.classList.toggle('exo-done', allFilled);
+  }
+
   // Exercice bilatéral
   function checkDone(input) {
     if (input.value) input.classList.add('done'); else input.classList.remove('done');
-    const row = input.closest('.series-row');
+    const row  = input.closest('.series-row');
+    const card = input.closest('.exo-card');
     if (row) {
       const rowInputs = row.querySelectorAll('.serie-input:not(.prescribed)');
-      const card = input.closest('.exo-card');
       // 1er exercice d'un super-set : pas de repos, on enchaîne direct sur le 2e
-      if (Array.from(rowInputs).every(i => i.value.trim() !== '') && card.dataset.supersetRole !== 'first') {
+      if (Array.from(rowInputs).every(i => i.value.trim() !== '') && card?.dataset.supersetRole !== 'first') {
         startRest(parseRest(card, 'series'), 'Repos série');
       }
     }
+    updateExoNum(card);
     updateProgress();
   }
 
@@ -1864,6 +1911,7 @@ function checkAccountActive(session){
         startRest(parseRest(card, 'series'), 'Repos série');
       }
     }
+    updateExoNum(card);
     updateProgress();
   }
 

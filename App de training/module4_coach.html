@@ -316,8 +316,11 @@ async function hashPin(pin) {
     color: var(--muted); background: var(--surface2); border: 1px solid var(--border-md);
     border-radius: var(--rs); padding: 5px 6px; cursor: pointer; font-family: inherit;
   }
-  .metric-manage-val { font-size: 16px; font-weight: 800; color: var(--accent); margin-right: 8px; flex: 0 0 auto; }
-  .metric-manage-val span { font-size: 10px; color: var(--muted); font-weight: 500; }
+  .metric-manage-val { display: flex; flex-direction: column; gap: 1px; min-width: 110px; flex: 0 0 auto; margin-right: 8px; }
+  .metric-manage-val > div:first-child { font-size: 15px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+  .metric-manage-val > div:first-child span { font-size: 10px; font-weight: 500; color: var(--muted); }
+  .metric-manage-val > div:nth-child(2) { font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .metric-manage-val canvas { display: block; width: 100%; height: 36px; }
 
   /* ─── FORMS ──────────────────────────────────────────────── */
   .add-form {
@@ -911,7 +914,10 @@ async function hashPin(pin) {
 
       <!-- Perfs -->
       <div class="client-tab-content" id="ctab-perfs">
-        <div class="section-title">Évolution des performances</div>
+        <div class="section-title">
+          Évolution des performances
+          <button class="btn btn-accent btn-sm" onclick="openAddPerfCoach()">+ Entrée historique</button>
+        </div>
         <!-- Contrôles : période uniquement -->
         <div style="display:flex;gap:6px;margin-bottom:14px;" id="perf-period-btns">
           <button class="perf-ctrl-btn active" onclick="setCoachPerfPeriod(this,'4s')">4 sem.</button>
@@ -1410,6 +1416,43 @@ CREATE POLICY "Allow all anon on seance_echauffement"
   </div>
 </div>
 
+<!-- ═══════════════ MODAL : AJOUTER PERF HISTORIQUE (coach) ═══════════════ -->
+<div class="modal-overlay" id="modal-add-perf-coach">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-header-title">Entrée historique — Perfs</div>
+      <button class="modal-close" onclick="document.getElementById('modal-add-perf-coach').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ajouter une donnée de charge passée qui s'affichera dans le graphique de performance.
+      </div>
+      <!-- Exercice -->
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Exercice *</label>
+        <input class="form-input" id="aph-nom" list="aph-nom-list" placeholder="ex : Squat, Développé couché…" autocomplete="off">
+        <datalist id="aph-nom-list"></datalist>
+      </div>
+      <!-- Date -->
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Date *</label>
+        <input class="form-input" id="aph-date" type="date">
+      </div>
+      <!-- Séries -->
+      <div style="margin-bottom:8px;">
+        <label class="form-label">Séries (charge × reps)</label>
+        <div id="aph-series-list" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="addAphSeriesRow()">+ Ajouter une série</button>
+      </div>
+      <!-- Actions -->
+      <div class="form-row" style="margin-top:14px;">
+        <button class="btn btn-accent" onclick="saveCoachPerfEntry()">Enregistrer</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-add-perf-coach').classList.remove('open')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ MODAL : EXERCICE PICKER (séance) ═══════════════ -->
 <div class="modal-overlay" id="modal-exo-picker">
   <div class="modal-box">
@@ -1884,7 +1927,7 @@ async function loadClients() {
 
   const { data, error } = await db
     .from('clients')
-    .select('id, email, prenom, created_at, is_first_login, drive_url, actif, plan_html')
+    .select('id, email, prenom, created_at, is_first_login, drive_url, actif')
     .order('prenom', { ascending: true });
   const unreadClientIds = await getClientsWithUnreadComments();
 
@@ -1978,8 +2021,8 @@ function openClientFromDB(client, colorIdx) {
   document.getElementById('drive-editor').style.display = 'none';
   document.getElementById('drive-url-input').value = client.drive_url || '';
 
-  // Plan HTML personnalisé
-  document.getElementById('plan-html-input').value = client.plan_html || '';
+  // Plan HTML — chargé en lazy à l'ouverture de l'onglet Plan
+  document.getElementById('plan-html-input').value = '';
   document.getElementById('plan-preview-wrap').style.display = 'none';
 
   // Activation / désactivation du compte
@@ -3435,6 +3478,15 @@ function switchClientTab(btn, id) {
   if (id === 'perfs')   drawCoachPerfs();
   if (id === 'cycle')   loadClientCycleData();
   if (id === 'habits')  loadBilanCoach(currentClientId);
+  if (id === 'plan')    loadClientPlanHtml();
+}
+
+async function loadClientPlanHtml() {
+  if (!currentClientId) return;
+  const { data } = await db.from('clients').select('plan_html').eq('id', currentClientId).single();
+  const html = data?.plan_html || '';
+  document.getElementById('plan-html-input').value = html;
+  if (currentClientData) currentClientData.plan_html = html;
 }
 
 // ─── CYCLE : vue coach ─────────────────────────────────────────
@@ -4019,7 +4071,11 @@ async function loadClientMetrics(clientId) {
         <div class="metric-manage-name">${m.nom}</div>
         <div class="metric-manage-unit">${m.unite||'—'} · ${m.frequence} · ${typeLabel}</div>
       </div>
-      <div class="metric-manage-val" id="metric-val-${m.id}">… <br><small style="color:var(--muted);font-size:10px">…</small></div>
+      <div class="metric-manage-val" id="metric-val-${m.id}" style="min-width:120px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">…</div>
+        <div style="font-size:10px;color:var(--muted)">…</div>
+        <canvas id="metric-chart-${m.id}" style="width:100%;height:36px;margin-top:4px;display:none;"></canvas>
+      </div>
       ${groupesList.length ? `<select class="metric-groupe-select" title="Groupe d'affichage" onclick="event.stopPropagation()" onchange="changeMetricGroupe('${m.id}', this.value)">
         <option value=""${!m.groupe_id ? ' selected' : ''}>Sans groupe</option>
         ${groupesList.map(g => `<option value="${g.id}"${g.id === m.groupe_id ? ' selected' : ''}>${g.nom}</option>`).join('')}
@@ -4028,18 +4084,38 @@ async function loadClientMetrics(clientId) {
       <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
     list.appendChild(row);
 
-    // Charger la dernière valeur en asynchrone — ne touche plus qu'au
-    // contenu de la cellule valeur, jamais à la position de la ligne.
+    // Charger les 30 dernières valeurs : dernière valeur + moy. 7j + mini graphe
     db.from('metrique_valeurs').select('valeur,date').eq('metrique_id', m.id)
-      .order('date', { ascending: false }).limit(1)
+      .order('date', { ascending: false }).limit(30)
       .then(({ data: vals }) => {
         const valEl = document.getElementById('metric-val-' + m.id);
         if (!valEl) return;
-        const lastVal  = vals && vals[0] ? vals[0].valeur : '—';
-        const lastDate = vals && vals[0]
-          ? new Date(vals[0].date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-          : '—';
-        valEl.innerHTML = `${lastVal} <span>${m.unite||''}</span><br><small style="color:var(--muted);font-size:10px">${lastDate}</small>`;
+        if (!vals || vals.length === 0) {
+          valEl.querySelector('div:first-child').textContent = '—';
+          valEl.querySelector('div:nth-child(2)').textContent = 'Aucune valeur';
+          return;
+        }
+        // Dernière valeur
+        const last     = vals[0];
+        const lastNum  = parseFloat(last.valeur);
+        const lastDate = new Date(last.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        valEl.querySelector('div:first-child').innerHTML = `${last.valeur}${m.unite ? ' <span style="font-weight:400;color:var(--muted)">' + m.unite + '</span>' : ''}`;
+        // Moyenne 7 derniers jours
+        const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const recent7 = vals.filter(v => new Date(v.date + 'T12:00:00') >= sevenDaysAgo).map(v => parseFloat(v.valeur)).filter(v => !isNaN(v));
+        const avg7 = recent7.length ? (recent7.reduce((a,b) => a+b, 0) / recent7.length) : null;
+        const avg7txt = avg7 !== null ? `Moy. 7j : ${avg7 % 1 === 0 ? avg7 : avg7.toFixed(1)}${m.unite||''}` : lastDate;
+        valEl.querySelector('div:nth-child(2)').textContent = avg7txt;
+        // Mini sparkline (30 dernières valeurs, ordre croissant)
+        const chartNums = vals.map(v => parseFloat(v.valeur)).filter(v => !isNaN(v)).reverse();
+        const chartDates = vals.map(v => v.date).reverse();
+        if (chartNums.length >= 2) {
+          const canvas = document.getElementById('metric-chart-' + m.id);
+          if (canvas) {
+            canvas.style.display = 'block';
+            requestAnimationFrame(() => drawMiniLineChart(canvas, chartNums, chartDates, '#6D28D9', 36));
+          }
+        }
       });
   });
 }
@@ -5581,6 +5657,110 @@ function markTechniqueRevue(exoName, cardIdx) {
     if (el) el.textContent = 'Revue le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     toast('Technique revue enregistrée ✓');
   } catch(e) { toast('Erreur : ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HISTORIQUE PERFS COACH — Saisie manuelle
+// ═══════════════════════════════════════════════════════════
+async function openAddPerfCoach() {
+  if (!currentClientId) { toast('Aucune cliente sélectionnée'); return; }
+  // Réinitialiser le formulaire
+  document.getElementById('aph-nom').value = '';
+  document.getElementById('aph-date').value = toLocalDateStr(new Date());
+  const list = document.getElementById('aph-series-list');
+  list.innerHTML = '';
+  addAphSeriesRow();
+
+  // Alimenter le datalist des exercices de la cliente
+  try {
+    const { data: seances } = await db.from('seances').select('id').eq('client_id', currentClientId);
+    if (seances && seances.length) {
+      const { data: exos } = await db.from('seance_exercices')
+        .select('nom_exo').in('seance_id', seances.map(s => s.id));
+      const names = [...new Set((exos||[]).map(e => e.nom_exo).filter(Boolean))].sort();
+      const dl = document.getElementById('aph-nom-list');
+      dl.innerHTML = names.map(n => `<option value="${n.replace(/"/g,'&quot;')}">`).join('');
+    }
+  } catch(e) {}
+
+  document.getElementById('modal-add-perf-coach').classList.add('open');
+}
+
+function addAphSeriesRow() {
+  const list = document.getElementById('aph-series-list');
+  const idx  = list.children.length + 1;
+  const row  = document.createElement('div');
+  row.className = 'aph-series-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <span style="font-size:11px;color:var(--muted);min-width:18px;text-align:right;font-weight:600;">${idx}</span>
+    <input class="form-input" type="number" step="0.5" min="0" placeholder="Charge (kg)" style="flex:1;" data-field="charge">
+    <input class="form-input" type="number" step="1"   min="0" placeholder="Reps"        style="flex:1;" data-field="reps">
+    <button onclick="this.parentElement.remove();reindexAphRows();" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;padding:0 4px;">×</button>`;
+  list.appendChild(row);
+}
+
+function reindexAphRows() {
+  document.querySelectorAll('#aph-series-list .aph-series-row').forEach((row, i) => {
+    const span = row.querySelector('span');
+    if (span) span.textContent = i + 1;
+  });
+}
+
+async function saveCoachPerfEntry() {
+  const nom   = (document.getElementById('aph-nom').value || '').trim();
+  const date  = document.getElementById('aph-date').value;
+  if (!nom)  { toast('Indique le nom de l\'exercice'); return; }
+  if (!date) { toast('Indique une date'); return; }
+
+  // Construire series_data depuis les lignes
+  const rows = [...document.querySelectorAll('#aph-series-list .aph-series-row')];
+  const seriesData = rows.map(row => {
+    const charge = parseFloat(row.querySelector('[data-field="charge"]').value) || 0;
+    const reps   = parseFloat(row.querySelector('[data-field="reps"]').value)   || 0;
+    return { charge, reps };
+  }).filter(s => s.charge > 0 || s.reps > 0);
+
+  if (!seriesData.length) { toast('Ajoute au moins une série'); return; }
+
+  // 1. Trouver ou créer une séance "historique" pour ce client + cette date
+  let { data: existingSeances } = await db.from('seances').select('id')
+    .eq('client_id', currentClientId).eq('date', date).eq('type_seance', 'historique');
+
+  let seanceId;
+  if (existingSeances && existingSeances.length) {
+    seanceId = existingSeances[0].id;
+  } else {
+    // Créer une nouvelle séance historique
+    let { data: newSeance, error: seanceErr } = await db.from('seances')
+      .insert({ client_id: currentClientId, date, type_seance: 'historique', validated: false })
+      .select('id').single();
+    if (seanceErr) {
+      // Fallback sans type_seance si la colonne n'existe pas encore
+      ({ data: newSeance, error: seanceErr } = await db.from('seances')
+        .insert({ client_id: currentClientId, date, validated: false })
+        .select('id').single());
+    }
+    if (seanceErr || !newSeance) { toast('Erreur création séance : ' + (seanceErr?.message||'?')); return; }
+    seanceId = newSeance.id;
+  }
+
+  // 2. Insérer l'exercice avec series_data
+  const chargeMax = Math.max(...seriesData.map(s => s.charge));
+  const repsMax   = Math.max(...seriesData.map(s => s.reps));
+  const { error: exoErr } = await db.from('seance_exercices').insert({
+    seance_id: seanceId,
+    nom_exo: nom,
+    series: seriesData.length,
+    charge_reelle: chargeMax || null,
+    reps_reelles: repsMax || null,
+    series_data: seriesData
+  });
+  if (exoErr) { toast('Erreur : ' + exoErr.message); return; }
+
+  document.getElementById('modal-add-perf-coach').classList.remove('open');
+  toast(`Perf enregistrée ✓ (${nom} — ${date})`);
+  await drawCoachPerfs();
 }
 
 function drawMiniLineChart(canvas, vals, dates, color, H) {
