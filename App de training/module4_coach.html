@@ -839,6 +839,19 @@ async function hashPin(pin) {
       <div class="clients-grid" id="clients-grid">
         <div style="grid-column:1/-1;padding:30px 0" class="loading-text">Chargement…</div>
       </div>
+
+      <!-- NOTION URL GLOBALE -->
+      <div style="margin-top:28px;padding-bottom:20px;">
+        <div class="section-title" style="margin-bottom:6px;">Espace collectif Notion</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+          Lien affiché dans le profil de toutes les clientes (carte "Espace collectif"). Notion bloque les iframes — il s'ouvrira dans un nouvel onglet.
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="notion-url-input" type="url" placeholder="https://notion.so/…"
+            class="form-input" style="flex:1;font-size:13px;">
+          <button class="btn btn-accent btn-sm" onclick="saveNotionUrl()" style="white-space:nowrap;">Enregistrer</button>
+        </div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════════════
@@ -886,6 +899,7 @@ async function hashPin(pin) {
         <div class="client-tab"         onclick="switchClientTab(this,'habits')">Habitudes</div>
         <div class="client-tab"         onclick="switchClientTab(this,'cycle')">Cycle</div>
         <div class="client-tab"         onclick="switchClientTab(this,'comments')">Commentaires</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'plan')">Plan</div>
       </div>
 
       <!-- Programme -->
@@ -1092,6 +1106,26 @@ async function hashPin(pin) {
         <div style="display:flex;gap:7px;margin-top:12px">
           <textarea class="form-input" id="coach-comment-input" rows="2" placeholder="Écrire un commentaire coach…" style="flex:1;resize:none;"></textarea>
           <button class="btn btn-accent" style="align-self:flex-end" onclick="sendCoachComment()">Envoyer</button>
+        </div>
+      </div>
+
+      <!-- Plan HTML personnalisé -->
+      <div class="client-tab-content" id="ctab-plan">
+        <div class="section-title">Plan personnalisé</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+          Colle ici le contenu HTML de la page plan de la cliente. Elle le verra dans son profil (carte "Mon programme") sans quitter l'application.
+        </div>
+        <textarea id="plan-html-input" class="form-input" rows="14"
+          placeholder="<!DOCTYPE html>&#10;<html><body>&#10;  <h1>Ton plan RECODE</h1>&#10;  ...&#10;</body></html>"
+          style="font-family:monospace;font-size:12px;resize:vertical;width:100%;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+          <button class="btn btn-accent" onclick="savePlanHtml()">Enregistrer</button>
+          <button onclick="previewPlanHtml()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Prévisualiser</button>
+          <button onclick="clearPlanHtml()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--danger);font-size:13px;font-weight:600;cursor:pointer;">Effacer</button>
+        </div>
+        <div id="plan-preview-wrap" style="display:none;margin-top:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <div style="padding:8px 12px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);">APERÇU</div>
+          <iframe id="plan-preview-iframe" style="width:100%;height:480px;border:none;display:block;"></iframe>
         </div>
       </div>
 
@@ -1850,7 +1884,7 @@ async function loadClients() {
 
   const { data, error } = await db
     .from('clients')
-    .select('id, email, prenom, created_at, is_first_login, drive_url, actif')
+    .select('id, email, prenom, created_at, is_first_login, drive_url, actif, plan_html')
     .order('prenom', { ascending: true });
   const unreadClientIds = await getClientsWithUnreadComments();
 
@@ -1943,6 +1977,10 @@ function openClientFromDB(client, colorIdx) {
   }
   document.getElementById('drive-editor').style.display = 'none';
   document.getElementById('drive-url-input').value = client.drive_url || '';
+
+  // Plan HTML personnalisé
+  document.getElementById('plan-html-input').value = client.plan_html || '';
+  document.getElementById('plan-preview-wrap').style.display = 'none';
 
   // Activation / désactivation du compte
   updateToggleActiveButton(client);
@@ -4344,6 +4382,50 @@ function toast(msg) {
   setTimeout(() => el.remove(), 2200);
 }
 
+// ─── PLAN HTML PAR CLIENTE ────────────────────────────────────
+async function savePlanHtml() {
+  if (!currentClientId) return;
+  const html = document.getElementById('plan-html-input').value.trim();
+  const { error } = await db.from('clients').update({ plan_html: html || null }).eq('id', currentClientId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  if (currentClientData) currentClientData.plan_html = html || null;
+  toast('Plan enregistré ✓');
+}
+
+function previewPlanHtml() {
+  const html = document.getElementById('plan-html-input').value;
+  if (!html.trim()) { toast('Rien à prévisualiser'); return; }
+  const wrap  = document.getElementById('plan-preview-wrap');
+  const iframe = document.getElementById('plan-preview-iframe');
+  iframe.srcdoc = html;
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearPlanHtml() {
+  if (!confirm('Effacer le plan HTML de cette cliente ?')) return;
+  document.getElementById('plan-html-input').value = '';
+  document.getElementById('plan-preview-wrap').style.display = 'none';
+  savePlanHtml();
+}
+
+// ─── NOTION URL GLOBALE ───────────────────────────────────────
+async function loadNotionUrl() {
+  try {
+    const { data } = await db.from('app_settings').select('value').eq('key', 'notion_collectif_url').maybeSingle();
+    if (data) document.getElementById('notion-url-input').value = data.value || '';
+  } catch(e) { /* table pas encore créée — silencieux */ }
+}
+
+async function saveNotionUrl() {
+  const url = document.getElementById('notion-url-input').value.trim();
+  try {
+    const { error } = await db.from('app_settings').upsert({ key: 'notion_collectif_url', value: url });
+    if (error) { toast('Erreur : ' + error.message); return; }
+    toast('Lien Notion enregistré ✓');
+  } catch(e) { toast('Erreur : ' + e.message); }
+}
+
 // ─── HISTORIQUE MÉTRIQUES ────────────────────────────────────
 const DEMO_HISTORY = {
   'Poids':              [{d:'15/05',v:'62.6',unit:'kg',delta:'-0.2',dir:'down'},{d:'08/05',v:'62.8',unit:'kg',delta:'-0.3',dir:'down'},{d:'01/05',v:'63.1',unit:'kg',delta:'+0.1',dir:'up'},{d:'24/04',v:'63.0',unit:'kg',delta:'—',dir:'eq'},{d:'17/04',v:'63.0',unit:'kg',delta:'—',dir:'eq'}],
@@ -5557,6 +5639,7 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
 //  INIT
 // ═══════════════════════════════════════════════════════════
 loadClients();
+loadNotionUrl();
 </script>
 </body>
 </html>
