@@ -1,0 +1,2064 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
+function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
+function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+// Vérifie (async, non bloquant) que le compte n'a pas été désactivé par le coach.
+// Si désactivé : déconnecte et redirige vers login.html avec un message.
+function checkAccountActive(session){
+  if (!session) return;
+  db.from('clients').select('actif').eq('id', session.client_id).single().then(({data}) => {
+    if (data && data.actif === false) {
+      localStorage.removeItem('recode_session');
+      window.location.href = 'login.html?desactive=1';
+    }
+  }).catch(()=>{});
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RECODE Training — Séances</title>
+
+<!-- PWA / Ajout à l'écran d'accueil -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6D28D9">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RECODE">
+
+<style>
+  :root {
+    --bg: #F6F6F8;
+    --surface: #FFFFFF;
+    --surface2: #F2F2F5;
+    --surface3: #E8E8ED;
+    --accent: #6D28D9;
+    --accent-mid: #8B5CF6;
+    --accent-bg: rgba(109,40,217,0.09);
+    --accent-bg-soft: rgba(109,40,217,0.05);
+    --accent-light: rgba(109,40,217,0.08);
+    --text: #111827;
+    --text-muted: #6B7280;
+    --text-dim: #9CA3AF;
+    --success: #16A34A;
+    --success-bg: rgba(22,163,74,0.08);
+    --danger: #DC2626;
+    /* Jauge dynamique sur fond violet (header) — nuances violet + gris de la charte */
+    --gauge-low: #9CA3AF;
+    --gauge-mid: #C4B5FD;
+    --gauge-high: #FFFFFF;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --transition: 0.15s ease;
+    --border: rgba(0,0,0,0.07);
+    --border-md: rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; max-width: 430px; margin: 0 auto; overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 12px; position: sticky; top: 0;
+    background: var(--surface); z-index: 100; border-bottom: 1px solid var(--border);
+  }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    border: 1px solid rgba(109,40,217,0.15);
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; flex-direction: column; min-height: calc(100vh - 61px); }
+  .screen.active { display: flex; }
+
+  /* ── VUE SEMAINE ── */
+  .week-header {
+    margin: 16px 20px 0; border-radius: 20px; padding: 20px 20px 18px;
+    background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
+    color: #fff; position: relative; overflow: hidden;
+  }
+  .week-header::before {
+    content: ''; position: absolute; top: -25px; right: -25px;
+    width: 110px; height: 110px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); pointer-events: none;
+  }
+  .week-header::after {
+    content: ''; position: absolute; top: -30px; left: -50px; z-index: 0;
+    width: 220px; height: 280px;
+    background-image: url('Logo.png'); background-repeat: no-repeat;
+    background-size: contain; background-position: center;
+    filter: brightness(0) invert(1);
+    opacity: 0.10; pointer-events: none;
+  }
+  .week-greeting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 12px;
+    position: relative; z-index: 1;
+  }
+  .week-greeting {
+    font-size: 22px; font-weight: 800; margin-bottom: 0;
+    letter-spacing: -0.5px; color: #fff;
+  }
+  /* ── SCORE DU JOUR (ring composite) ── */
+  .day-score-row {
+    display: flex; align-items: center; gap: 16px;
+    margin: 4px 0 14px; position: relative; z-index: 1;
+    cursor: pointer; transition: transform 0.15s ease;
+  }
+  .day-score-row:active { transform: scale(0.98); }
+  .day-score-gauge {
+    flex: 0 0 auto; padding: 4px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.10);
+  }
+  .day-score-stats {
+    display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0;
+  }
+  .day-score-stat { display: flex; flex-direction: column; gap: 1px; }
+  .dss-label {
+    font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,0.6);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .dss-value { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+  .day-insight-card {
+    background: rgba(255,255,255,0.08); border-radius: 14px; padding: 11px 14px;
+    font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.92);
+    margin-bottom: 14px; position: relative; z-index: 1;
+  }
+  /* Week navigation */
+  .week-nav { display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
+  .week-nav-btn {
+    background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
+    width: 28px; height: 28px; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background var(--transition); flex: 0 0 auto;
+  }
+  .week-nav-btn:active { background: rgba(255,255,255,0.28); }
+  .week-nav-label {
+    font-size: 12px; color: rgba(255,255,255,0.75); font-weight: 500;
+    flex: 1; text-align: center; letter-spacing: 0.1px;
+  }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    padding: 20px 20px 10px; letter-spacing: 0.6px; text-transform: uppercase;
+  }
+
+  /* ── SESSION CARDS ── */
+  .sessions-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .session-card {
+    background: var(--surface); border-radius: var(--radius); padding: 14px 16px;
+    cursor: pointer; transition: var(--transition);
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    position: relative; overflow: hidden;
+  }
+  .session-card:active { transform: scale(0.985); }
+  .session-card.done { opacity: 0.55; }
+  .session-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 2px; height: 100%; background: var(--accent);
+  }
+  .session-card.done::before { background: var(--success); }
+  .session-meta {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .session-day {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .session-status {
+    font-size: 11px; padding: 3px 9px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 500;
+  }
+  .session-status.done { background: var(--success-bg); color: var(--success); font-weight: 600; }
+  .session-status.cardio { background: rgba(217,119,6,0.1); color: #D97706; font-weight: 600; }
+  .session-card.cardio-card::before { background: #D97706; }
+  .session-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .session-info { display: none; }
+  .session-muscles { display: none; }
+
+  /* ── CARDIO VIEW ── */
+  .cardio-view {
+    background: var(--surface); border-radius: var(--radius); padding: 18px 16px;
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    text-align: center;
+  }
+  .cardio-view-icon {
+    width: 56px; height: 56px; border-radius: 50%; background: rgba(217,119,6,0.1);
+    color: #D97706; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px;
+  }
+  .cardio-view-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .cardio-view-stats {
+    display: flex; justify-content: center; gap: 24px; margin: 14px 0 4px;
+  }
+  .cardio-view-stat { text-align: center; }
+  .cardio-view-stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+  .cardio-view-stat-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .cardio-view-note {
+    margin-top: 14px; padding: 10px 12px; background: var(--surface2);
+    border-radius: 8px; font-size: 13px; color: var(--text-muted);
+    text-align: left; line-height: 1.5;
+  }
+
+  /* ── BILAN CARD ── */
+  .bilan-card::before { background: #8B5CF6; }
+  .bilan-card.no-click { cursor: default; }
+  .bilan-card.no-click:active { transform: none; }
+  .bilan-card .session-name { margin-bottom: 0; }
+
+  /* ── SÉANCE DETAIL ── */
+  .session-top {
+    background: var(--surface); padding: 14px 20px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--text-muted); font-size: 13px; font-weight: 500;
+    cursor: pointer; margin-bottom: 14px;
+  }
+  .session-title { font-size: 19px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .session-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; padding: 4px 11px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-muted); font-weight: 500;
+    border: 1px solid var(--border);
+  }
+  .chip.accent { background: var(--accent-bg); color: var(--accent); border-color: rgba(109,40,217,0.15); font-weight: 600; }
+  .drive-reminder-banner {
+    display: none;
+    align-items: center; gap: 8px;
+    background: rgba(109,40,217,0.05);
+    border: 1px solid rgba(109,40,217,0.12);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin: 0 16px 10px;
+    font-size: 11px; font-weight: 500;
+    color: var(--text-dim);
+  }
+  .drive-reminder-banner svg { flex-shrink: 0; opacity: 0.5; }
+
+  /* Warmup */
+  .warmup-card {
+    margin: 0 20px; background: var(--surface); border-radius: var(--radius);
+    padding: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .warmup-thumb {
+    width: 60px; height: 44px; border-radius: var(--radius-sm);
+    background: var(--accent-bg); display: flex; align-items: center;
+    justify-content: center; flex: 0 0 auto;
+  }
+  .play-btn {
+    width: 26px; height: 26px; background: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .warmup-info { flex: 1; }
+  .warmup-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .warmup-detail { font-size: 12px; color: var(--text-muted); }
+
+  /* Exercises */
+  .exo-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .exo-card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .exo-header {
+    padding: 13px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer;
+  }
+  .exo-num {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: transparent; color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; flex: 0 0 auto;
+    border: 1px solid var(--border);
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .exo-num.exo-done {
+    background: rgba(22,163,74,0.10);
+    border-color: rgba(22,163,74,0.30);
+    color: #16A34A;
+  }
+  .exo-info { flex: 1; min-width: 0; }
+  .exo-name   { font-size: 13px; font-weight: 500; }
+  .exo-params { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .exo-video-btn {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto; cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+  }
+  .exo-video-btn:active { color: var(--accent); border-color: var(--accent); }
+
+  /* Super-set : deux exercices liés, regroupés visuellement */
+  .superset-pair {
+    display: flex; flex-direction: column; gap: 6px;
+    border: 1.5px solid var(--accent); border-radius: var(--radius);
+    padding: 7px; background: var(--accent-bg);
+  }
+  .superset-pair .exo-card { box-shadow: none; }
+  .superset-pair-label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.4px; padding: 0 5px;
+  }
+
+  /* Triangle d'alerte exercice */
+  .exo-alert-btn {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto; cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+  }
+  .exo-alert-btn.active { color: #d97706; border-color: #d97706; background: rgba(217,119,6,0.08); }
+
+  /* Échauffement */
+  .ech-card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .ech-card .exo-header { cursor: default; padding: 8px 12px; gap: 8px; }
+  .ech-card .exo-num { width: 18px; height: 18px; font-size: 10px; border-radius: 5px; }
+  .ech-card .exo-name { font-size: 12px; }
+  .ech-card .exo-params { font-size: 10.5px; margin-top: 1px; }
+  .ech-card .exo-video-btn { width: 22px; height: 22px; }
+  #ech-list { gap: 6px; }
+
+  /* Progress bar */
+  .session-progress { padding: 12px 0 0; }
+  .progress-track {
+    height: 2px; background: var(--surface3); border-radius: 1px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent); border-radius: 1px;
+    width: 0%; transition: width 0.4s ease;
+  }
+  .progress-label {
+    font-size: 10px; color: var(--text-dim); font-weight: 500;
+    margin-top: 6px; text-align: right; letter-spacing: 0.2px;
+  }
+
+  /* Rest timer */
+  .rest-timer {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--surface); border: 1px solid var(--border-md);
+    border-radius: 28px; padding: 9px 16px 9px 14px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+    z-index: 150; opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .rest-timer.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .rest-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .rest-info { display: flex; flex-direction: column; gap: 1px; }
+  .rest-label { font-size: 9px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
+  .rest-countdown { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
+  .rest-close {
+    background: var(--surface2); border: none; border-radius: 50%;
+    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); cursor: pointer; margin-left: 4px;
+  }
+  .exo-expand {
+    color: var(--text-dim); display: flex; align-items: center; transition: transform var(--transition);
+  }
+  .exo-expand.open { transform: rotate(90deg); }
+
+  /* Series table */
+  .series-body { padding: 0 14px 14px; display: none; border-top: 1px solid var(--border); }
+  .series-body.open { display: block; }
+  .series-header-row {
+    display: grid; grid-template-columns: 22px 1fr 1fr 1fr;
+    gap: 6px; padding: 9px 0 5px;
+    font-size: 9px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .series-header-row.uni { grid-template-columns: 22px 1fr 1fr 1fr 1fr; }
+  .series-row {
+    display: grid; grid-template-columns: 22px 1fr 1fr 1fr;
+    gap: 6px; margin-bottom: 5px; align-items: center;
+  }
+  .series-row.uni { grid-template-columns: 22px 1fr 1fr 1fr 1fr; }
+
+  /* Indicateur latéral G/D */
+  .side-label {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    font-size: 8px; font-weight: 700; color: var(--accent-mid);
+    letter-spacing: 0.3px; pointer-events: none;
+  }
+  .serie-input-wrap { position: relative; }
+  .serie-input.side-g { border-color: rgba(109,40,217,0.15); }
+  .serie-input.side-g:focus { border-color: rgba(109,40,217,0.4); }
+  .serie-input.side-d { border-color: rgba(109,40,217,0.08); }
+  .serie-input.side-g.done, .serie-input.side-d.done { border-color: rgba(22,163,74,0.4); color: var(--success); }
+
+  /* Badge unilatéral dans le header exo */
+  .uni-badge {
+    font-size: 9px; font-weight: 600; color: var(--accent-mid);
+    background: var(--accent-bg-soft); border-radius: 4px;
+    padding: 2px 5px; letter-spacing: 0.3px; flex: 0 0 auto;
+  }
+  .serie-num {
+    width: 22px; height: 22px; border-radius: 5px; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 500; color: var(--text-dim);
+  }
+  .serie-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 13px; font-weight: 500;
+    padding: 6px 6px; text-align: center; width: 100%; outline: none;
+    -webkit-appearance: none; transition: border-color 0.18s; font-family: inherit;
+  }
+  .serie-input:focus { border-color: rgba(109,40,217,0.35); }
+  .serie-input.prescribed { color: var(--text-muted); background: var(--surface2); border-color: transparent; }
+  .serie-input.done { border-color: rgba(22,163,74,0.4); color: var(--success); }
+
+  .exo-meta-row {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding-top: 10px; border-top: 1px solid var(--border); margin-top: 8px;
+  }
+  .exo-meta-chip {
+    background: var(--surface2); border-radius: 7px; padding: 5px 10px;
+    font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;
+  }
+  .exo-meta-chip strong { color: var(--text); font-weight: 700; }
+
+  /* Coach comment */
+  .exo-comment {
+    margin-top: 10px; background: var(--surface2); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: var(--text-muted);
+    border-left: 2px solid var(--border-md); line-height: 1.5;
+  }
+  .exo-comment-label {
+    font-size: 10px; font-weight: 700; color: var(--accent-mid);
+    text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px;
+  }
+  .exo-comment-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px;
+    padding: 9px 12px; margin-top: 8px; outline: none; resize: none;
+    font-family: inherit; transition: border-color 0.18s;
+  }
+  .exo-comment-input:focus { border-color: rgba(109,40,217,0.35); }
+  .exo-comment-input::placeholder { color: var(--text-dim); }
+
+  /* Validate button */
+  .validate-section { padding: 20px; }
+  .btn-validate {
+    width: 100%; padding: 15px; border-radius: var(--radius);
+    background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 600; border: none; cursor: pointer;
+    letter-spacing: -0.2px; transition: opacity 0.15s, transform 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: inherit; box-shadow: 0 4px 14px rgba(109,40,217,0.28);
+  }
+  .btn-validate:active { transform: scale(0.97); opacity: 0.85; }
+  .btn-validate:disabled { background: var(--surface3); color: var(--text-muted); cursor: default; box-shadow: none; }
+  .btn-validate.btn-invalidate {
+    background: var(--surface2); color: var(--text-muted);
+    border: 1px solid var(--border); box-shadow: none;
+  }
+  .btn-validate.btn-invalidate:active { transform: scale(0.97); opacity: 0.7; }
+
+  /* Modal vidéo */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    align-items: center; justify-content: center; flex-direction: column; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border-radius: 16px;
+    width: 100%; max-width: 400px; overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+  }
+  .modal-video {
+    width: 100%; aspect-ratio: 16/9; background: #111;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-play-icon { color: rgba(255,255,255,0.25); }
+  .modal-video iframe { width: 100%; height: 100%; border: none; }
+  .modal-content { padding: 18px; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .modal-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+  .modal-close {
+    width: 100%; padding: 14px; background: var(--surface2);
+    border: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
+    cursor: pointer; border-top: 1px solid var(--border); font-family: inherit;
+  }
+
+  /* Success overlay */
+  .success-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--surface); z-index: 300;
+    align-items: center; justify-content: center; flex-direction: column;
+    gap: 20px; text-align: center; padding: 40px;
+  }
+  .success-overlay.open { display: flex; }
+  .success-icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--accent-bg); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .success-title { font-size: 24px; font-weight: 700; }
+  .success-sub { color: var(--text-muted); font-size: 14px; line-height: 1.6; max-width: 280px; }
+  .btn-secondary {
+    padding: 13px 28px; border-radius: var(--radius);
+    background: var(--surface2); color: var(--text);
+    font-size: 14px; font-weight: 600; border: 1px solid var(--border);
+    cursor: pointer; transition: var(--transition); font-family: inherit;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .pb-nav { height: 100px; }
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; padding: 6px 0;
+    cursor: pointer; position: relative;
+  }
+  .nav-item.active::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent);
+  }
+  .nav-icon  { width: 22px; height: 22px; color: var(--text-dim); transition: color var(--transition); }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); transition: color var(--transition); }
+  .nav-item.active .nav-icon  { color: var(--accent); }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="app-header">
+  <img src="Logo.png" alt="RECODE" style="height:28px;width:auto;">
+  <div class="avatar" onclick="window.location.href='login.html'" title="Se déconnecter" style="cursor:pointer;">SM</div>
+</div>
+
+<!-- ═══════════════ SCREEN : VUE SEMAINE ═══════════════ -->
+<div class="screen active" id="screen-week">
+  <div class="week-header">
+    <div class="week-greeting-row">
+      <div class="week-greeting" id="week-greeting">Bonjour</div>
+    </div>
+    <div class="day-score-row" title="Voir le détail dans Métriques" onclick="window.location.href='module3_metriques.html'">
+      <div class="day-score-gauge" id="day-score-svg"></div>
+      <div class="day-score-stats">
+        <div class="day-score-stat">
+          <span class="dss-label">Habitudes (semaine)</span>
+          <span class="dss-value" id="dss-habits">—</span>
+        </div>
+        <div class="day-score-stat">
+          <span class="dss-label">Séances (semaine)</span>
+          <span class="dss-value" id="dss-seances">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="day-insight-card" id="day-insight" style="display:none"></div>
+    <div class="week-nav">
+      <button class="week-nav-btn" onclick="shiftWeek(-1)" aria-label="Semaine précédente">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="week-nav-label" id="week-sub">Semaine du 19 au 25 mai</div>
+      <button class="week-nav-btn" onclick="shiftWeek(1)" aria-label="Semaine suivante">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="sessions-list" id="sessions-list">
+    <div style="text-align:center;padding:48px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>
+  </div>
+  <div class="pb-nav"></div>
+</div>
+
+<!-- ═══════════════ SCREEN : DÉTAIL SÉANCE ═══════════════ -->
+<div class="screen" id="screen-session">
+
+  <div class="session-top">
+    <div class="back-btn" onclick="goBack()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Semaine
+    </div>
+    <div class="session-title" id="session-title-text">Séance</div>
+    <div class="session-chips">
+      <span class="chip accent" id="session-date-chip">—</span>
+    </div>
+    <div class="session-progress" id="session-progress">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">0 / 0 exercices</div>
+    </div>
+  </div>
+
+  <!-- Bandeau rappel Drive (visible uniquement si clientDriveUrl est défini) -->
+  <div class="drive-reminder-banner" id="drive-reminder-banner">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+    N'oublie pas de prendre quelques vidéos de ta séance !
+  </div>
+
+  <!-- Échauffement (chargé dynamiquement, masqué si vide) -->
+  <div class="section-label" id="ech-section-label" style="display:none">Échauffement</div>
+  <div class="exo-list" id="ech-list" style="display:none"></div>
+
+  <!-- Exercices (chargés dynamiquement) -->
+  <div class="section-label" id="exo-section-label">Exercices</div>
+  <div class="exo-list" id="exo-list">
+    <div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>
+  </div>
+
+  <div class="validate-section">
+    <button class="btn-validate" id="validate-btn" onclick="onValidateBtnClick()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Valider la séance
+    </button>
+  </div>
+  <div class="pb-nav"></div>
+</div>
+
+<!-- REST TIMER -->
+<div class="rest-timer" id="rest-timer">
+  <div class="rest-dot"></div>
+  <div class="rest-info">
+    <div class="rest-label">Repos</div>
+    <div class="rest-countdown" id="rest-countdown">2:30</div>
+  </div>
+  <button class="rest-close" onclick="stopRest()">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+</div>
+
+<!-- MODAL HISTORIQUE EXERCICE -->
+<div class="modal-overlay" id="modal-exo-history" onclick="if(event.target===this)document.getElementById('modal-exo-history').classList.remove('open')">
+  <div class="modal-box" style="padding:0;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);">
+      <div style="font-size:15px;font-weight:700;color:var(--text)" id="exo-history-title">Historique</div>
+      <button onclick="document.getElementById('modal-exo-history').classList.remove('open')" style="background:none;border:none;font-size:22px;color:var(--text-muted);cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div style="padding:4px 18px 0;max-height:60vh;overflow-y:auto;">
+      <div id="exo-history-body" style="padding-bottom:14px;"></div>
+      <div style="border-top:1px solid var(--border);padding:14px 0 18px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Mes notes perso</div>
+        <div id="exo-notes-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+        <textarea id="exo-note-input" rows="2" placeholder="Ajouter une note (ressenti, sensation, objectif…)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--text);font-family:inherit;resize:none;outline:none;margin-bottom:8px;"></textarea>
+        <button class="btn-ghost" style="width:100%;" onclick="addExoNote()">+ Ajouter une note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VIDÉO -->
+<div class="modal-overlay" id="modal-video">
+  <div class="modal-box">
+    <div class="modal-video" id="modal-video-zone">
+      <svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </div>
+    <div class="modal-content">
+      <div class="modal-title" id="modal-title">Exercice</div>
+      <div class="modal-desc"  id="modal-desc">Description de l'exercice</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="success-title">Séance validée</div>
+  <div class="success-sub">Bien joué ! La séance a été enregistrée.</div>
+
+  <div id="success-drive-msg" style="display:none;margin:16px 0 4px;background:rgba(109,40,217,0.07);border:1px solid rgba(109,40,217,0.15);border-radius:10px;padding:12px 16px;text-align:center;max-width:280px;">
+    <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px;">📹 Si tu as filmé ta séance</div>
+    <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">N'oublie pas de déposer tes vidéos dans ton Drive — retrouve le lien dans ton <strong style="color:var(--accent);cursor:pointer;" onclick="window.location.href='module5_profil.html'">Profil</strong>.</div>
+  </div>
+
+  <button class="btn-secondary" onclick="closeSuccess()">Retour à la semaine</button>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+    <span class="nav-label">Séances</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module2_perfs.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span class="nav-label">Perfs</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module3_metriques.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span class="nav-label">Suivi</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module5_profil.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <span class="nav-label">Profil</span>
+  </div>
+</div>
+
+<script>
+  // ── Auth & state ─────────────────────────────────────────
+  const SESSION = requireAuth();
+  checkAccountActive(SESSION);
+  let weekOffset = 0;
+  let currentSeanceId     = null;
+  let currentSeanceStatut = null;
+  let clientDriveUrl      = null;
+  let currentExoNoteName  = null; // nom de l'exercice courant dans la modale historique (pour les notes perso)
+
+  // ── Chargement Drive URL ─────────────────────────────────
+  async function loadClientDriveUrl() {
+    if (!SESSION) return;
+    try {
+      const { data } = await db.from('clients').select('drive_url').eq('id', SESSION.client_id).single();
+      clientDriveUrl = data?.drive_url || null;
+    } catch(e) {}
+    // Bandeau de rappel pendant la séance
+    const banner = document.getElementById('drive-reminder-banner');
+    if (banner) banner.style.display = clientDriveUrl ? 'flex' : 'none';
+    // Message Drive dans le success overlay
+    const msg = document.getElementById('success-drive-msg');
+    if (msg) msg.style.display = clientDriveUrl ? 'block' : 'none';
+  }
+
+  // Convertit une Date en "YYYY-MM-DD" en utilisant le calendrier LOCAL
+  // (contrairement à toISOString() qui convertit en UTC et peut décaler
+  // la date d'un jour pour les fuseaux horaires positifs comme la France).
+  function toLocalDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // ── Helpers semaine ──────────────────────────────────────
+  function getWeekRange(offset) {
+    const now = new Date();
+    const day = now.getDay();
+    const diffLun = (day === 0 ? -6 : 1 - day);
+    const lundi = new Date(now);
+    lundi.setDate(now.getDate() + diffLun + offset * 7);
+    const dimanche = new Date(lundi);
+    dimanche.setDate(lundi.getDate() + 6);
+    const fmt = d => toLocalDateStr(d);
+    return { lundi: fmt(lundi), dimanche: fmt(dimanche), lundiDate: lundi, dimancheDate: dimanche };
+  }
+
+  function updateWeekLabel() {
+    const { lundiDate, dimancheDate } = getWeekRange(weekOffset);
+    const fmtShort = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const sub = document.getElementById('week-sub');
+    if (sub) sub.textContent = fmtShort(lundiDate) + ' — ' + fmtShort(dimancheDate);
+  }
+
+  function shiftWeek(dir) {
+    weekOffset += dir;
+    updateWeekLabel();
+    loadWeekSessions();
+  }
+
+  function formatRepos(secs) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    if (s === 0) return m + "'";
+    return m + "'" + String(s).padStart(2, '0');
+  }
+
+  // ── Chargement séances Supabase ──────────────────────────
+  async function loadWeekSessions() {
+    if (!SESSION) return;
+    const list = document.getElementById('sessions-list');
+    list.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>';
+
+    const { lundi, dimanche } = getWeekRange(weekOffset);
+    const { data: seances, error } = await db
+      .from('seances')
+      .select('*')
+      .eq('client_id', SESSION.client_id)
+      .gte('date', lundi)
+      .lte('date', dimanche)
+      .order('date', { ascending: true });
+
+    if (error) {
+      list.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--danger);font-size:14px">Erreur de chargement</div>';
+      return;
+    }
+
+    // Bilans programmés par le coach pour cette semaine — un bilan passé non
+    // validé disparaît de la vue (mais reste comptabilisé comme "non fait" dans la jauge Métriques)
+    const today = toLocalDateStr(new Date());
+    let visibleBilans = [];
+    try {
+      const { data: bilanSchedule } = await db.from('bilan_schedule')
+        .select('date').eq('client_id', SESSION.client_id)
+        .gte('date', lundi).lte('date', dimanche);
+      visibleBilans = (bilanSchedule || []).map(b => b.date).filter(d => d >= today);
+    } catch(e) {}
+
+    let bilanDoneSet = new Set();
+    if (visibleBilans.length) {
+      try {
+        const { data: logs } = await db.from('bilan_logs')
+          .select('date').eq('client_id', SESSION.client_id)
+          .in('date', visibleBilans);
+        bilanDoneSet = new Set((logs || []).map(l => l.date));
+      } catch(e) {}
+    }
+
+    if ((!seances || seances.length === 0) && visibleBilans.length === 0) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:48px 20px">
+          <div style="font-size:32px;margin-bottom:12px">🗓️</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Aucune séance cette semaine</div>
+          <div style="font-size:13px;color:var(--text-muted)">Le coach n'a pas encore planifié de séance.</div>
+        </div>`;
+      return;
+    }
+
+    // Vérifier les réponses coach non lues pour toutes les séances de la semaine
+    const seanceIds = (seances || []).map(s => s.id);
+    const unreadSeances = new Set();
+    if (seanceIds.length) {
+      try {
+        const { data: unread } = await db.from('seance_exercices')
+          .select('seance_id')
+          .in('seance_id', seanceIds)
+          .not('reponse_coach', 'is', null)
+          .eq('reponse_lue', false);
+        (unread || []).forEach(r => unreadSeances.add(r.seance_id));
+      } catch(e) {}
+    }
+
+    // Fusionner séances + bilans, triés par date
+    const items = [];
+    (seances || []).forEach(s => items.push({ date: s.date, html: renderSessionCard(s, unreadSeances.has(s.id)) }));
+    visibleBilans.forEach(d => items.push({ date: d, html: renderBilanCard(d, bilanDoneSet.has(d)) }));
+    items.sort((a, b) => a.date.localeCompare(b.date) || (a.html.includes('bilan-card') ? 1 : -1));
+
+    list.innerHTML = items.map(i => i.html).join('');
+  }
+
+  function renderBilanCard(date, done) {
+    const dateObj    = new Date(date + 'T12:00:00');
+    const today      = toLocalDateStr(new Date());
+    const isToday    = date === today;
+    // Toujours cliquable : la cliente peut faire son bilan en avance
+    // (avant la date programmée) ou ré-invalider un bilan déjà fait.
+    const clickable  = true;
+
+    const dateStr     = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+    const dayLabel    = capitalDate + (isToday ? ' · Aujourd\'hui' : '');
+
+    const statusLabel = done ? '✓ Fait' : (date <= today ? 'À faire' : 'Programmé');
+    const statusClass = done ? 'done' : '';
+    const cardClass   = 'session-card bilan-card' + (done ? ' done' : '') + (clickable ? '' : ' no-click');
+    const onClick     = clickable ? `onclick="toggleBilanDone('${date}', ${done})"` : '';
+
+    return `<div class="${cardClass}" ${onClick}>
+      <div class="session-meta">
+        <div class="session-day">${dayLabel}</div>
+        <div class="session-status ${statusClass}">${statusLabel}</div>
+      </div>
+      <div class="session-name">Bilan</div>
+    </div>`;
+  }
+
+  // Toggle fait/à faire : un bilan validé par erreur peut être ré-invalidé
+  // d'un simple clic (même comportement que pour les séances).
+  async function toggleBilanDone(date, done) {
+    if (!SESSION) return;
+    if (done) {
+      const { error } = await db.from('bilan_logs').delete()
+        .eq('client_id', SESSION.client_id).eq('date', date);
+      if (error) return;
+    } else {
+      const { error } = await db.from('bilan_logs').upsert(
+        { client_id: SESSION.client_id, date },
+        { onConflict: 'client_id,date' }
+      );
+      if (error) return;
+    }
+    await loadWeekSessions();
+  }
+
+  function renderSessionCard(s, hasUnread = false) {
+    const dateObj = new Date(s.date + 'T12:00:00');
+    const today   = toLocalDateStr(new Date());
+    const isToday = s.date === today;
+    const isDone  = s.statut === 'validée';
+    const isRest  = s.statut === 'repos';
+    const isCardio = s.type_seance === 'cardio';
+
+    const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+    const dayLabel = capitalDate + (isToday ? ' · Aujourd\'hui' : '');
+
+    const statusLabel = isDone ? '✓ Validée' : isRest ? 'Repos' : (isCardio ? 'Cardio' : 'À faire');
+    const statusClass = isDone ? 'done' : isRest ? 'rest' : (isCardio ? 'cardio' : '');
+    const cardClass   = isDone ? 'session-card done' : (isRest ? 'session-card rest-card' : (isCardio ? 'session-card cardio-card' : 'session-card'));
+
+    // Badge rouge si réponse coach non lue
+    const badge = hasUnread ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#EF4444;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;">
+      <span style="display:inline-block;width:5px;height:5px;background:#fff;border-radius:50%;"></span>Réponse coach
+    </span>` : '';
+
+    return `<div class="${cardClass}" onclick="openSession('${s.id}')">
+      <div class="session-meta">
+        <div class="session-day">${dayLabel}</div>
+        <div style="display:flex;align-items:center;"><div class="session-status ${statusClass}">${statusLabel}</div>${badge}</div>
+      </div>
+      <div class="session-name">${s.titre}</div>
+      <div class="session-info" id="card-info-${s.id}">
+        <div class="session-tag">—</div>
+      </div>
+    </div>`;
+  }
+
+  // ── Rendu de la vue séance cardio ────────────────────────
+  function renderCardioView(seance) {
+    const typeLabels = { course:'Course', velo:'Vélo', natation:'Natation', rameur:'Rameur', marche:'Marche', autre:'Cardio' };
+    const typeLabel = typeLabels[seance.cardio_type] || 'Cardio';
+    const duree = seance.cardio_duree;
+    const intensite = seance.cardio_intensite
+      ? seance.cardio_intensite.charAt(0).toUpperCase() + seance.cardio_intensite.slice(1)
+      : '—';
+    const note = (seance.cardio_note || '').trim();
+
+    const noteBlock = note
+      ? `<div class="cardio-view-note">${note.replace(/\n/g, '<br>')}</div>`
+      : '';
+
+    return `<div class="cardio-view">
+      <div class="cardio-view-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div class="cardio-view-title">${typeLabel}</div>
+      <div class="cardio-view-stats">
+        <div class="cardio-view-stat">
+          <div class="cardio-view-stat-val">${duree ? duree + ' min' : '—'}</div>
+          <div class="cardio-view-stat-label">Durée</div>
+        </div>
+        <div class="cardio-view-stat">
+          <div class="cardio-view-stat-val">${intensite}</div>
+          <div class="cardio-view-stat-label">Intensité</div>
+        </div>
+      </div>
+      ${noteBlock}
+    </div>`;
+  }
+
+  // ── Ouverture d'une séance ───────────────────────────────
+  async function openSession(seanceId) {
+    currentSeanceId = seanceId;
+    showScreen('screen-session');
+
+    // Reset
+    document.getElementById('session-title-text').textContent = '…';
+    document.getElementById('session-date-chip').textContent = '…';
+    document.getElementById('exo-list').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>';
+    document.getElementById('progress-label').textContent = '0 / 0 exercices';
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('ech-section-label').style.display = 'none';
+    document.getElementById('exo-section-label').style.display = '';
+    document.getElementById('session-progress').style.display = '';
+    const echListEl = document.getElementById('ech-list');
+    echListEl.style.display = 'none';
+    echListEl.innerHTML = '';
+
+    // Charger la séance
+    const { data: seance } = await db.from('seances').select('*').eq('id', seanceId).single();
+    if (!seance) return;
+    currentSeanceStatut = seance.statut;
+
+    const dateObj = new Date(seance.date + 'T12:00:00');
+    const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    document.getElementById('session-title-text').textContent = seance.titre;
+    document.getElementById('session-date-chip').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+    // ── Séance cardio : vue dédiée (pas d'exercices/échauffement) ──
+    if (seance.type_seance === 'cardio') {
+      document.getElementById('exo-section-label').style.display = 'none';
+      document.getElementById('session-progress').style.display = 'none';
+      document.getElementById('ech-section-label').style.display = 'none';
+      document.getElementById('ech-list').style.display = 'none';
+      document.getElementById('exo-list').innerHTML = renderCardioView(seance);
+
+      // État du bouton valider
+      const btnCardio = document.getElementById('validate-btn');
+      if (seance.statut === 'validée') {
+        btnCardio.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg> Invalider la séance';
+        btnCardio.classList.add('btn-invalidate');
+      } else {
+        btnCardio.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
+        btnCardio.classList.remove('btn-invalidate');
+      }
+      btnCardio.disabled = false;
+      btnCardio.style.opacity = '1';
+      return;
+    }
+
+    // Charger les exercices (sans join pour éviter les erreurs schema cache)
+    const { data: exos } = await db
+      .from('seance_exercices')
+      .select('*')
+      .eq('seance_id', seanceId)
+      .order('ordre', { ascending: true });
+
+    // Charger les tags séparément via exercice_id (indépendant du reste)
+    const exoIds = (exos || []).map(e => e.exercice_id).filter(Boolean);
+    const tagsMap = {};
+    if (exoIds.length) {
+      const { data: libExos } = await db
+        .from('exercices')
+        .select('id, tags, url_video, consignes')
+        .in('id', exoIds);
+      (libExos || []).forEach(e => { tagsMap[e.id] = e; });
+    }
+    // Injecter les données lib dans chaque exo
+    (exos || []).forEach(e => {
+      if (e.exercice_id && tagsMap[e.exercice_id]) {
+        e.exercices = tagsMap[e.exercice_id];
+      }
+    });
+
+    // Marquer les réponses coach comme lues (silencieusement)
+    const unreadIds = (exos || []).filter(e => e.reponse_coach && e.reponse_lue === false).map(e => e.id);
+    if (unreadIds.length) {
+      db.from('seance_exercices').update({ reponse_lue: true }).in('id', unreadIds).then(() => {});
+    }
+
+    // Alertes actives (triangle ⚠️) posées par la cliente sur certains exercices
+    // (persistent par nom d'exercice jusqu'à ce qu'elle les retire elle-même)
+    window._alertesByName = {};
+    try {
+      const { data: alertes } = await db.from('exo_alertes').select('*').eq('client_id', SESSION.client_id);
+      (alertes || []).forEach(a => { window._alertesByName[(a.nom_exo || '').trim().toLowerCase()] = a; });
+    } catch (e) {}
+
+    // Charger l'échauffement (encart optionnel, pas d'erreur bloquante si table absente)
+    const { data: echs, error: echError } = await db
+      .from('seance_echauffement')
+      .select('*')
+      .eq('seance_id', seanceId)
+      .order('ordre', { ascending: true });
+
+    if (!echError && echs && echs.length > 0) {
+      const echIds = echs.map(e => e.exercice_id).filter(Boolean);
+      const echTagsMap = {};
+      if (echIds.length) {
+        const { data: libEchs } = await db
+          .from('exercices')
+          .select('id, url_video')
+          .in('id', echIds);
+        (libEchs || []).forEach(e => { echTagsMap[e.id] = e; });
+      }
+      echs.forEach(e => {
+        if (e.exercice_id && echTagsMap[e.exercice_id]) {
+          e.exercices = echTagsMap[e.exercice_id];
+        }
+      });
+      document.getElementById('ech-section-label').style.display = '';
+      const echListEl2 = document.getElementById('ech-list');
+      echListEl2.style.display = '';
+      echListEl2.innerHTML = echs.map((e, i) => renderEchCard(e, i)).join('');
+    }
+
+    const exoList = document.getElementById('exo-list');
+    if (!exos || exos.length === 0) {
+      exoList.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:14px">Aucun exercice dans cette séance.</div>';
+      document.getElementById('progress-label').textContent = '0 / 0 exercices';
+    } else {
+      exoList.innerHTML = renderExoListHtml(exos);
+      // Appliquer l'indicateur vert sur les exercices déjà complets (données sauvegardées)
+      exoList.querySelectorAll('.exo-card').forEach(updateExoNum);
+      document.getElementById('progress-label').textContent = '0 / ' + exos.length + ' exercices';
+      // Mettre à jour le compteur sur la card semaine
+      const cardInfo = document.getElementById('card-info-' + seanceId);
+      if (cardInfo) cardInfo.innerHTML = `<div class="session-tag">${exos.length} exercice${exos.length > 1 ? 's' : ''}</div>`;
+      setTimeout(() => {
+        const firstHeader = exoList.querySelector('.exo-header');
+        if (firstHeader) toggleExo(firstHeader);
+        updateProgress();
+      }, 50);
+    }
+
+    // État du bouton valider
+    const btn = document.getElementById('validate-btn');
+    if (seance.statut === 'validée') {
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg> Invalider la séance';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.classList.add('btn-invalidate');
+    } else {
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.classList.remove('btn-invalidate');
+    }
+  }
+
+  // ── Rendu d'un exercice d'échauffement (texte libre, sans séries) ──
+  function renderEchCard(item, index) {
+    const safeNomExo = item.nom_exo.replace(/'/g,"\\'");
+    const videoUrl   = item.exercices?.url_video || null;
+    const consigne   = item.consigne || '';
+    const videoBtn = videoUrl
+      ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${safeNomExo}', '${consigne.replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+         </div>`
+      : '';
+    return `<div class="ech-card">
+      <div class="exo-header">
+        <div class="exo-num">${index + 1}</div>
+        <div class="exo-info">
+          <div class="exo-name">${item.nom_exo}</div>
+          ${consigne ? `<div class="exo-params">${consigne}</div>` : ''}
+        </div>
+        ${videoBtn}
+      </div>
+    </div>`;
+  }
+
+  // ── Rendu d'un exercice ──────────────────────────────────
+  // ── Liste d'exercices avec regroupement des super-sets ──────
+  // Deux exercices partageant le même superset_group sont rendus côte à
+  // côte dans un même encart, visuellement liés. Le repos n'est déclenché
+  // qu'après le 2e (cf. checkDone/checkSide + data-superset-role).
+  function renderExoListHtml(exos) {
+    const rendered = new Set();
+    let html = '';
+    let n = 0;
+    exos.forEach(exo => {
+      if (rendered.has(exo.id)) return;
+      if (exo.superset_group) {
+        const partner = exos.find(o => o.id !== exo.id && o.superset_group === exo.superset_group && !rendered.has(o.id));
+        if (partner) {
+          rendered.add(exo.id); rendered.add(partner.id);
+          const cardA = renderExoCard(exo, n++, 'first');
+          const cardB = renderExoCard(partner, n++, 'second');
+          html += `<div class="superset-pair">
+            <div class="superset-pair-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Super-set — repos partagé après les deux exercices
+            </div>
+            ${cardA}${cardB}
+          </div>`;
+          return;
+        }
+      }
+      rendered.add(exo.id);
+      html += renderExoCard(exo, n++, null);
+    });
+    return html;
+  }
+
+  function renderExoCard(exo, index, supersetRole) {
+    const reposSerie = exo.repos_serie || 90;
+    const reposCote  = exo.repos_cote  || 45;
+    const reposStr   = formatRepos(reposSerie);
+
+    const isDone      = currentSeanceStatut === 'validée';
+    const safeNomExo  = exo.nom_exo.replace(/'/g,"\\'");
+
+    // Bouton historique commun
+    const histBtn = `<div class="exo-video-btn" onclick="event.stopPropagation();openExoHistory('${safeNomExo}')" title="Historique" style="background:var(--accent-bg);color:var(--accent);">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    </div>`;
+
+    // Triangle d'alerte (posée par la cliente, visible cliente + coach, persiste tant qu'elle ne la retire pas)
+    const alertKey    = (exo.nom_exo || '').trim().toLowerCase();
+    const activeAlert = (window._alertesByName || {})[alertKey];
+    const alertTitle  = activeAlert
+      ? (activeAlert.note ? activeAlert.note.replace(/'/g,"\\'").replace(/"/g,'&quot;') : 'Alerte active — appuie pour retirer')
+      : 'Marquer une alerte pour la prochaine fois';
+    const alertBtn = `<div class="exo-alert-btn${activeAlert ? ' active' : ''}" onclick="event.stopPropagation();toggleExoAlert('${safeNomExo}')" title="${alertTitle}">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="${activeAlert ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>`;
+
+    if (exo.unilateral) {
+      const params      = `${exo.series} × ${exo.reps} reps/bras · RIR ${exo.rir} · Côté ${reposCote}'' · Série ${reposStr}`;
+      const videoUrl    = exo.exercices?.url_video || null;
+      const consignes   = exo.exercices?.consignes || exo.notes || null;
+      const videoBtnUni = videoUrl
+        ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${safeNomExo}', '${(consignes||'').replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+           </div>`
+        : '';
+      const sdArrUni = (() => { try { return Array.isArray(exo.series_data) ? exo.series_data : (exo.series_data ? JSON.parse(exo.series_data) : null); } catch(e) { return null; } })();
+      let rows = '';
+      for (let i = 1; i <= (exo.series || 3); i++) {
+        const sd = sdArrUni ? (sdArrUni[i-1] ?? null) : null;
+        // Si series_data existe mais la série n'a pas encore été saisie → '' (jamais exo.charge_reelle)
+        const chargeVal = sd?.charge ?? (sdArrUni ? '' : (exo.charge_reelle ?? ''));
+        const sideGVal  = sd?.reps_g ?? '';
+        const sideDVal  = sd?.reps_d ?? '';
+        rows += `<div class="series-row uni">
+          <div class="serie-num">${i}</div>
+          <input class="serie-input prescribed" value="${exo.reps}" readonly>
+          <input class="serie-input side-g" type="number" placeholder="—" value="${sideGVal}" data-field="reps-g" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-g')" onblur="flushAutosave('${exo.id}')">
+          <input class="serie-input side-d" type="number" placeholder="—" value="${sideDVal}" data-field="reps-d" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'reps-d')" onblur="flushAutosave('${exo.id}')">
+          <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkSide(this);trackExoInput(this,'${exo.id}',${i},'charge')" onblur="flushAutosave('${exo.id}')">
+        </div>`;
+      }
+      const savedNote = exo.notes_client || '';
+      window._exoInitialNote = window._exoInitialNote || {};
+      window._exoInitialNote[exo.id] = savedNote;
+      const rawTagsUni = exo.exercices?.tags || [];
+      const tagsUni = Array.isArray(rawTagsUni) ? rawTagsUni : (rawTagsUni ? String(rawTagsUni).split(',').map(t=>t.trim()).filter(Boolean) : []);
+      const tagsHtmlUni = tagsUni.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tagsUni.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
+      return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
+        <div class="exo-header" onclick="toggleExo(this)">
+          <div class="exo-num">${index + 1}</div>
+          <div class="exo-info">
+            <div class="exo-name">${exo.nom_exo} <span class="uni-badge">Uni</span></div>
+            <div class="exo-params">${params}</div>
+            ${tagsHtmlUni}
+          </div>
+          ${histBtn}${alertBtn}${videoBtnUni}
+          <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="series-body">
+          <div class="series-header-row uni"><div>#</div><div>Prévu</div><div>G</div><div>D</div><div>Charge</div></div>
+          ${rows}
+          ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
+          <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''} oninput="scheduleAutosave('${exo.id}')" onblur="flushAutosave('${exo.id}')">${savedNote}</textarea>
+          ${renderExoThread(exo, true)}
+        </div>
+      </div>`;
+    }
+
+    // Bilatéral
+    const params = `${exo.series} × ${exo.reps} reps · RIR ${exo.rir} · Repos ${reposStr}`;
+    const videoUrl    = exo.exercices?.url_video || null;
+    const consignes   = exo.exercices?.consignes || exo.notes || null;
+    const videoBtnHtml = videoUrl
+      ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${safeNomExo}', '${(consignes||'').replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+         </div>`
+      : '';
+
+    const sdArr = (() => { try { return Array.isArray(exo.series_data) ? exo.series_data : (exo.series_data ? JSON.parse(exo.series_data) : null); } catch(e) { return null; } })();
+    let rows = '';
+    for (let i = 1; i <= (exo.series || 3); i++) {
+      const sd = sdArr ? (sdArr[i-1] ?? null) : null;
+      // Si series_data existe mais la série n'a pas encore été saisie → '' (jamais reps_reelles/charge_reelle)
+      const repsVal   = sd?.reps   ?? (sdArr ? '' : (exo.reps_reelles  ?? ''));
+      const chargeVal = sd?.charge ?? (sdArr ? '' : (exo.charge_reelle ?? ''));
+      rows += `<div class="series-row">
+        <div class="serie-num">${i}</div>
+        <input class="serie-input prescribed" value="${exo.reps}" readonly>
+        <input class="serie-input" type="number" placeholder="—" value="${repsVal}" data-field="reps" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'reps')" onblur="flushAutosave('${exo.id}')">
+        <input class="serie-input" type="number" placeholder="—" value="${chargeVal}" data-field="charge" ${isDone?'readonly':''} oninput="checkDone(this);trackExoInput(this,'${exo.id}',${i},'charge')" onblur="flushAutosave('${exo.id}')">
+      </div>`;
+    }
+    const rawTags = exo.exercices?.tags || [];
+    const tags = Array.isArray(rawTags) ? rawTags : (rawTags ? String(rawTags).split(',').map(t=>t.trim()).filter(Boolean) : []);
+    const tagsHtml = tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tags.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
+    const savedNote = exo.notes_client || '';
+    window._exoInitialNote = window._exoInitialNote || {};
+    window._exoInitialNote[exo.id] = savedNote;
+    return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
+      <div class="exo-header" onclick="toggleExo(this)">
+        <div class="exo-num">${index + 1}</div>
+        <div class="exo-info">
+          <div class="exo-name">${exo.nom_exo}</div>
+          <div class="exo-params">${params}</div>
+          ${tagsHtml}
+        </div>
+        ${histBtn}${alertBtn}${videoBtnHtml}
+        <div class="exo-expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="series-body">
+        <div class="series-header-row"><div>#</div><div>Prévues</div><div>Réalisées</div><div>Charge (kg)</div></div>
+        ${rows}
+        ${exo.notes ? `<div class="exo-comment"><div class="exo-comment-label">Coach</div>${exo.notes}</div>` : ''}
+        <textarea class="exo-comment-input" rows="2" placeholder="Note pour le coach (ressenti, douleur, difficulté…)" ${isDone?'readonly':''} oninput="scheduleAutosave('${exo.id}')" onblur="flushAutosave('${exo.id}')">${savedNote}</textarea>
+        ${renderExoThread(exo, false)}
+      </div>
+    </div>`;
+  }
+
+  // ── Modal historique d'un exercice ──────────────────────
+  async function openExoHistory(nomExo) {
+    const modal = document.getElementById('modal-exo-history');
+    document.getElementById('exo-history-title').textContent = nomExo;
+    document.getElementById('exo-history-body').innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:13px;">Chargement…</div>';
+    modal.classList.add('open');
+
+    // Notes perso : indépendantes de l'historique reps/charge
+    currentExoNoteName = nomExo;
+    document.getElementById('exo-note-input').value = '';
+    loadExoNotes(nomExo);
+
+    // Récupère les séances du client
+    const { data: seances } = await db.from('seances').select('id, date, titre')
+      .eq('client_id', SESSION.client_id).order('date', { ascending: false });
+    if (!seances || !seances.length) {
+      document.getElementById('exo-history-body').innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:13px;">Aucun historique.</div>';
+      return;
+    }
+    const seanceMap = {};
+    seances.forEach(s => { seanceMap[s.id] = s; });
+
+    const { data: rows } = await db.from('seance_exercices')
+      .select('seance_id, charge_reelle, reps_reelles, charge, charge_kg, series_data, notes_client')
+      .eq('nom_exo', nomExo)
+      .in('seance_id', seances.map(s => s.id))
+      .order('seance_id', { ascending: false })
+      .limit(10);
+
+    if (!rows || !rows.length) {
+      document.getElementById('exo-history-body').innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:13px;">Aucun historique pour cet exercice.</div>';
+      return;
+    }
+
+    document.getElementById('exo-history-body').innerHTML = rows.map(r => {
+      const s = seanceMap[r.seance_id] || {};
+      const dateStr = s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : '—';
+
+      // Détail des séries depuis series_data
+      let seriesHtml = '';
+      let sd = null;
+      try {
+        if (r.series_data) sd = Array.isArray(r.series_data) ? r.series_data : JSON.parse(r.series_data);
+      } catch(e) {}
+
+      if (sd && sd.length) {
+        seriesHtml = sd.map((sv, idx) => {
+          const c  = parseFloat(sv.charge) || 0;
+          const rv = parseFloat(sv.reps) || parseFloat(sv.reps_g) || parseFloat(sv.reps_d) || 0;
+          const isUni = sv.reps_g != null || sv.reps_d != null;
+          const repsStr = isUni
+            ? `${parseFloat(sv.reps_g)||0}G / ${parseFloat(sv.reps_d)||0}D`
+            : (rv > 0 ? `${rv} reps` : '—');
+          const chargeStr = c > 0 ? `${c} kg` : '—';
+          return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);">
+            <span style="width:16px;height:16px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${idx+1}</span>
+            <span style="font-weight:600;">${chargeStr}</span>
+            <span style="color:var(--text-muted);">×</span>
+            <span>${repsStr}</span>
+          </div>`;
+        }).join('');
+      } else {
+        // Fallback : charge_reelle × reps_reelles
+        const charge = r.charge_reelle || r.charge_kg || (r.charge ? parseFloat(r.charge) : 0);
+        const reps   = r.reps_reelles || 0;
+        seriesHtml = `<div style="font-size:12px;color:var(--text);">${charge ? charge + ' kg' : '—'} × ${reps ? reps + ' reps' : '—'}</div>`;
+      }
+
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${dateStr}</span>
+          <span style="font-size:11px;color:var(--text-muted);">${s.titre || ''}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">${seriesHtml}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Notes perso par exercice (liste datée, ajout/suppression) ──
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  async function loadExoNotes(nomExo) {
+    const list = document.getElementById('exo-notes-list');
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">Chargement…</div>';
+    const { data: notes, error } = await db.from('notes_exercice_perso')
+      .select('id, date, contenu')
+      .eq('client_id', SESSION.client_id)
+      .eq('nom_exo', nomExo)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">Notes indisponibles — exécute le SQL (section 20).</div>';
+      return;
+    }
+    renderExoNotes(notes || []);
+  }
+
+  function renderExoNotes(notes) {
+    const list = document.getElementById('exo-notes-list');
+    if (!notes.length) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">Aucune note pour le moment.</div>';
+      return;
+    }
+    list.innerHTML = notes.map(n => {
+      const dateStr = new Date(n.date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+      return `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;background:var(--surface2);border-radius:10px;padding:8px 10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;">${dateStr}</div>
+          <div style="font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word;">${escapeHtml(n.contenu)}</div>
+        </div>
+        <button onclick="deleteExoNote('${n.id}')" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;line-height:1;flex:0 0 auto;padding:0 2px;" title="Supprimer">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  async function addExoNote() {
+    const input = document.getElementById('exo-note-input');
+    const contenu = input.value.trim();
+    if (!contenu || !currentExoNoteName) return;
+    const today = toLocalDateStr(new Date());
+    const { error } = await db.from('notes_exercice_perso').insert({
+      client_id: SESSION.client_id,
+      nom_exo: currentExoNoteName,
+      date: today,
+      contenu,
+    });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    input.value = '';
+    await loadExoNotes(currentExoNoteName);
+  }
+
+  async function deleteExoNote(noteId) {
+    if (!confirm('Supprimer cette note ?')) return;
+    const { error } = await db.from('notes_exercice_perso').delete().eq('id', noteId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadExoNotes(currentExoNoteName);
+  }
+
+  // ── Triangle d'alerte sur un exercice ────────────────────────
+  // Posée par la cliente, visible cliente + coach, persiste tant qu'elle ne
+  // la retire pas elle-même (peu importe la semaine — rattachée par nom).
+  async function toggleExoAlert(nomExo) {
+    const key = (nomExo || '').trim().toLowerCase();
+    const existing = (window._alertesByName || {})[key];
+    if (existing) {
+      if (!confirm('Retirer l\'alerte sur « ' + nomExo + ' » ?')) return;
+      const { error } = await db.from('exo_alertes').delete().eq('id', existing.id);
+      if (error) { alert('Erreur : ' + error.message); return; }
+    } else {
+      const note = prompt('Note (optionnel) — ex : baisser la charge, attention au dos, ça stagne…', '');
+      if (note === null) return; // annulé
+      const { error } = await db.from('exo_alertes').insert({
+        client_id: SESSION.client_id,
+        nom_exo: nomExo,
+        note: note ? note.trim() : null,
+      });
+      if (error) { alert('Erreur : ' + error.message + ' — exécute le SQL (section 26)'); return; }
+    }
+    if (currentSeanceId) await openSession(currentSeanceId);
+  }
+
+  // ── Thread de conversation coach/client sur un exercice ─────
+  function renderExoThread(exo, isUnilatéral) {
+    const thread = (() => {
+      try { return Array.isArray(exo.messages_thread) ? exo.messages_thread : (exo.messages_thread ? JSON.parse(exo.messages_thread) : []); }
+      catch(e) { return []; }
+    })();
+
+    // Pas de thread et pas de note client → rien à afficher
+    if (!thread.length && !exo.reponse_coach) return '';
+
+    const safeId = (exo.id || '').replace(/[^a-zA-Z0-9]/g, '');
+
+    const bubbles = thread.map(msg => {
+      const isCoach = msg.auteur === 'coach';
+      return `<div style="display:flex;flex-direction:column;align-items:${isCoach?'flex-end':'flex-start'};margin-bottom:4px;">
+        <div style="max-width:88%;padding:7px 11px;border-radius:${isCoach?'12px 12px 4px 12px':'12px 12px 12px 4px'};
+          background:${isCoach?'#f97316':'var(--surface3)'};color:${isCoach?'#fff':'var(--text)'};
+          font-size:12px;line-height:1.45;">${msg.contenu}</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">${isCoach?'Coach':'Moi'}</div>
+      </div>`;
+    }).join('');
+
+    // Fallback : si reponse_coach existe mais thread vide (ancien format)
+    const legacyReponse = (!thread.length && exo.reponse_coach)
+      ? `<div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:4px;">
+          <div style="max-width:88%;padding:7px 11px;border-radius:12px 12px 4px 12px;background:#f97316;color:#fff;font-size:12px;line-height:1.45;">${exo.reponse_coach}</div>
+          <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">Coach</div>
+        </div>`
+      : '';
+
+    const canReply = currentSeanceStatut === 'validée';
+
+    return `<div style="margin-top:8px;">
+      <div style="font-size:9px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Conversation</div>
+      <div style="background:rgba(249,115,22,0.05);border:1px solid rgba(249,115,22,0.15);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;" id="thread-bubbles-${safeId}">
+        ${legacyReponse}${bubbles || ''}
+      </div>
+      ${canReply ? `<div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="thread-client-${safeId}" type="text" placeholder="Répondre au coach…"
+          style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;"
+          onkeydown="if(event.key==='Enter')sendClientThreadReply('${safeId}','${exo.id}')">
+        <button onclick="sendClientThreadReply('${safeId}','${exo.id}')"
+          style="padding:7px 12px;background:#f97316;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">↩</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  async function sendClientThreadReply(safeId, exoId) {
+    const input   = document.getElementById('thread-client-' + safeId);
+    const contenu = input?.value?.trim();
+    if (!contenu) return;
+    input.value = '';
+    input.disabled = true;
+
+    const { data: exoRow } = await db.from('seance_exercices')
+      .select('messages_thread').eq('id', exoId).single();
+
+    let thread = [];
+    try { thread = Array.isArray(exoRow?.messages_thread) ? exoRow.messages_thread : (exoRow?.messages_thread ? JSON.parse(exoRow.messages_thread) : []); } catch(e) {}
+
+    thread.push({ auteur: 'client', contenu, ts: new Date().toISOString() });
+
+    const { error } = await db.from('seance_exercices')
+      .update({ messages_thread: thread, reponse_lue: false })
+      .eq('id', exoId);
+
+    input.disabled = false;
+    if (error) { alert('Erreur : ' + error.message); return; }
+
+    // Mettre à jour les bulles localement sans recharger
+    const bubblesDiv = document.getElementById('thread-bubbles-' + safeId);
+    if (bubblesDiv) {
+      bubblesDiv.insertAdjacentHTML('beforeend',
+        `<div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:4px;">
+          <div style="max-width:88%;padding:7px 11px;border-radius:12px 12px 12px 4px;background:var(--surface3);color:var(--text);font-size:12px;line-height:1.45;">${contenu}</div>
+          <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">Moi</div>
+        </div>`);
+    }
+  }
+
+  // ── Tracking des valeurs saisies (oninput → map global) ──────
+  window._exoTrack = window._exoTrack || {};
+
+  function trackExoInput(inp, exoId, serie, field) {
+    const v = parseFloat(inp.value);
+    window._exoTrack[exoId + '|' + serie + '|' + field] = isNaN(v) ? null : v;
+    scheduleAutosave(exoId);
+  }
+
+  function getTracked(exoId, serie, field) {
+    const key = exoId + '|' + serie + '|' + field;
+    return Object.prototype.hasOwnProperty.call(window._exoTrack, key)
+      ? window._exoTrack[key]
+      : undefined;
+  }
+
+  // ── Sauvegarde continue (autosave) des séries/charges/commentaire ────
+  // Persiste les données saisies dans seance_exercices au fur et à mesure,
+  // indépendamment de la validation de la séance, pour qu'une cliente qui
+  // change de page sans valider ne perde jamais ce qu'elle a déjà entré.
+  window._autosaveTimers = window._autosaveTimers || {};
+
+  function getExoCard(exoId) {
+    return document.querySelector(`.exo-card[data-exo-id="${exoId}"]`);
+  }
+
+  // Sauvegarde différée (~900ms après la dernière saisie)
+  function scheduleAutosave(exoId) {
+    if (window._autosaveTimers[exoId]) clearTimeout(window._autosaveTimers[exoId]);
+    window._autosaveTimers[exoId] = setTimeout(() => {
+      delete window._autosaveTimers[exoId];
+      const card = getExoCard(exoId);
+      if (card) saveExoCardData(card);
+    }, 900);
+  }
+
+  // Sauvegarde immédiate (ex: quand le champ perd le focus)
+  function flushAutosave(exoId) {
+    if (window._autosaveTimers[exoId]) {
+      clearTimeout(window._autosaveTimers[exoId]);
+      delete window._autosaveTimers[exoId];
+    }
+    const card = getExoCard(exoId);
+    if (card) saveExoCardData(card);
+  }
+
+  // Collecte + persiste les données d'une carte exercice (séries, charges, commentaire)
+  async function saveExoCardData(card) {
+    const exoId = card?.dataset?.exoId;
+    if (!exoId) return;
+    const isUni = card.dataset.unilateral === 'true';
+
+    const seriesRows = card.querySelectorAll('.series-row');
+    const seriesData = [];
+    const domVal = inp => {
+      if (!inp) return null;
+      const v = parseFloat(inp.value);
+      return isNaN(v) ? null : v;
+    };
+    seriesRows.forEach((row, idx) => {
+      const s = idx + 1; // numéro de série (1-indexed)
+      if (isUni) {
+        const repsG  = getTracked(exoId, s, 'reps-g')  ?? domVal(row.querySelector('[data-field="reps-g"]'));
+        const repsD  = getTracked(exoId, s, 'reps-d')  ?? domVal(row.querySelector('[data-field="reps-d"]'));
+        const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
+        seriesData.push({ serie: s, reps_g: repsG ?? null, reps_d: repsD ?? null, charge: charge ?? null });
+      } else {
+        const reps   = getTracked(exoId, s, 'reps')    ?? domVal(row.querySelector('[data-field="reps"]'));
+        const charge = getTracked(exoId, s, 'charge')  ?? domVal(row.querySelector('[data-field="charge"]'));
+        seriesData.push({ serie: s, reps: reps ?? null, charge: charge ?? null });
+      }
+    });
+
+    // Valeurs résumées (max) pour compatibilité ascendante
+    const allCharges = seriesData.map(s => s.charge).filter(v => v !== null && v !== undefined);
+    const allReps    = seriesData.map(s => s.reps ?? s.reps_g ?? s.reps_d).filter(v => v !== null && v !== undefined);
+    const chargeReelle = allCharges.length ? Math.max(...allCharges) : null;
+    const repsReelles  = allReps.length    ? Math.max(...allReps)    : null;
+
+    // Commentaire client
+    const commentInput = card.querySelector('.exo-comment-input');
+    const notesClient = commentInput?.value?.trim() || null;
+
+    // Notification coach : on ne marque "non lu" que si la note a vraiment
+    // changé depuis le dernier rendu (sinon chaque autosave de séries/charges
+    // re-déclencherait l'alerte alors que la note elle-même n'a pas bougé).
+    window._exoInitialNote = window._exoInitialNote || {};
+    const initialNote = window._exoInitialNote[exoId] || '';
+    const noteChanged = (notesClient || '') !== initialNote;
+    if (noteChanged) window._exoInitialNote[exoId] = notesClient || '';
+
+    const hasData = seriesData.some(s => s.charge !== null || s.reps !== null || s.reps_g !== null || s.reps_d !== null);
+
+    const promises = [];
+
+    // Update 1 : colonnes stables (charge_reelle, reps_reelles, notes_client)
+    const baseUpdate = {};
+    if (chargeReelle !== null) baseUpdate.charge_reelle = chargeReelle;
+    if (repsReelles  !== null) baseUpdate.reps_reelles  = repsReelles;
+    if (notesClient)           baseUpdate.notes_client  = notesClient;
+    if (noteChanged && notesClient) baseUpdate.lu_coach = false;
+    if (Object.keys(baseUpdate).length > 0) {
+      // lu_coach peut ne pas encore exister si la migration SQL (section 27)
+      // n'a pas été exécutée — on retombe alors sur l'update sans ce champ
+      // pour ne pas perdre la sauvegarde des séries/charges/note.
+      promises.push((async () => {
+        const { error } = await db.from('seance_exercices').update(baseUpdate).eq('id', exoId);
+        if (error && 'lu_coach' in baseUpdate) {
+          const { lu_coach, ...withoutLuCoach } = baseUpdate;
+          await db.from('seance_exercices').update(withoutLuCoach).eq('id', exoId);
+        }
+      })());
+    }
+
+    // Update 2 : series_data (peut échouer si la colonne n'existe pas encore)
+    if (hasData) {
+      promises.push(db.from('seance_exercices').update({ series_data: seriesData }).eq('id', exoId));
+    }
+
+    if (promises.length) await Promise.allSettled(promises);
+  }
+
+  // ── Bouton principal : valider OU invalider selon le statut actuel ──
+  function onValidateBtnClick() {
+    if (currentSeanceStatut === 'validée') {
+      invalidateSession();
+    } else {
+      validateSession();
+    }
+  }
+
+  // ── Valider la séance — collecte les perfs avant de valider ────
+  async function validateSession() {
+    if (!currentSeanceId) return;
+    const btn = document.getElementById('validate-btn');
+    btn.disabled = true; btn.style.opacity = '0.6';
+    btn.textContent = 'Enregistrement…';
+
+    // 1. Sauvegarder les données saisies par exercice (mêmes données que l'autosave)
+    const exoCards = document.querySelectorAll('.exo-card[data-exo-id]');
+    await Promise.allSettled(Array.from(exoCards).map(card => saveExoCardData(card)));
+
+    // 2. Valider la séance
+    const { error } = await db.from('seances').update({ statut: 'validée' }).eq('id', currentSeanceId);
+    if (error) {
+      btn.disabled = false; btn.style.opacity = '1';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
+      alert('Erreur lors de la validation. Réessaie.');
+      return;
+    }
+    document.getElementById('success-overlay').classList.add('open');
+  }
+
+  // ── Invalider la séance — annule la validation si erreur de la cliente ──
+  async function invalidateSession() {
+    if (!currentSeanceId) return;
+    if (!confirm('Invalider cette séance ? Tu pourras de nouveau modifier tes données.')) return;
+
+    const btn = document.getElementById('validate-btn');
+    btn.disabled = true; btn.style.opacity = '0.6';
+
+    const { error } = await db.from('seances').update({ statut: 'planifiée' }).eq('id', currentSeanceId);
+    if (error) {
+      btn.disabled = false; btn.style.opacity = '1';
+      alert('Erreur lors de l\'invalidation. Réessaie.');
+      return;
+    }
+
+    currentSeanceStatut = 'planifiée';
+    await openSession(currentSeanceId);
+  }
+
+  async function closeSuccess() {
+    document.getElementById('success-overlay').classList.remove('open');
+    showScreen('screen-week');
+    await loadWeekSessions();
+  }
+
+  // ── UI helpers ───────────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function goBack() { showScreen('screen-week'); }
+
+  function toggleExo(header) {
+    const body  = header.nextElementSibling;
+    const arrow = header.querySelector('.exo-expand');
+    const isOpen = body.classList.contains('open');
+    document.querySelectorAll('.series-body').forEach(b => b.classList.remove('open'));
+    document.querySelectorAll('.exo-expand').forEach(a => a.classList.remove('open'));
+    if (!isOpen) { body.classList.add('open'); arrow.classList.add('open'); }
+  }
+
+  function toEmbedUrl(url) {
+    if (!url) return null;
+    // YouTube watch / shorts / youtu.be
+    const ytWatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+    if (ytWatch) return 'https://www.youtube.com/embed/' + ytWatch[1] + '?rel=0&modestbranding=1';
+    // Déjà un embed YouTube
+    if (url.includes('youtube.com/embed/')) return url;
+    // Vimeo — formats : vimeo.com/123456789 ou vimeo.com/123456789/hashprivé
+    const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+    if (vimeo) {
+      const videoId = vimeo[1];
+      const hash    = vimeo[2]; // présent pour les vidéos non répertoriées
+      const base    = 'https://player.vimeo.com/video/' + videoId + '?badge=0&autopause=0';
+      return hash ? base + '&h=' + hash : base;
+    }
+    // Déjà un embed Vimeo
+    if (url.includes('player.vimeo.com/video/')) return url;
+    return null; // URL non supportée pour iframe
+  }
+
+  function openVideoModal(title, desc, url) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-desc').textContent  = desc || '';
+    const zone = document.getElementById('modal-video-zone');
+    const embedUrl = toEmbedUrl(url);
+    if (embedUrl) {
+      zone.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media"></iframe>`;
+    } else if (url) {
+      // Lien direct (pas YouTube) : bouton pour ouvrir
+      zone.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:10px;color:rgba(255,255,255,0.8);text-decoration:none;padding:20px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span style="font-size:12px">Ouvrir la vidéo</span>
+      </a>`;
+    } else {
+      zone.innerHTML = `<svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    }
+    document.getElementById('modal-video').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-video').classList.remove('open');
+    // Stopper la vidéo en vidant l'iframe
+    const zone = document.getElementById('modal-video-zone');
+    zone.innerHTML = `<svg class="modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+  }
+
+  // ── Progress bar ──────────────────────────────────────────
+  function updateProgress() {
+    const cards = document.querySelectorAll('.exo-card');
+    const total = cards.length;
+    let done = 0;
+    cards.forEach(card => {
+      const inputs = card.querySelectorAll('.serie-input:not(.prescribed)');
+      if (inputs.length && Array.from(inputs).some(i => i.value.trim() !== '')) done++;
+    });
+    const fill  = document.getElementById('progress-fill');
+    const label = document.getElementById('progress-label');
+    if (fill)  fill.style.width = (total > 0 ? done / total * 100 : 0) + '%';
+    if (label) label.textContent = done + ' / ' + total + ' exercices';
+  }
+
+  // ── Rest timer ────────────────────────────────────────────
+  let restInterval = null;
+  let restSecs = 0;
+
+  function startRest(secs, label) {
+    if (restInterval) clearInterval(restInterval);
+    restSecs = secs;
+    document.getElementById('rest-label').textContent = label || 'Repos';
+    document.getElementById('rest-timer').classList.add('visible');
+    renderCountdown();
+    restInterval = setInterval(() => {
+      restSecs--;
+      if (restSecs <= 0) {
+        clearInterval(restInterval); restInterval = null;
+        document.getElementById('rest-timer').classList.remove('visible');
+        if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+      } else { renderCountdown(); }
+    }, 1000);
+  }
+
+  function renderCountdown() {
+    const m = Math.floor(restSecs / 60);
+    const s = restSecs % 60;
+    document.getElementById('rest-countdown').textContent = m + ':' + String(s).padStart(2, '0');
+  }
+
+  function stopRest() {
+    if (restInterval) { clearInterval(restInterval); restInterval = null; }
+    document.getElementById('rest-timer').classList.remove('visible');
+  }
+
+  function parseRest(card, type) {
+    if (type === 'side') return parseInt(card.dataset.restSide) || 45;
+    return parseInt(card.dataset.restSeries) || 90;
+  }
+
+  // Indicateur vert léger sur le numéro de l'exercice quand toutes les séries sont saisies
+  function updateExoNum(card) {
+    if (!card) return;
+    const isUni = card.dataset.unilateral === 'true';
+    const rows  = card.querySelectorAll('.series-row');
+    let allFilled = rows.length > 0;
+    for (const row of rows) {
+      if (isUni) {
+        const g = row.querySelector('[data-field="reps-g"]');
+        const d = row.querySelector('[data-field="reps-d"]');
+        if (!g?.value.trim() || !d?.value.trim()) { allFilled = false; break; }
+      } else {
+        const r = row.querySelector('[data-field="reps"]');
+        if (!r?.value.trim()) { allFilled = false; break; }
+      }
+    }
+    const num = card.querySelector('.exo-num');
+    if (num) num.classList.toggle('exo-done', allFilled);
+  }
+
+  // Exercice bilatéral
+  function checkDone(input) {
+    if (input.value) input.classList.add('done'); else input.classList.remove('done');
+    const row  = input.closest('.series-row');
+    const card = input.closest('.exo-card');
+    if (row) {
+      const rowInputs = row.querySelectorAll('.serie-input:not(.prescribed)');
+      // 1er exercice d'un super-set : pas de repos, on enchaîne direct sur le 2e
+      if (Array.from(rowInputs).every(i => i.value.trim() !== '') && card?.dataset.supersetRole !== 'first') {
+        startRest(parseRest(card, 'series'), 'Repos série');
+      }
+    }
+    updateExoNum(card);
+    updateProgress();
+  }
+
+  // Exercice unilatéral
+  function checkSide(input) {
+    if (input.value) input.classList.add('done'); else input.classList.remove('done');
+    const card = input.closest('.exo-card');
+    const row  = input.closest('.series-row');
+    const isSupersetFirst = card.dataset.supersetRole === 'first';
+    if (input.classList.contains('side-g') && input.value.trim() !== '') {
+      if (!isSupersetFirst) startRest(parseRest(card, 'side'), 'Repos côté');
+    } else if (input.classList.contains('side-d') && input.value.trim() !== '') {
+      const charge = row.querySelector('.serie-input:not(.prescribed):not(.side-g):not(.side-d)');
+      if ((!charge || charge.value.trim() !== '') && !isSupersetFirst) startRest(parseRest(card, 'series'), 'Repos série');
+    } else if (!input.classList.contains('side-g') && !input.classList.contains('side-d')) {
+      const sideD = row.querySelector('.side-d');
+      if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '' && !isSupersetFirst) {
+        startRest(parseRest(card, 'series'), 'Repos série');
+      }
+    }
+    updateExoNum(card);
+    updateProgress();
+  }
+
+  // ── Swipe semaine ─────────────────────────────────────────
+  let swipeX = 0, swipeY = 0;
+  const weekScreen = document.getElementById('screen-week');
+  weekScreen.addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; swipeY = e.touches[0].clientY; }, { passive: true });
+  weekScreen.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - swipeX;
+    const dy = e.changedTouches[0].clientY - swipeY;
+    if (Math.abs(dx) > 55 && Math.abs(dy) < 70) shiftWeek(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  // ── Score du jour : ring composite (habitudes + séances semaine) ──
+  function renderDayScoreGauge(pctOuter, pctInner, centerLabel) {
+    const cx = 60, cy = 60;
+    const arcFrac = 0.75;
+    function ring(r, sw, pct, color) {
+      const C = 2 * Math.PI * r;
+      const arcLen = C * arcFrac;
+      const emptyLen = C - arcLen;
+      const p = Math.min(Math.max(pct, 0), 1);
+      const fillLen = p * arcLen;
+      return `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="${sw}"
+        stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"
+        stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>
+      <circle class="gauge-fill" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
+        stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"
+        stroke-dashoffset="${arcLen.toFixed(1)}" data-target="${(arcLen - fillLen).toFixed(1)}"
+        style="transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) 0.15s;"
+        stroke-linecap="round" transform="rotate(135 ${cx} ${cy})"/>`;
+    }
+    const fontSize = centerLabel.length >= 4 ? 20 : 24;
+    return `<svg viewBox="0 0 120 120" width="84" height="84" style="display:block">
+      ${ring(50, 10, pctOuter, '#C4B5FD')}
+      ${ring(37, 9, pctInner, '#FFFFFF')}
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+        font-size="${fontSize}" font-weight="800" fill="#ffffff"
+        font-family="Inter,-apple-system,sans-serif">${centerLabel}</text>
+    </svg>`;
+  }
+
+  function isHabitDoneSimple(valeur, type) {
+    if (type === 'oui-non') return valeur === 'oui';
+    return valeur !== null && valeur !== undefined && valeur !== '';
+  }
+
+  async function loadDayScore() {
+    if (!SESSION) return;
+    const today = new Date();
+    const todayStr = toLocalDateStr(today);
+
+    // Semaine ISO en cours (lundi → dimanche)
+    const dow = today.getDay();
+    const diffToMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today); monday.setDate(today.getDate() + diffToMonday);
+    const weekStart = toLocalDateStr(monday);
+
+    // ── Habitudes : moyenne de progression de chaque habitude vs son objectif (semaine en cours) ──
+    let habitsPct = null;
+    const { data: habitudes } = await db.from('client_habitudes').select('*').eq('client_id', SESSION.client_id);
+    if (habitudes && habitudes.length) {
+      const ids = habitudes.map(h => h.id);
+      const { data: valeurs } = await db.from('habitude_valeurs').select('*')
+        .in('habitude_id', ids).gte('date', weekStart).lte('date', todayStr);
+      const valeursMap = {};
+      (valeurs || []).forEach(v => {
+        if (!valeursMap[v.habitude_id]) valeursMap[v.habitude_id] = {};
+        valeursMap[v.habitude_id][v.date] = v.valeur;
+      });
+      let sumPct = 0;
+      habitudes.forEach(h => {
+        const type = h.type || 'oui-non';
+        const fc = h.frequence_count || 1;
+        const fu = h.frequence_unite || 'jour';
+        const map = valeursMap[h.id] || {};
+        let current = 0, target = 1;
+        if (fu === 'jour') {
+          target = fc;
+          current = fc > 1 ? (parseFloat(map[todayStr]) || 0) : (isHabitDoneSimple(map[todayStr], type) ? 1 : 0);
+        } else {
+          target = fu === 'semaine' ? fc : Math.max(1, Math.round(fc / 4)); // mois → ramené à la semaine
+          let count = 0;
+          for (let d = new Date(monday); d <= today; d.setDate(d.getDate() + 1)) {
+            const ds = toLocalDateStr(d);
+            if (isHabitDoneSimple(map[ds], type)) count++;
+          }
+          current = count;
+        }
+        sumPct += Math.min(1, target ? current / target : 0);
+      });
+      habitsPct = sumPct / habitudes.length;
+    }
+
+    // ── Séances : validées / programmées cette semaine (jusqu'à aujourd'hui) ──
+    const { data: seances } = await db.from('seances').select('date,statut')
+      .eq('client_id', SESSION.client_id).gte('date', weekStart).lte('date', todayStr);
+    let seancesPct = 1;
+    if (seances && seances.length) {
+      const valid = seances.filter(s => s.statut === 'validée').length;
+      seancesPct = valid / seances.length;
+    }
+
+    // ── Score combiné ──
+    const parts = habitsPct !== null ? [habitsPct, seancesPct] : [seancesPct];
+    const combined = parts.reduce((a, b) => a + b, 0) / parts.length;
+
+    const svgEl = document.getElementById('day-score-svg');
+    if (svgEl) {
+      svgEl.innerHTML = renderDayScoreGauge(habitsPct ?? seancesPct, seancesPct, Math.round(combined * 100) + '%');
+      svgEl.querySelectorAll('.gauge-fill').forEach(c => {
+        requestAnimationFrame(() => requestAnimationFrame(() => { c.style.strokeDashoffset = c.dataset.target; }));
+      });
+    }
+    const habitsEl = document.getElementById('dss-habits');
+    if (habitsEl) habitsEl.textContent = habitsPct === null ? '—' : Math.round(habitsPct * 100) + '%';
+    const seancesEl = document.getElementById('dss-seances');
+    if (seancesEl) seancesEl.textContent = Math.round(seancesPct * 100) + '%';
+
+    // ── Conseil du jour (généré par règles) ──
+    let insight = '';
+    if (habitsPct !== null && habitsPct < 0.5 && habitsPct <= seancesPct) {
+      insight = `Tes habitudes ont pris du retard cette semaine (${Math.round(habitsPct * 100)}%) — un petit geste aujourd'hui peut relancer la dynamique.`;
+    } else if (seancesPct < 0.5 && (habitsPct === null || seancesPct < habitsPct)) {
+      insight = `Quelques séances ont été manquées cette semaine (${Math.round(seancesPct * 100)}%) — à toi de jouer pour la suite.`;
+    } else if (combined < 0.8) {
+      insight = `Bonne dynamique cette semaine (${Math.round(combined * 100)}%) — encore un peu d'effort pour finir fort.`;
+    }
+    const insightEl = document.getElementById('day-insight');
+    if (insightEl) {
+      if (insight) { insightEl.textContent = insight; insightEl.style.display = 'block'; }
+      else { insightEl.style.display = 'none'; }
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────
+  if (SESSION) {
+    const av = document.querySelector('.avatar');
+    if (av) av.textContent = SESSION.prenom.charAt(0).toUpperCase();
+    const greet = document.getElementById('week-greeting');
+    if (greet) greet.textContent = 'Bonjour ' + SESSION.prenom;
+  }
+  updateWeekLabel();
+  loadWeekSessions();
+  loadClientDriveUrl();
+  loadDayScore();
+</script>
+</body>
+</html>

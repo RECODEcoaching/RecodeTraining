@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ttzxfspjzupefzufgfro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0enhmc3BqenVwZWZ6dWZnZnJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzUzMjEsImV4cCI6MjA5NTAxMTMyMX0.3WA2i1t6QAMxFuIjODrGSgl8T1fufIoxufYbDFTM6GU';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
+function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
+function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+// Vérifie (async, non bloquant) que le compte n'a pas été désactivé par le coach.
+// Si désactivé : déconnecte et redirige vers login.html avec un message.
+function checkAccountActive(session){
+  if (!session) return;
+  db.from('clients').select('actif').eq('id', session.client_id).single().then(({data}) => {
+    if (data && data.actif === false) {
+      localStorage.removeItem('recode_session');
+      window.location.href = 'login.html?desactive=1';
+    }
+  }).catch(()=>{});
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RECODE Training — Profil</title>
+
+<!-- PWA / Ajout à l'écran d'accueil -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6D28D9">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RECODE">
+<style>
+  :root {
+    --bg: #F6F6F8;
+    --surface: #FFFFFF;
+    --surface2: #F2F2F5;
+    --surface3: #E8E8ED;
+    --accent: #6D28D9;
+    --accent-mid: #8B5CF6;
+    --accent-bg: rgba(109,40,217,0.09);
+    --accent-bg-soft: rgba(109,40,217,0.05);
+    --accent-light: rgba(109,40,217,0.08);
+    --text: #111827;
+    --text-muted: #6B7280;
+    --text-dim: #9CA3AF;
+    --danger: #DC2626;
+    --success: #16A34A;
+    --radius: 12px;
+    --border: rgba(0,0,0,0.07);
+    --border-md: rgba(0,0,0,0.10);
+    --transition: 0.15s ease;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; max-width: 430px; margin: 0 auto; overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 14px; position: sticky; top: 0;
+    background: var(--surface); z-index: 100; border-bottom: 1px solid var(--border);
+  }
+  .app-logo { font-size: 18px; font-weight: 800; }
+  .app-logo span { color: var(--accent); }
+
+  /* ── PHOTO HERO ── */
+  .profile-hero {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 20px 28px; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
+  }
+  .profile-hero::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); pointer-events: none;
+  }
+  .profile-hero::after {
+    content: ''; position: absolute; bottom: -20px; left: -10px;
+    width: 90px; height: 90px; border-radius: 50%;
+    background: rgba(255,255,255,0.04); pointer-events: none;
+  }
+  .profile-hero-logo {
+    position: absolute; top: -30px; left: -50px; z-index: 0;
+    width: 220px; height: 280px;
+    background-image: url('Logo.png'); background-repeat: no-repeat;
+    background-size: contain; background-position: center;
+    filter: brightness(0) invert(1);
+    opacity: 0.10; pointer-events: none;
+  }
+  .photo-wrap {
+    position: relative; width: 88px; height: 88px; margin-bottom: 14px; cursor: pointer; z-index: 1;
+    transition: var(--transition);
+  }
+  .photo-wrap:active { transform: scale(0.95); }
+  .photo-circle {
+    width: 88px; height: 88px; border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 800; color: #fff;
+    overflow: hidden; border: 2.5px solid rgba(255,255,255,0.35);
+  }
+  .photo-circle img {
+    width: 100%; height: 100%; object-fit: cover; display: none; border-radius: 50%;
+  }
+  .photo-edit-btn {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #fff; color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 2;
+  }
+  #photo-input { display: none; }
+
+  .profile-name {
+    font-size: 20px; font-weight: 700; margin-bottom: 4px; color: #fff; z-index: 1; position: relative;
+  }
+  .profile-email {
+    font-size: 13px; color: rgba(255,255,255,0.65); z-index: 1; position: relative;
+  }
+  .profile-badge {
+    margin-top: 10px; padding: 4px 14px; border-radius: 20px;
+    background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+    font-size: 12px; font-weight: 700; z-index: 1; position: relative;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ── SECTIONS ── */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.6px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding: 20px 20px 10px;
+  }
+
+  /* ── INFO CARD ── */
+  .info-card {
+    margin: 0 20px 16px;
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
+  }
+  .info-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; border-bottom: 1px solid var(--bg);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+  .info-val { font-size: 14px; font-weight: 700; color: var(--text); text-align: right; max-width: 200px; }
+
+  /* ── ACTION ROWS ── */
+  .action-card {
+    margin: 0 20px 16px;
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
+  }
+  .action-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; cursor: pointer; transition: var(--transition);
+    border-bottom: 1px solid var(--border);
+  }
+  .action-row:last-child { border-bottom: none; }
+  .action-row:active { background: var(--surface2); }
+  .action-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  .action-icon.purple { background: var(--accent-bg); color: var(--accent); }
+  .action-icon.red { background: rgba(220,38,38,0.08); color: var(--danger); }
+  .action-label { flex: 1; font-size: 14px; font-weight: 500; }
+  .action-label.red { color: var(--danger); }
+  .action-chevron { color: var(--text-dim); display: flex; align-items: center; }
+
+  /* ── CHANGE PIN MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: var(--surface); border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 430px; padding: 24px 24px 48px;
+    box-shadow: 0 -4px 40px rgba(0,0,0,0.12);
+  }
+  .modal-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--surface3); margin: 0 auto 20px; }
+  .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+  .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+  .pin-d {
+    width: 56px; height: 64px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--surface2);
+    font-size: 26px; font-weight: 800; text-align: center; outline: none;
+    font-family: inherit; color: var(--text); caret-color: var(--accent);
+    transition: border-color var(--transition), box-shadow var(--transition);
+    -webkit-appearance: none;
+  }
+  .pin-d:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+  .pin-d.filled { background: var(--surface); border-color: var(--accent); }
+  .btn-primary {
+    width: 100%; padding: 14px; border-radius: var(--radius);
+    background: var(--accent); color: #fff;
+    font-size: 16px; font-weight: 800; border: none; cursor: pointer;
+    font-family: inherit; box-shadow: 0 4px 14px rgba(109,40,217,0.28);
+    transition: opacity 0.15s;
+  }
+  .btn-primary:active { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; box-shadow: none; }
+  .btn-ghost {
+    width: 100%; padding: 14px; border-radius: var(--radius);
+    background: transparent; color: var(--text-muted);
+    font-size: 15px; font-weight: 600; border: none; cursor: pointer;
+    margin-top: 8px; font-family: inherit;
+  }
+  .success-msg {
+    display: none; text-align: center; padding: 12px;
+    background: #F0FFF4; border-radius: 10px; color: var(--success);
+    font-weight: 700; font-size: 14px; margin-bottom: 12px;
+  }
+  .success-msg.show { display: block; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: #1D1D1F; color: #fff; padding: 12px 20px;
+    border-radius: 20px; font-size: 14px; font-weight: 600;
+    opacity: 0; transition: opacity 0.2s; z-index: 300; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── CARTE PLAN / NOTION ── */
+  .plan-card {
+    margin: 0 20px 16px;
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.04);
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px; cursor: pointer; transition: var(--transition);
+    text-decoration: none; color: inherit;
+  }
+  .plan-card:active { background: var(--surface2); transform: scale(0.99); }
+  .plan-card-icon {
+    width: 42px; height: 42px; border-radius: 11px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .plan-card-icon.purple { background: var(--accent-bg); color: var(--accent); }
+  .plan-card-icon.dark   { background: #1D1D1F; color: #fff; }
+  .plan-card-body { flex: 1; }
+  .plan-card-title { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .plan-card-sub   { font-size: 12px; color: var(--text-muted); }
+  .plan-card-arrow { color: var(--text-dim); }
+
+  /* ── MODAL PLAN PLEIN ÉCRAN ── */
+  .plan-modal {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    flex-direction: column; background: #fff;
+  }
+  .plan-modal.open { display: flex; }
+  .plan-modal-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 1;
+    min-height: 56px;
+  }
+  .plan-modal-close {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--surface2); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text); flex: 0 0 auto;
+  }
+  .plan-modal-title {
+    font-size: 16px; font-weight: 700; flex: 1;
+  }
+  .plan-modal-body {
+    flex: 1; overflow: hidden;
+  }
+  .plan-modal-body iframe {
+    width: 100%; height: 100%; border: none; display: block;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .pb-nav { height: 100px; }
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; padding: 6px 0;
+    cursor: pointer; position: relative;
+  }
+  .nav-item.active::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent);
+  }
+  .nav-icon  { width: 22px; height: 22px; color: var(--text-dim); transition: color var(--transition); }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); transition: color var(--transition); }
+  .nav-item.active .nav-icon  { color: var(--accent); }
+  .nav-item.active .nav-label { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <img src="Logo.png" alt="RECODE" style="height:28px;">
+  <div style="font-size:13px; color:var(--text-muted); font-weight:600;">Mon profil</div>
+</div>
+
+<!-- PHOTO + NOM -->
+<div class="profile-hero">
+  <div class="profile-hero-logo"></div>
+  <div class="photo-wrap" onclick="document.getElementById('photo-input').click()">
+    <div class="photo-circle" id="photo-circle">
+      <span id="photo-initial">?</span>
+      <img id="photo-img" alt="Photo de profil">
+    </div>
+    <div class="photo-edit-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </div>
+  </div>
+  <input type="file" id="photo-input" accept="image/*" onchange="onPhotoChange(event)">
+
+  <div class="profile-name" id="profile-name">—</div>
+  <div class="profile-email" id="profile-email">—</div>
+  <div class="profile-badge" id="profile-badge">Cliente RECODE</div>
+</div>
+
+<!-- INFOS -->
+<div class="section-label">Mes informations</div>
+<div class="info-card">
+  <div class="info-row">
+    <span class="info-label">Prénom</span>
+    <span class="info-val" id="info-prenom">—</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">E-mail</span>
+    <span class="info-val" id="info-email" style="font-size:13px;">—</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Membre depuis</span>
+    <span class="info-val" id="info-since">—</span>
+  </div>
+</div>
+
+<!-- MON PROGRAMME + ESPACE COLLECTIF -->
+<div id="section-plan" style="display:none;">
+  <div class="section-label">Mon coach</div>
+
+  <!-- Carte Mon programme -->
+  <div class="plan-card" id="card-plan" onclick="openPlanModal()">
+    <div class="plan-card-icon purple">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+    </div>
+    <div class="plan-card-body">
+      <div class="plan-card-title">Mon programme</div>
+      <div class="plan-card-sub">Consulter mon plan personnalisé</div>
+    </div>
+    <div class="plan-card-arrow">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+  <!-- Carte Espace collectif Notion -->
+  <div class="plan-card" id="card-notion" style="display:none;" onclick="openNotionLink()">
+    <div class="plan-card-icon dark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/></svg>
+    </div>
+    <div class="plan-card-body">
+      <div class="plan-card-title">Espace collectif</div>
+      <div class="plan-card-sub">Accéder aux ressources partagées</div>
+    </div>
+    <div class="plan-card-arrow">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </div>
+  </div>
+
+  <!-- Carte Drive vidéos -->
+  <div class="plan-card" id="card-drive" style="display:none;" onclick="openDriveLink()">
+    <div class="plan-card-icon" style="background:rgba(16,185,129,0.10);color:#059669;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+    <div class="plan-card-body">
+      <div class="plan-card-title">Mon Drive vidéos</div>
+      <div class="plan-card-sub">Déposer mes vidéos de séance</div>
+    </div>
+    <div class="plan-card-arrow">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIONS -->
+<div class="section-label">Compte</div>
+<div class="action-card">
+  <div class="action-row" onclick="openChangePIN()">
+    <div class="action-icon purple">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div class="action-label">Changer mon PIN</div>
+    <div class="action-chevron">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+  <div class="action-row" onclick="confirmLogout()">
+    <div class="action-icon red">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </div>
+    <div class="action-label red">Se déconnecter</div>
+    <div class="action-chevron" style="color:var(--danger)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+</div>
+
+<div class="pb-nav"></div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item" onclick="window.location.href='module1_seance.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+    <span class="nav-label">Séances</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module2_perfs.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+    <span class="nav-label">Perfs</span>
+  </div>
+  <div class="nav-item" onclick="window.location.href='module3_metriques.html'">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span class="nav-label">Suivi</span>
+  </div>
+  <div class="nav-item active">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <span class="nav-label">Profil</span>
+  </div>
+</div>
+
+<!-- MODAL PLAN PLEIN ÉCRAN -->
+<div class="plan-modal" id="modal-plan">
+  <div class="plan-modal-header">
+    <button class="plan-modal-close" onclick="closePlanModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="plan-modal-title">Mon programme</div>
+  </div>
+  <div class="plan-modal-body">
+    <iframe id="plan-iframe" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+  </div>
+</div>
+
+<!-- MODAL CHANGER PIN -->
+<div class="modal-overlay" id="modal-pin">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Changer mon PIN</div>
+    <div class="modal-sub">Choisis un nouveau code à 4 chiffres. Tu l'utiliseras à chaque connexion.</div>
+    <div class="success-msg" id="pin-success">PIN mis à jour ✓</div>
+    <div class="pin-row">
+      <input class="pin-d" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pd(this,0)" onkeydown="pb(event,this,0)">
+      <input class="pin-d" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pd(this,1)" onkeydown="pb(event,this,1)">
+      <input class="pin-d" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pd(this,2)" onkeydown="pb(event,this,2)">
+      <input class="pin-d" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pd(this,3)" onkeydown="pb(event,this,3)">
+    </div>
+    <button class="btn-primary" id="btn-save-pin" onclick="saveNewPin()" disabled>Enregistrer →</button>
+    <button class="btn-ghost" onclick="closeModal()">Annuler</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Init ───────────────────────────────────────────────────
+const SESSION = requireAuth();
+checkAccountActive(SESSION);
+const pds = document.querySelectorAll('.pin-d');
+
+let _notionUrl = '';
+let _driveUrl = '';
+
+async function loadProfile() {
+  if (!SESSION) return;
+
+  // Afficher les infos depuis la session
+  document.getElementById('profile-name').textContent = SESSION.prenom;
+  document.getElementById('profile-email').textContent = SESSION.email;
+  document.getElementById('photo-initial').textContent = SESSION.prenom.charAt(0).toUpperCase();
+  document.getElementById('info-prenom').textContent = SESSION.prenom;
+  document.getElementById('info-email').textContent = SESSION.email;
+
+  // Photo depuis localStorage
+  const savedPhoto = localStorage.getItem('recode_photo_' + SESSION.client_id);
+  if (savedPhoto) showPhoto(savedPhoto);
+
+  // Date d'inscription + plan HTML + Drive URL depuis Supabase
+  const { data } = await db.from('clients').select('created_at, objectif, plan_html, drive_url').eq('id', SESSION.client_id).single();
+  if (data) {
+    const d = new Date(data.created_at);
+    document.getElementById('info-since').textContent = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    if (data.objectif) document.getElementById('profile-badge').textContent = data.objectif;
+
+    // Afficher la carte "Mon programme" si le coach a défini un plan
+    if (data.plan_html) {
+      document.getElementById('card-plan').dataset.planHtml = data.plan_html;
+      document.getElementById('section-plan').style.display = 'block';
+    }
+
+    // Afficher la carte Drive si le coach a renseigné une URL
+    if (data.drive_url) {
+      _driveUrl = data.drive_url;
+      document.getElementById('card-drive').style.display = 'flex';
+      document.getElementById('section-plan').style.display = 'block';
+    }
+  }
+
+  // Notion URL globale
+  try {
+    const { data: setting } = await db.from('app_settings').select('value').eq('key', 'notion_collectif_url').maybeSingle();
+    if (setting && setting.value) {
+      _notionUrl = setting.value;
+      document.getElementById('card-notion').style.display = 'flex';
+      document.getElementById('section-plan').style.display = 'block';
+    }
+  } catch(e) { /* table pas encore créée — silencieux */ }
+}
+
+// ── Plan personnalisé ──────────────────────────────────────
+function openPlanModal() {
+  const card = document.getElementById('card-plan');
+  const html = card.dataset.planHtml || '';
+  if (!html) return;
+  const iframe = document.getElementById('plan-iframe');
+  iframe.srcdoc = html;
+  document.getElementById('modal-plan').classList.add('open');
+  // Bloquer le scroll de la page derrière
+  document.body.style.overflow = 'hidden';
+}
+
+function closePlanModal() {
+  document.getElementById('modal-plan').classList.remove('open');
+  document.body.style.overflow = '';
+  // Vider l'iframe pour libérer les ressources
+  const iframe = document.getElementById('plan-iframe');
+  iframe.srcdoc = '';
+}
+
+function openNotionLink() {
+  if (_notionUrl) window.open(_notionUrl, '_blank', 'noopener');
+}
+
+function openDriveLink() {
+  if (_driveUrl) window.open(_driveUrl, '_blank', 'noopener');
+}
+
+// ── Photo de profil ────────────────────────────────────────
+function onPhotoChange(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const base64 = ev.target.result;
+    localStorage.setItem('recode_photo_' + SESSION.client_id, base64);
+    showPhoto(base64);
+    toast('Photo mise à jour ✓');
+  };
+  reader.readAsDataURL(file);
+}
+
+function showPhoto(src) {
+  const img = document.getElementById('photo-img');
+  const initial = document.getElementById('photo-initial');
+  img.src = src;
+  img.style.display = 'block';
+  initial.style.display = 'none';
+}
+
+// ── Changer PIN ────────────────────────────────────────────
+function openChangePIN() {
+  pds.forEach(p => { p.value = ''; p.classList.remove('filled'); });
+  document.getElementById('btn-save-pin').disabled = true;
+  document.getElementById('pin-success').classList.remove('show');
+  document.getElementById('modal-pin').classList.add('open');
+  pds[0].focus();
+}
+
+function closeModal() {
+  document.getElementById('modal-pin').classList.remove('open');
+}
+
+function pd(input, idx) {
+  input.value = input.value.replace(/\D/g, '').slice(-1);
+  input.classList.toggle('filled', input.value !== '');
+  if (input.value && idx < pds.length - 1) pds[idx + 1].focus();
+  document.getElementById('btn-save-pin').disabled =
+    Array.from(pds).map(p => p.value).join('').length < 4;
+}
+function pb(e, input, idx) {
+  if (e.key === 'Backspace' && !input.value && idx > 0) {
+    pds[idx - 1].focus(); pds[idx - 1].value = ''; pds[idx - 1].classList.remove('filled');
+    document.getElementById('btn-save-pin').disabled = true;
+  }
+}
+
+async function saveNewPin() {
+  const newPin = Array.from(pds).map(p => p.value).join('');
+  if (newPin.length < 4) return;
+
+  const btn = document.getElementById('btn-save-pin');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+  // Mise à jour sécurisée du PIN via fonction serveur (RPC)
+  const { data, error } = await db.rpc('rpc_set_pin', { p_client_id: SESSION.client_id, p_pin: newPin });
+
+  btn.disabled = false; btn.textContent = 'Enregistrer →';
+
+  if (error || !data) { alert('Erreur : ' + (error ? error.message : 'échec de la mise à jour')); return; }
+
+  document.getElementById('pin-success').classList.add('show');
+  setTimeout(() => closeModal(), 1500);
+}
+
+// ── Déconnexion ────────────────────────────────────────────
+function confirmLogout() {
+  if (confirm('Se déconnecter de RECODE Training ?')) {
+    logout();
+  }
+}
+
+// ── Toast ──────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Lancement ─────────────────────────────────────────────
+loadProfile();
+</script>
+</body>
+</html>
