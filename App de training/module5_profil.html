@@ -357,6 +357,16 @@ function checkAccountActive(session){
   </div>
 </div>
 
+<!-- VIDÉO DE PRÉSENTATION DE L'APP -->
+<div id="section-app-video" style="display:none;margin:0 0 18px;">
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;padding:0 4px;">Présentation de l'app</div>
+  <div style="border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:#000;">
+    <iframe id="app-video-iframe" src="" frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen style="width:100%;height:100%;display:block;"></iframe>
+  </div>
+</div>
+
 <!-- MON PROGRAMME + ESPACE COLLECTIF -->
 <div id="section-plan" style="display:none;">
   <div class="section-label">Mon coach</div>
@@ -408,6 +418,16 @@ function checkAccountActive(session){
     </div>
     <div class="plan-card-arrow">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </div>
+  </div>
+
+  <!-- Vidéo du plan personnalisé -->
+  <div id="section-plan-video" style="display:none;margin-top:16px;">
+    <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;padding:0 4px;">Vidéo de ton plan</div>
+    <div style="border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:#000;">
+      <iframe id="plan-video-iframe" src="" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen style="width:100%;height:100%;display:block;"></iframe>
     </div>
   </div>
 </div>
@@ -512,6 +532,18 @@ const pds = document.querySelectorAll('.pin-d');
 let _notionUrl = '';
 let _driveUrl = '';
 
+function toEmbedUrl(url) {
+  if (!url) return null;
+  // YouTube watch
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return 'https://www.youtube.com/embed/' + yt[1];
+  // Vimeo
+  const vi = url.match(/vimeo\.com\/(\d+)/);
+  if (vi) return 'https://player.vimeo.com/video/' + vi[1];
+  // Déjà une URL embed ou autre — on retourne tel quel
+  return url;
+}
+
 async function loadProfile() {
   if (!SESSION) return;
 
@@ -526,8 +558,8 @@ async function loadProfile() {
   const savedPhoto = localStorage.getItem('recode_photo_' + SESSION.client_id);
   if (savedPhoto) showPhoto(savedPhoto);
 
-  // Date d'inscription + plan HTML + Drive URL depuis Supabase
-  const { data } = await db.from('clients').select('created_at, objectif, plan_html, drive_url').eq('id', SESSION.client_id).single();
+  // Date d'inscription + plan HTML + Drive URL + vidéo plan depuis Supabase
+  const { data } = await db.from('clients').select('created_at, objectif, plan_html, drive_url, video_plan_url').eq('id', SESSION.client_id).single();
   if (data) {
     const d = new Date(data.created_at);
     document.getElementById('info-since').textContent = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -545,15 +577,36 @@ async function loadProfile() {
       document.getElementById('card-drive').style.display = 'flex';
       document.getElementById('section-plan').style.display = 'block';
     }
+
+    // Vidéo plan personnalisée
+    if (data.video_plan_url) {
+      const embedUrl = toEmbedUrl(data.video_plan_url);
+      if (embedUrl) {
+        document.getElementById('plan-video-iframe').src = embedUrl;
+        document.getElementById('section-plan-video').style.display = 'block';
+        document.getElementById('section-plan').style.display = 'block';
+      }
+    }
   }
 
-  // Notion URL globale
+  // Réglages globaux (Notion + vidéo app)
   try {
-    const { data: setting } = await db.from('app_settings').select('value').eq('key', 'notion_collectif_url').maybeSingle();
-    if (setting && setting.value) {
-      _notionUrl = setting.value;
-      document.getElementById('card-notion').style.display = 'flex';
-      document.getElementById('section-plan').style.display = 'block';
+    const { data: settings } = await db.from('app_settings').select('key, value');
+    if (settings) {
+      const notion = settings.find(s => s.key === 'notion_collectif_url');
+      if (notion?.value) {
+        _notionUrl = notion.value;
+        document.getElementById('card-notion').style.display = 'flex';
+        document.getElementById('section-plan').style.display = 'block';
+      }
+      const appVideo = settings.find(s => s.key === 'app_intro_video_url');
+      if (appVideo?.value) {
+        const embedUrl = toEmbedUrl(appVideo.value);
+        if (embedUrl) {
+          document.getElementById('app-video-iframe').src = embedUrl;
+          document.getElementById('section-app-video').style.display = 'block';
+        }
+      }
     }
   } catch(e) { /* table pas encore créée — silencieux */ }
 }
