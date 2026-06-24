@@ -536,12 +536,12 @@ let _driveUrl = '';
 
 function toEmbedUrl(url) {
   if (!url) return null;
-  // YouTube watch
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  if (yt) return 'https://www.youtube.com/embed/' + yt[1];
+  // YouTube watch / youtu.be / Shorts
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return 'https://www.youtube-nocookie.com/embed/' + yt[1] + '?autoplay=1&rel=0';
   // Vimeo
   const vi = url.match(/vimeo\.com\/(\d+)/);
-  if (vi) return 'https://player.vimeo.com/video/' + vi[1];
+  if (vi) return 'https://player.vimeo.com/video/' + vi[1] + '?autoplay=1';
   // Déjà une URL embed ou autre — on retourne tel quel
   return url;
 }
@@ -731,14 +731,15 @@ function openVideoProfilModal(type) {
   if (!url) return;
   const zone = document.getElementById('profil-video-modal-zone');
   zone.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    style="width:100%;height:100%;display:block;"></iframe>`;
+    allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+    style="width:100%;height:100%;display:block;border:none;"></iframe>`;
   document.getElementById('profil-video-modal').classList.add('open');
 }
 
 function closeVideoProfilModal() {
   document.getElementById('profil-video-modal').classList.remove('open');
-  document.getElementById('profil-video-modal-zone').innerHTML = '';
+  const zone = document.getElementById('profil-video-modal-zone');
+  zone.innerHTML = '<svg class="video-modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
 }
 
 // ── Lancement ─────────────────────────────────────────────
@@ -746,14 +747,38 @@ loadProfile();
 </script>
 
 <!-- MODALE VIDÉO -->
-<div id="profil-video-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.93);flex-direction:column;align-items:center;justify-content:center;" onclick="closeVideoProfilModal()">
-  <div style="position:relative;width:100%;max-width:480px;aspect-ratio:16/9;" onclick="event.stopPropagation()">
-    <div id="profil-video-modal-zone" style="width:100%;height:100%;"></div>
+<div class="video-modal-overlay" id="profil-video-modal" onclick="closeVideoProfilModal()">
+  <div class="video-modal-box" onclick="event.stopPropagation()">
+    <div class="video-modal-zone" id="profil-video-modal-zone">
+      <svg class="video-modal-play-icon" width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </div>
+    <button class="video-modal-close" onclick="closeVideoProfilModal()">Fermer</button>
   </div>
-  <button onclick="closeVideoProfilModal()" style="margin-top:20px;background:rgba(255,255,255,0.12);border:none;color:#fff;padding:10px 24px;border-radius:20px;font-size:14px;cursor:pointer;">Fermer</button>
 </div>
 <style>
-#profil-video-modal.open { display: flex !important; }
+.video-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 300;
+  align-items: center; justify-content: center;
+  flex-direction: column; padding: 20px;
+}
+.video-modal-overlay.open { display: flex; }
+.video-modal-box {
+  background: var(--surface); border-radius: 16px;
+  width: 100%; max-width: 400px; overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+}
+.video-modal-zone {
+  width: 100%; aspect-ratio: 16/9; background: #111;
+  display: flex; align-items: center; justify-content: center;
+}
+.video-modal-zone iframe { width: 100%; height: 100%; border: none; }
+.video-modal-play-icon { color: rgba(255,255,255,0.25); }
+.video-modal-close {
+  width: 100%; padding: 14px; background: var(--surface2);
+  border: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
+  cursor: pointer; border-top: 1px solid var(--border); font-family: inherit;
+}
 </style>
 
 </body>
