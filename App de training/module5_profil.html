@@ -536,14 +536,18 @@ let _driveUrl = '';
 
 function toEmbedUrl(url) {
   if (!url) return null;
-  // YouTube watch / youtu.be / Shorts
-  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  if (yt) return 'https://www.youtube-nocookie.com/embed/' + yt[1] + '?autoplay=1&rel=0';
-  // Vimeo
-  const vi = url.match(/vimeo\.com\/(\d+)/);
-  if (vi) return 'https://player.vimeo.com/video/' + vi[1] + '?autoplay=1';
-  // Déjà une URL embed ou autre — on retourne tel quel
-  return url;
+  // YouTube watch / shorts / youtu.be
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+  if (yt) return 'https://www.youtube.com/embed/' + yt[1] + '?rel=0&modestbranding=1';
+  if (url.includes('youtube.com/embed/')) return url;
+  // Vimeo — public (vimeo.com/ID) ou privé (vimeo.com/ID/HASH)
+  const vi = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+  if (vi) {
+    const base = 'https://player.vimeo.com/video/' + vi[1] + '?badge=0&autopause=0';
+    return vi[2] ? base + '&h=' + vi[2] : base;
+  }
+  if (url.includes('player.vimeo.com/video/')) return url;
+  return null;
 }
 
 async function loadProfile() {
