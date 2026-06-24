@@ -2298,8 +2298,8 @@ function openLog(metriqueId, name, unit, lastVal, type, cible) {
     : 'Aucune valeur enregistrée';
   const input = document.getElementById('log-input');
   if (type === 'score5') {
-    sub += ' · Échelle de 1 à 5';
-    input.min = '1'; input.max = '5'; input.step = '1';
+    sub += ' · Échelle de 0 à 5';
+    input.min = '0'; input.max = '5'; input.step = '1';
   } else if (type === 'objectif' && cible) {
     sub += ` · Objectif : ${cible} ${unit}`;
     input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
@@ -2309,7 +2309,7 @@ function openLog(metriqueId, name, unit, lastVal, type, cible) {
   document.getElementById('log-sub').textContent = sub;
   document.getElementById('log-unit').textContent = unit;
   input.value = '';
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
   const dateInput = document.getElementById('log-date-input');
   dateInput.max = today;
   dateInput.value = today;
@@ -2331,8 +2331,8 @@ function openLogEdit(metriqueId, name, unit, type, cible, date, valeur) {
   let sub = 'Modification d\'une valeur existante';
   const input = document.getElementById('log-input');
   if (type === 'score5') {
-    sub += ' · Échelle de 1 à 5';
-    input.min = '1'; input.max = '5'; input.step = '1';
+    sub += ' · Échelle de 0 à 5';
+    input.min = '0'; input.max = '5'; input.step = '1';
   } else if (type === 'objectif' && cible) {
     sub += ` · Objectif : ${cible} ${unit}`;
     input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
@@ -2377,10 +2377,10 @@ function closeLog() {
 async function saveLog() {
   const v = parseFloat(document.getElementById('log-input').value);
   if (isNaN(v)) { alert('Entre une valeur numérique.'); return; }
-  if (currentMetriqueType === 'score5' && (v < 1 || v > 5)) { alert('Entre une valeur entre 1 et 5.'); return; }
+  if (currentMetriqueType === 'score5' && (v < 0 || v > 5)) { alert('Entre une valeur entre 0 et 5.'); return; }
   if (!currentMetriqueId) { closeLog(); return; }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
   let chosenDate = document.getElementById('log-date-input').value || today;
   if (chosenDate > today) chosenDate = today; // pas de date future
 
@@ -2579,7 +2579,7 @@ function openCycleLog() {
     document.getElementById('cycle-modal-sub').textContent = 'Aucun cycle enregistré — ce sera votre J1.';
   }
   const inp = document.getElementById('cycle-date-input');
-  inp.value = new Date().toISOString().split('T')[0];
+  inp.value = toLocalDateStr(new Date());
   updateCyclePreview();
   inp.removeEventListener('input', updateCyclePreview);
   inp.addEventListener('input', updateCyclePreview);
@@ -2647,7 +2647,7 @@ function openEndPeriodLog() {
   document.getElementById('end-period-modal-sub').textContent =
     `Début de ce cycle : ${lastCycle.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}`;
   const inp = document.getElementById('end-period-date-input');
-  inp.value = new Date().toISOString().split('T')[0];
+  inp.value = toLocalDateStr(new Date());
   inp.min = lastCycle.toISOString().split('T')[0];
   updateEndPeriodPreview();
   inp.removeEventListener('input', updateEndPeriodPreview);
