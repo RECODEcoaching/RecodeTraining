@@ -166,6 +166,7 @@ function checkAccountActive(session){
   .metric-last { font-size: 12px; color: var(--text-dim); }
   .metric-current { text-align: right; flex: 0 0 auto; }
   .metric-val { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; }
+  .metric-val.metric-val-sm { font-size: 16px; letter-spacing: -0.2px; }
   .metric-unit { font-size: 11px; color: var(--text-muted); font-weight: 500; }
   .metric-delta { font-size: 11px; font-weight: 600; margin-top: 2px; }
   .metric-delta.up   { color: var(--success); }
@@ -217,6 +218,8 @@ function checkAccountActive(session){
     background: rgba(0,0,0,0.38); z-index: 200; align-items: flex-end; justify-content: center;
   }
   .modal-overlay.open { display: flex; }
+  /* Le modal de saisie doit apparaître au-dessus du modal détail */
+  #modal-log { z-index: 300; }
   .modal-sheet {
     background: var(--surface); border-radius: 20px 20px 0 0;
     width: 100%; max-width: 430px; padding: 24px 24px 40px;
@@ -1071,6 +1074,28 @@ let initialNoteForLog  = '';   // note déjà existante au moment de l'ouverture
 // ─── Données métriques en mémoire (pour la vue détail) ────
 let metricsStore = {};
 let currentDetailId = null;
+let _logFromDetail  = false;  // flag : ouverture depuis détail → rouvrir après save
+const openGroupIds  = new Set(); // groupes métriques ouverts (persistés entre reloads)
+
+// ─── HELPERS TYPE TEMPS (HH:MM ↔ minutes) ─────────────────
+function minsToHHMM(mins) {
+  const h = Math.floor(Math.abs(mins) / 60);
+  const m = Math.round(Math.abs(mins) % 60);
+  return h + 'h' + (m < 10 ? '0' : '') + m;
+}
+function hhmmToMins(str) {
+  if (!str) return 0;
+  const [h, m] = str.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+// Formatte une valeur métrique pour l'affichage (gère grands nombres + temps)
+function formatValDisplay(val, type) {
+  if (val === '—' || val === null || val === undefined) return '—';
+  const n = parseFloat(val);
+  if (type === 'temps') return minsToHHMM(n);
+  if (Math.abs(n) >= 1000) return (Math.round(n / 100) / 10).toFixed(1).replace('.0', '') + 'k';
+  return Math.abs(n) < 10 ? n.toFixed(1) : String(Math.round(n));
+}
 
 // ─── CHARGEMENT MÉTRIQUES SUPABASE ────────────────────────
 async function loadMetrics() {
@@ -1171,6 +1196,12 @@ async function loadMetrics() {
     await renderMetricsInto(document.getElementById(`metric-group-${gid}-body`), groupBuckets[gid]);
   }
 
+  // Restaurer les groupes qui étaient ouverts avant le rechargement
+  openGroupIds.forEach(id => {
+    const el = document.getElementById('metric-group-' + id);
+    if (el) el.classList.remove('collapsed');
+  });
+
   requestAnimationFrame(() => {
     drawAllMetricCharts();
     document.querySelectorAll('#metrics-list .metric-mini-gauge').forEach(g => animateGaugeFill(g));
@@ -1178,7 +1209,14 @@ async function loadMetrics() {
 }
 
 function toggleMetricGroup(id) {
-  document.getElementById('metric-group-' + id)?.classList.toggle('collapsed');
+  const el = document.getElementById('metric-group-' + id);
+  if (!el) return;
+  el.classList.toggle('collapsed');
+  if (el.classList.contains('collapsed')) {
+    openGroupIds.delete(id);
+  } else {
+    openGroupIds.add(id);
+  }
 }
 
 function renderMetricCard(m, valeurs) {
@@ -1189,17 +1227,18 @@ function renderMetricCard(m, valeurs) {
     : 'Aucune saisie';
 
   // Stat row façon WHOOP : valeur précédente + flèche de tendance
+  const type = m.type || 'mesure';
   let deltaHtml = '';
   if (valeurs.length >= 2) {
     const prevVal = valeurs[valeurs.length - 2].valeur;
     const diff = valeurs[valeurs.length - 1].valeur - prevVal;
     const cls   = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'neutral');
     const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
-    const prevDisplay = Math.abs(prevVal) < 10 ? prevVal.toFixed(1) : Math.round(prevVal);
-    deltaHtml = `<div class="metric-prev ${cls}"><span class="mp-arrow">${arrow}</span>${prevDisplay} ${m.unite||''}</div>`;
+    const prevDisplay = type === 'temps' ? minsToHHMM(prevVal) : (Math.abs(prevVal) < 10 ? prevVal.toFixed(1) : Math.round(prevVal));
+    const prevUnit = type === 'temps' ? '' : (m.unite||'');
+    deltaHtml = `<div class="metric-prev ${cls}"><span class="mp-arrow">${arrow}</span>${prevDisplay} ${prevUnit}</div>`;
   }
 
-  const type = m.type || 'mesure';
   let currentHtml;
 
   if (type === 'score5' && lastVal !== '—') {
@@ -1208,13 +1247,20 @@ function renderMetricCard(m, valeurs) {
     const color = gaugeColorForScore(pct, !!m.inverse);
     currentHtml = `<div class="metric-mini-gauge">${renderArcGauge(pct, `${lastVal}/5`, color, 60)}</div>`;
   } else if (type === 'objectif' && lastVal !== '—' && m.cible) {
-    // Anneau de progression vers la cible
+    // Anneau de progression vers la cible — formatté pour les grands nombres
     const pct = Math.min(Math.max(lastVal / m.cible, 0), 1);
-    currentHtml = `<div class="metric-mini-gauge">${renderArcGauge(pct, `${lastVal}`, null, 60)}</div>
-      <div class="metric-target">/ ${m.cible} ${m.unite||''}</div>`;
+    const gaugeLabel = formatValDisplay(lastVal, type);
+    currentHtml = `<div class="metric-mini-gauge">${renderArcGauge(pct, gaugeLabel, null, 60)}</div>
+      <div class="metric-target">/ ${formatValDisplay(m.cible, type)} ${m.unite||''}</div>`;
   } else {
-    const valDisplay = lastVal !== '—' ? `${lastVal} <span class="metric-unit">${m.unite||''}</span>` : '<span class="metric-unit">—</span>';
-    currentHtml = `<div class="metric-val">${valDisplay}</div>${deltaHtml}`;
+    // Mesure simple (+ type 'temps')
+    const displayStr = formatValDisplay(lastVal, type);
+    const showUnit = type !== 'temps' && lastVal !== '—';
+    const longVal  = displayStr !== '—' && displayStr.length >= 5;
+    const valHtml = displayStr !== '—'
+      ? `${displayStr}${showUnit ? `<span class="metric-unit">${m.unite||''}</span>` : ''}`
+      : '<span class="metric-unit">—</span>';
+    currentHtml = `<div class="metric-val${longVal ? ' metric-val-sm' : ''}">${valHtml}</div>${deltaHtml}`;
     if (type === 'objectif' && m.cible) {
       currentHtml += `<div class="metric-target">Objectif : ${m.cible} ${m.unite||''}</div>`;
     }
@@ -1240,11 +1286,6 @@ function renderMetricCard(m, valeurs) {
       <div class="metric-current">
         ${currentHtml}
       </div>
-      <button class="metric-add-btn" onclick="event.stopPropagation(); openLog('${m.id}','${m.nom}','${m.unite||''}','${lastVal}','${type}',${m.cible != null ? m.cible : 'null'})" title="Ajouter une valeur" aria-label="Ajouter une valeur">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-      </button>
     </div>
   </div>`;
 }
@@ -2293,21 +2334,30 @@ function openLog(metriqueId, name, unit, lastVal, type, cible) {
   currentMetriqueType = type || 'mesure';
   currentLogEditDate  = null;
   document.getElementById('log-title').textContent = name;
-  let sub = lastVal !== '—'
-    ? 'Dernière valeur : ' + lastVal + ' ' + unit
+  const lastValDisplay = (type === 'temps' && lastVal !== '—' && lastVal !== null)
+    ? minsToHHMM(parseFloat(lastVal))
+    : (lastVal !== '—' ? lastVal + ' ' + unit : null);
+  let sub = lastValDisplay
+    ? 'Dernière valeur : ' + lastValDisplay
     : 'Aucune valeur enregistrée';
   const input = document.getElementById('log-input');
-  if (type === 'score5') {
+  if (type === 'temps') {
+    input.type = 'time';
+    input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
+  } else if (type === 'score5') {
+    input.type = 'number';
     sub += ' · Échelle de 0 à 5';
     input.min = '0'; input.max = '5'; input.step = '1';
   } else if (type === 'objectif' && cible) {
+    input.type = 'number';
     sub += ` · Objectif : ${cible} ${unit}`;
     input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
   } else {
+    input.type = 'number';
     input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
   }
   document.getElementById('log-sub').textContent = sub;
-  document.getElementById('log-unit').textContent = unit;
+  document.getElementById('log-unit').textContent = type === 'temps' ? '' : unit;
   input.value = '';
   const today = toLocalDateStr(new Date());
   const dateInput = document.getElementById('log-date-input');
@@ -2330,18 +2380,32 @@ function openLogEdit(metriqueId, name, unit, type, cible, date, valeur) {
   document.getElementById('log-title').textContent = 'Modifier la saisie';
   let sub = 'Modification d\'une valeur existante';
   const input = document.getElementById('log-input');
-  if (type === 'score5') {
+  if (type === 'temps') {
+    input.type = 'time';
+    input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
+  } else if (type === 'score5') {
+    input.type = 'number';
     sub += ' · Échelle de 0 à 5';
     input.min = '0'; input.max = '5'; input.step = '1';
   } else if (type === 'objectif' && cible) {
+    input.type = 'number';
     sub += ` · Objectif : ${cible} ${unit}`;
     input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
   } else {
+    input.type = 'number';
     input.removeAttribute('min'); input.removeAttribute('max'); input.removeAttribute('step');
   }
   document.getElementById('log-sub').textContent = sub;
-  document.getElementById('log-unit').textContent = unit;
-  input.value = valeur;
+  document.getElementById('log-unit').textContent = type === 'temps' ? '' : unit;
+  if (type === 'temps') {
+    // Convertir les minutes stockées en HH:MM pour l'input time
+    const totalMins = parseFloat(valeur) || 0;
+    const hh = Math.floor(totalMins / 60);
+    const mm = Math.round(totalMins % 60);
+    input.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  } else {
+    input.value = valeur;
+  }
   const today = new Date().toISOString().split('T')[0];
   const dateInput = document.getElementById('log-date-input');
   dateInput.max = today;
@@ -2375,8 +2439,15 @@ function closeLog() {
   currentLogEditDate = null;
 }
 async function saveLog() {
-  const v = parseFloat(document.getElementById('log-input').value);
-  if (isNaN(v)) { alert('Entre une valeur numérique.'); return; }
+  const input = document.getElementById('log-input');
+  let v;
+  if (currentMetriqueType === 'temps') {
+    if (!input.value) { alert('Entre une heure valide (HH:MM).'); return; }
+    v = hhmmToMins(input.value);
+  } else {
+    v = parseFloat(input.value);
+    if (isNaN(v)) { alert('Entre une valeur numérique.'); return; }
+  }
   if (currentMetriqueType === 'score5' && (v < 0 || v > 5)) { alert('Entre une valeur entre 0 et 5.'); return; }
   if (!currentMetriqueId) { closeLog(); return; }
 
@@ -2474,12 +2545,15 @@ function openMetricDetail(id) {
       const diff = lastVal - prevVal;
       const cls   = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'neutral');
       const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
-      const prevDisplay = Math.abs(prevVal) < 10 ? prevVal.toFixed(1) : Math.round(prevVal);
+      const prevDisplay = type === 'temps' ? minsToHHMM(prevVal) : (Math.abs(prevVal) < 10 ? prevVal.toFixed(1) : Math.round(prevVal));
+      const prevUnit = type === 'temps' ? '' : (m.unite || '');
       trendHtml = `<div class="metric-prev ${cls}" style="justify-content:center;font-size:13px;margin-top:8px;">
-        <span class="mp-arrow">${arrow}</span>${prevDisplay} ${m.unite || ''} précédemment
+        <span class="mp-arrow">${arrow}</span>${prevDisplay} ${prevUnit} précédemment
       </div>`;
     }
-    heroHtml = `<div><span class="detail-hero-value">${lastVal}</span><span class="detail-hero-unit">${m.unite || ''}</span></div>${trendHtml}`;
+    const heroVal  = type === 'temps' ? minsToHHMM(lastVal) : lastVal;
+    const heroUnit = type === 'temps' ? '' : (m.unite || '');
+    heroHtml = `<div><span class="detail-hero-value">${heroVal}</span><span class="detail-hero-unit">${heroUnit}</span></div>${trendHtml}`;
     if (type === 'objectif' && m.cible) {
       heroHtml += `<div class="metric-target" style="text-align:center;margin-top:4px;">Objectif : ${m.cible} ${m.unite || ''}</div>`;
     }
@@ -2505,11 +2579,14 @@ function openMetricDetail(id) {
     const nums = valeurs.map(v => v.valeur);
     const min = Math.min(...nums), max = Math.max(...nums);
     const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    const fmt = n => Math.abs(n) < 10 ? n.toFixed(1) : Math.round(n);
+    const fmt = type === 'temps'
+      ? n => minsToHHMM(n)
+      : n => Math.abs(n) < 10 ? n.toFixed(1) : Math.round(n);
+    const u = type === 'temps' ? '' : (m.unite || '');
     statsRow.innerHTML = `
-      <div class="detail-stat"><div class="detail-stat-label">Min</div><div class="detail-stat-value">${fmt(min)} ${m.unite || ''}</div></div>
-      <div class="detail-stat"><div class="detail-stat-label">Moy.</div><div class="detail-stat-value">${fmt(avg)} ${m.unite || ''}</div></div>
-      <div class="detail-stat"><div class="detail-stat-label">Max</div><div class="detail-stat-value">${fmt(max)} ${m.unite || ''}</div></div>
+      <div class="detail-stat"><div class="detail-stat-label">Min</div><div class="detail-stat-value">${fmt(min)} ${u}</div></div>
+      <div class="detail-stat"><div class="detail-stat-label">Moy.</div><div class="detail-stat-value">${fmt(avg)} ${u}</div></div>
+      <div class="detail-stat"><div class="detail-stat-label">Max</div><div class="detail-stat-value">${fmt(max)} ${u}</div></div>
     `;
     statsRow.style.display = 'flex';
   } else {
@@ -2530,9 +2607,11 @@ function openMetricDetail(id) {
       const noteLine = v.commentaire
         ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:3px;">💬 ${v.commentaire}${hasUnreadReply ? ' <span style="display:inline-flex;align-items:center;gap:3px;background:#EF4444;color:#fff;font-size:9px;font-weight:700;font-style:normal;padding:1px 6px;border-radius:20px;margin-left:4px;">Réponse coach</span>' : ''}</div>`
         : '';
+      const histValStr = type === 'temps' ? minsToHHMM(v.valeur) : v.valeur;
+      const histUnit   = type === 'temps' ? '' : (m.unite || '');
       return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface2);border-radius:10px;padding:8px 12px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;color:var(--text);"><span style="font-weight:700;">${v.valeur}</span> ${m.unite || ''} <span style="color:var(--text-muted);font-size:12px;">· ${dateStr}</span></div>
+          <div style="font-size:13px;color:var(--text);"><span style="font-weight:700;">${histValStr}</span> ${histUnit} <span style="color:var(--text-muted);font-size:12px;">· ${dateStr}</span></div>
           ${noteLine}
         </div>
         <div style="display:flex;gap:6px;flex:0 0 auto;">
@@ -2566,6 +2645,7 @@ function openLogFromDetail() {
   const { m, valeurs } = entry;
   const last = valeurs.length > 0 ? valeurs[valeurs.length - 1] : null;
   const lastVal = last ? last.valeur : '—';
+  // modal-log a z-index:300 → s'affiche par-dessus le modal détail (z-index:200)
   openLog(m.id, m.nom, m.unite || '', lastVal, m.type || 'mesure', m.cible);
 }
 
@@ -2722,7 +2802,7 @@ function renderArcGauge(pct, valueLabel, color, size) {
   const fillLen = p * arcLen;
   // Couleur dynamique selon seuils, sauf si une couleur explicite est fournie
   const c = color || (p < 0.5 ? 'var(--gauge-low)' : (p < 0.8 ? 'var(--gauge-mid)' : 'var(--gauge-high)'));
-  const fontSize = (valueLabel.length >= 4 ? 24 : 28) * (size / 130);
+  const fontSize = (valueLabel.length >= 5 ? 18 : valueLabel.length >= 4 ? 24 : 28) * (size / 130);
   return `<svg viewBox="0 0 110 110" width="${size}" height="${size}" style="display:block">
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EDE9FE" stroke-width="10"
       stroke-dasharray="${arcLen.toFixed(1)} ${emptyLen.toFixed(1)}"

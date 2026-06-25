@@ -979,6 +979,7 @@ async function hashPin(pin) {
                 <option value="mesure">Mesure (courbe)</option>
                 <option value="score5">Score 1-5 (jauge)</option>
                 <option value="objectif">Objectif avec cible (anneau)</option>
+                <option value="temps">Temps (HH:MM — ex. sommeil)</option>
               </select>
             </div>
           </div>
@@ -1216,6 +1217,7 @@ async function hashPin(pin) {
               <option value="mesure">Mesure (valeur + courbe d'évolution)</option>
               <option value="score5">Score 1-5 (auto-évaluation, jauge)</option>
               <option value="objectif">Objectif avec cible (anneau de progression)</option>
+              <option value="temps">Temps (HH:MM — ex. sommeil)</option>
             </select>
           </div>
         </div>
@@ -4103,6 +4105,14 @@ async function loadClientMetrics(clientId) {
         ${groupesList.map(g => `<option value="${g.id}"${g.id === m.groupe_id ? ' selected' : ''}>${g.nom}</option>`).join('')}
       </select>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="showMetricHistory('${m.id}','${m.nom}','${m.unite||''}')">Historique</button>
+      <button class="btn btn-ghost btn-sm"
+        data-mid="${m.id}"
+        data-nom="${(m.nom||'').replace(/"/g,'&amp;quot;')}"
+        data-unite="${(m.unite||'').replace(/"/g,'&amp;quot;')}"
+        data-type="${m.type||'mesure'}"
+        data-cible="${m.cible != null ? m.cible : ''}"
+        data-inverse="${m.inverse ? '1' : ''}"
+        onclick="openEditMetricModal(this)">Modifier</button>
       <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
     list.appendChild(row);
 
@@ -4150,6 +4160,83 @@ async function changeMetricGroupe(metriqueId, groupeId) {
     .eq('id', metriqueId);
   if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 24)'); return; }
   toast('Groupe mis à jour ✓');
+  await loadClientMetrics(currentClientId);
+}
+
+// ─── ÉDITION D'UNE MÉTRIQUE CLIENTE ──────────────────────────
+function openEditMetricModal(btn) {
+  const d      = btn.dataset;
+  const id     = d.mid;
+  const nom    = d.nom || '';
+  const unite  = d.unite || '';
+  const type   = d.type || 'mesure';
+  const cible  = d.cible !== '' ? d.cible : null;
+  const inverse = d.inverse === '1';
+
+  document.getElementById('gm-title').textContent = 'Modifier — ' + nom;
+  const typeOpts = [
+    { v: 'mesure',   l: 'Mesure (courbe)' },
+    { v: 'score5',   l: 'Score 1-5 (jauge)' },
+    { v: 'objectif', l: 'Objectif avec cible (anneau)' },
+    { v: 'temps',    l: 'Temps (HH:MM)' },
+  ].map(o => '<option value="' + o.v + '"' + (type === o.v ? ' selected' : '') + '>' + o.l + '</option>').join('');
+
+  const nomSafe   = nom.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const uniteSafe = unite.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+
+  document.getElementById('gm-body').innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<div><label class="form-label">Nom</label>' +
+        '<input class="form-input" id="em-nom" value="' + nomSafe + '" style="width:100%;margin-top:4px;"></div>' +
+      '<div><label class="form-label">Unité</label>' +
+        '<input class="form-input" id="em-unite" value="' + uniteSafe + '" placeholder="ex : kg, cm, /5" style="width:100%;margin-top:4px;"></div>' +
+      '<div><label class="form-label">Type de représentation</label>' +
+        '<select class="form-select" id="em-type" onchange="onEmTypeChange()" style="width:100%;margin-top:4px;">' + typeOpts + '</select></div>' +
+      '<div id="em-cible-row" style="display:' + (type === 'objectif' ? '' : 'none') + '">' +
+        '<label class="form-label">Cible</label>' +
+        '<input class="form-input" id="em-cible" type="number" value="' + (cible != null ? cible : '') + '" style="width:100%;margin-top:4px;"></div>' +
+      '<div id="em-inverse-row" style="display:' + (type === 'score5' ? '' : 'none') + '">' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">' +
+          '<input type="checkbox" id="em-inverse" style="width:auto"' + (inverse ? ' checked' : '') + '>' +
+          ' Inverser l\'échelle (1 = excellent, 5 = préoccupant — ex : stress)</label></div>' +
+      '<input type="hidden" id="em-metric-id" value="' + id + '">' +
+      '<div style="display:flex;gap:8px;margin-top:4px;">' +
+        '<button class="btn btn-accent" style="flex:1" onclick="saveEditMetric()">Enregistrer</button>' +
+        '<button class="btn btn-ghost" onclick="document.getElementById(\'modal-gerer-metric\').classList.remove(\'open\')">Annuler</button>' +
+      '</div></div>';
+
+  document.getElementById('modal-gerer-metric').classList.add('open');
+}
+
+function onEmTypeChange() {
+  const type = document.getElementById('em-type')?.value;
+  if (!type) return;
+  const cibleRow   = document.getElementById('em-cible-row');
+  const inverseRow = document.getElementById('em-inverse-row');
+  if (cibleRow)   cibleRow.style.display   = type === 'objectif' ? '' : 'none';
+  if (inverseRow) inverseRow.style.display  = type === 'score5'   ? '' : 'none';
+}
+
+async function saveEditMetric() {
+  const id     = document.getElementById('em-metric-id')?.value;
+  const nom    = document.getElementById('em-nom')?.value.trim();
+  const unite  = document.getElementById('em-unite')?.value.trim() || null;
+  const type   = document.getElementById('em-type')?.value || 'mesure';
+  const cibleRaw = document.getElementById('em-cible')?.value;
+  const cible  = (type === 'objectif' && cibleRaw) ? parseFloat(cibleRaw) : null;
+  const inverse = type === 'score5' ? (document.getElementById('em-inverse')?.checked || false) : false;
+
+  if (!nom) { alert('Le nom est requis.'); return; }
+  if (!id)  { alert('Erreur : ID manquant.'); return; }
+
+  const { error } = await db.from('client_metriques')
+    .update({ nom, unite, type, cible, inverse })
+    .eq('id', id);
+
+  if (error) { toast('Erreur : ' + error.message); return; }
+
+  document.getElementById('modal-gerer-metric').classList.remove('open');
+  toast('Métrique mise à jour ✓');
   await loadClientMetrics(currentClientId);
 }
 
@@ -4393,7 +4480,7 @@ function onNmTypeChange() {
   if (inverseRow) inverseRow.style.display = (type === 'score5')   ? '' : 'none';
 }
 
-const TYPE_LABELS = { mesure: 'Mesure (courbe)', score5: 'Score 1-5 (jauge)', objectif: 'Objectif' };
+const TYPE_LABELS = { mesure: 'Mesure (courbe)', score5: 'Score 1-5 (jauge)', objectif: 'Objectif', temps: 'Temps (HH:MM)' };
 
 // Charge la bibliothèque de métriques depuis Supabase (table metriques_lib)
 // et la rend dans #lib-metrics-list. Remplace l'ancienne liste codée en dur :
@@ -4427,7 +4514,15 @@ async function loadBiblioMetrics() {
       <div class="lib-metric-icon">${m.icone || '📊'}</div>
       <div class="lib-metric-info"><div class="lib-metric-name">${m.nom}</div><div class="lib-metric-unit">${unitDisplay}</div></div>
       <div class="assign-pills"></div>
-      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openMetricGerer('${nomEsc}','${m.unite || ''}',[],'${m.id}')">Gérer</button>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto"
+        data-lib-id="${m.id}"
+        data-nom="${(m.nom||'').replace(/"/g,'&amp;quot;')}"
+        data-unite="${(m.unite||'').replace(/"/g,'&amp;quot;')}"
+        data-type="${m.type||'mesure'}"
+        data-cible="${m.cible != null ? m.cible : ''}"
+        data-inverse="${m.inverse ? '1' : ''}"
+        onclick="openEditLibMetric(this)">Modifier</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMetricGerer('${nomEsc}','${m.unite || ''}',[],'${m.id}')">Gérer</button>
       <button class="btn btn-danger btn-sm" onclick="deleteMetricLib('${m.id}','${nomEsc}')">Supprimer</button>
     </div>`;
   }).join('');
@@ -4464,6 +4559,86 @@ async function deleteMetricLib(id, nom) {
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Métrique supprimée');
   await loadBiblioMetrics();
+}
+
+// ─── ÉDITION D'UNE MÉTRIQUE DEPUIS LA BIBLIOTHÈQUE ───────────
+function openEditLibMetric(btn) {
+  const d      = btn.dataset;
+  const libId  = d.libId;
+  const nom    = d.nom || '';
+  const unite  = d.unite || '';
+  const type   = d.type || 'mesure';
+  const cible  = d.cible !== '' ? d.cible : null;
+  const inverse = d.inverse === '1';
+
+  document.getElementById('gm-title').textContent = 'Modifier (bibliothèque) — ' + nom;
+  const typeOpts = [
+    { v: 'mesure',   l: 'Mesure (courbe)' },
+    { v: 'score5',   l: 'Score 1-5 (jauge)' },
+    { v: 'objectif', l: 'Objectif avec cible (anneau)' },
+    { v: 'temps',    l: 'Temps (HH:MM)' },
+  ].map(o => '<option value="' + o.v + '"' + (type === o.v ? ' selected' : '') + '>' + o.l + '</option>').join('');
+
+  const nomSafe   = nom.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const uniteSafe = unite.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+
+  document.getElementById('gm-body').innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<div style="padding:8px 10px;background:rgba(109,40,217,0.08);border-radius:8px;font-size:11px;color:var(--accent);">' +
+        '⚠ Cette modification sera appliquée à <strong>toutes les clientes</strong> qui ont cette métrique.' +
+      '</div>' +
+      '<div><label class="form-label">Nom</label>' +
+        '<input class="form-input" id="em-nom" value="' + nomSafe + '" style="width:100%;margin-top:4px;"></div>' +
+      '<div><label class="form-label">Unité</label>' +
+        '<input class="form-input" id="em-unite" value="' + uniteSafe + '" placeholder="ex : kg, cm, min" style="width:100%;margin-top:4px;"></div>' +
+      '<div><label class="form-label">Type de représentation</label>' +
+        '<select class="form-select" id="em-type" onchange="onEmTypeChange()" style="width:100%;margin-top:4px;">' + typeOpts + '</select></div>' +
+      '<div id="em-cible-row" style="display:' + (type === 'objectif' ? '' : 'none') + '">' +
+        '<label class="form-label">Cible</label>' +
+        '<input class="form-input" id="em-cible" type="number" value="' + (cible != null ? cible : '') + '" style="width:100%;margin-top:4px;"></div>' +
+      '<div id="em-inverse-row" style="display:' + (type === 'score5' ? '' : 'none') + '">' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">' +
+          '<input type="checkbox" id="em-inverse" style="width:auto"' + (inverse ? ' checked' : '') + '>' +
+          ' Inverser l\'échelle (1 = excellent, 5 = préoccupant — ex : stress)</label></div>' +
+      '<input type="hidden" id="em-metric-id" value="' + libId + '">' +
+      '<input type="hidden" id="em-old-nom" value="' + nomSafe + '">' +
+      '<input type="hidden" id="em-mode" value="lib">' +
+      '<div style="display:flex;gap:8px;margin-top:4px;">' +
+        '<button class="btn btn-accent" style="flex:1" onclick="saveEditLibMetric()">Appliquer à toutes les clientes</button>' +
+        '<button class="btn btn-ghost" onclick="document.getElementById(\'modal-gerer-metric\').classList.remove(\'open\')">Annuler</button>' +
+      '</div></div>';
+
+  document.getElementById('modal-gerer-metric').classList.add('open');
+}
+
+async function saveEditLibMetric() {
+  const libId   = document.getElementById('em-metric-id')?.value;
+  const oldNom  = document.getElementById('em-old-nom')?.value;
+  const nom     = document.getElementById('em-nom')?.value.trim();
+  const unite   = document.getElementById('em-unite')?.value.trim() || null;
+  const type    = document.getElementById('em-type')?.value || 'mesure';
+  const cibleRaw = document.getElementById('em-cible')?.value;
+  const cible   = (type === 'objectif' && cibleRaw) ? parseFloat(cibleRaw) : null;
+  const inverse = type === 'score5' ? (document.getElementById('em-inverse')?.checked || false) : false;
+
+  if (!nom) { alert('Le nom est requis.'); return; }
+
+  // 1. Mettre à jour la bibliothèque
+  const { error: libErr } = await db.from('metriques_lib')
+    .update({ nom, unite, type, cible, inverse })
+    .eq('id', libId);
+  if (libErr) { toast('Erreur bibliothèque : ' + libErr.message); return; }
+
+  // 2. Propager à toutes les clientes qui ont cette métrique (match par nom original)
+  const { error: clientErr } = await db.from('client_metriques')
+    .update({ nom, unite, type, cible, inverse })
+    .eq('nom', oldNom);
+  if (clientErr) { toast('Bibliothèque mise à jour mais erreur clientes : ' + clientErr.message); return; }
+
+  document.getElementById('modal-gerer-metric').classList.remove('open');
+  toast('Bibliothèque + toutes les clientes mis à jour ✓');
+  await loadBiblioMetrics();
+  if (currentClientId) await loadClientMetrics(currentClientId);
 }
 
 function removeMetric(btn) {
