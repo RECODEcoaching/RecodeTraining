@@ -197,10 +197,35 @@ function checkAccountActive(session){
   /* ── Vue détail métrique (style premium) ── */
   .modal-sheet-lg {
     background: var(--surface); border-radius: 20px 20px 0 0;
-    width: 100%; max-width: 430px; padding: 24px 24px 32px;
+    width: 100%; max-width: 430px; box-sizing: border-box;
     box-shadow: 0 -2px 24px rgba(0,0,0,0.08);
-    max-height: 88vh; overflow-y: auto;
+    max-height: 88vh; overflow: hidden;
+    display: flex; flex-direction: column;
   }
+  .modal-detail-header {
+    padding: 20px 24px 0; flex-shrink: 0;
+    display: flex; flex-direction: column;
+  }
+  .modal-detail-header-top {
+    display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2px;
+  }
+  .modal-detail-body {
+    overflow-y: auto; flex: 1; padding: 0 24px 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-detail-footer {
+    flex-shrink: 0; padding: 10px 24px 32px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  .modal-close-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--surface2); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; color: var(--text-muted); line-height: 1;
+    flex-shrink: 0; margin-top: -4px;
+  }
+  .modal-close-btn:hover { background: var(--surface3); }
   .detail-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
   .detail-hero { display: flex; flex-direction: column; align-items: center; padding: 18px 0 4px; text-align: center; }
   .detail-hero-value { font-size: 42px; font-weight: 800; letter-spacing: -1px; }
@@ -977,18 +1002,31 @@ function checkAccountActive(session){
 <!-- Modal détail métrique (style premium) -->
 <div class="modal-overlay" id="modal-metric-detail">
   <div class="modal-sheet modal-sheet-lg">
-    <div class="modal-handle"></div>
-    <div class="detail-name" id="detail-name">—</div>
-    <div class="modal-sub" id="detail-sub">—</div>
-    <div class="detail-hero" id="detail-hero"></div>
-    <div class="detail-chart-wrap" id="detail-chart-wrap"></div>
-    <div class="detail-stats-row" id="detail-stats-row"></div>
-    <div id="detail-history-section" style="margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Historique des saisies</div>
-      <div id="detail-history-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <!-- Header fixe : handle + titre + croix -->
+    <div class="modal-detail-header">
+      <div class="modal-handle"></div>
+      <div class="modal-detail-header-top">
+        <div>
+          <div class="detail-name" id="detail-name">—</div>
+          <div class="modal-sub" id="detail-sub">—</div>
+        </div>
+        <button class="modal-close-btn" onclick="closeMetricDetail()" aria-label="Fermer">×</button>
+      </div>
     </div>
-    <button class="btn-primary" onclick="openLogFromDetail()">Ajouter une valeur</button>
-    <button class="btn-ghost" onclick="closeMetricDetail()">Fermer</button>
+    <!-- Corps scrollable -->
+    <div class="modal-detail-body">
+      <div class="detail-hero" id="detail-hero"></div>
+      <div class="detail-chart-wrap" id="detail-chart-wrap"></div>
+      <div class="detail-stats-row" id="detail-stats-row"></div>
+      <div id="detail-history-section" style="margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Historique des saisies</div>
+        <div id="detail-history-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+    <!-- Footer toujours visible -->
+    <div class="modal-detail-footer">
+      <button class="btn-primary" onclick="openLogFromDetail()">Ajouter une valeur</button>
+    </div>
   </div>
 </div>
 
