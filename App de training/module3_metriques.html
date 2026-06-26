@@ -1139,7 +1139,8 @@ function formatValDisplay(val, type) {
   const n = parseFloat(val);
   if (type === 'temps') return minsToHHMM(n);
   if (Math.abs(n) >= 1000) return (Math.round(n / 100) / 10).toFixed(1).replace('.0', '') + 'k';
-  return Math.abs(n) < 10 ? n.toFixed(1) : String(Math.round(n));
+  // Conserver la décimale si elle est non nulle (ex: 65.3 → "65.3", 65 → "65")
+  return n % 1 !== 0 ? n.toFixed(1) : String(Math.round(n));
 }
 
 // ─── CHARGEMENT MÉTRIQUES SUPABASE ────────────────────────
@@ -1277,7 +1278,7 @@ function renderMetricCard(m, valeurs) {
     const diff = valeurs[valeurs.length - 1].valeur - prevVal;
     const cls   = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'neutral');
     const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
-    const prevDisplay = type === 'temps' ? minsToHHMM(prevVal) : (Math.abs(prevVal) < 10 ? prevVal.toFixed(1) : Math.round(prevVal));
+    const prevDisplay = type === 'temps' ? minsToHHMM(prevVal) : (prevVal % 1 !== 0 ? prevVal.toFixed(1) : String(Math.round(prevVal)));
     const prevUnit = type === 'temps' ? '' : (m.unite||'');
     deltaHtml = `<div class="metric-prev ${cls}"><span class="mp-arrow">${arrow}</span>${prevDisplay} ${prevUnit}</div>`;
   }
@@ -2603,7 +2604,7 @@ function openMetricDetail(id) {
       const diff = lastVal - prevVal;
       const cls   = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'neutral');
       const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
-      const prevDisplay = type === 'temps' ? minsToHHMM(prevVal) : (Math.abs(prevVal) < 10 ? prevVal.toFixed(1) : Math.round(prevVal));
+      const prevDisplay = type === 'temps' ? minsToHHMM(prevVal) : (prevVal % 1 !== 0 ? prevVal.toFixed(1) : String(Math.round(prevVal)));
       const prevUnit = type === 'temps' ? '' : (m.unite || '');
       trendHtml = `<div class="metric-prev ${cls}" style="justify-content:center;font-size:13px;margin-top:8px;">
         <span class="mp-arrow">${arrow}</span>${prevDisplay} ${prevUnit} précédemment
