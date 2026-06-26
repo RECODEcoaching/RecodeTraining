@@ -4923,8 +4923,7 @@ async function showMetricHistory(metriqueId, nom, unit) {
     .from('metrique_valeurs')
     .select('valeur, date')
     .eq('metrique_id', metriqueId)
-    .order('date', { ascending: false })
-    .limit(10);
+    .order('date', { ascending: false });
 
   if (!valeurs || valeurs.length === 0) {
     list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée.</div>';

@@ -987,7 +987,7 @@ function checkAccountActive(session){
     </div>
     <div style="background:var(--surface2);border-radius:12px;padding:12px 16px;margin-bottom:12px;">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:500;">Date</div>
-      <input type="date" id="log-date-input" style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;outline:none;width:100%;font-family:inherit;">
+      <input type="date" id="log-date-input" onchange="currentLogChosenDate=this.value" style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;outline:none;width:100%;font-family:inherit;">
     </div>
     <div id="log-coach-reply" style="display:none;background:var(--accent-bg);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
       <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Réponse du coach</div>
@@ -1112,7 +1112,8 @@ if (SESSION) {
 let currentMetriqueId = null;
 let currentMetriqueUnit = '';
 let currentMetriqueType = 'mesure';
-let currentLogEditDate = null; // si non-null : on édite une saisie existante (date d'origine)
+let currentLogEditDate  = null; // si non-null : on édite une saisie existante (date d'origine)
+let currentLogChosenDate = '';  // date sélectionnée dans le picker (capturée via onchange)
 let initialNoteForLog  = '';   // note déjà existante au moment de l'ouverture de la modale (pour détecter un vrai changement)
 
 // ─── Données métriques en mémoire (pour la vue détail) ────
@@ -1204,15 +1205,13 @@ async function loadMetrics() {
         .from('metrique_valeurs')
         .select('valeur, date, commentaire, reponse_coach, reponse_lue')
         .eq('metrique_id', m.id)
-        .order('date', { ascending: true })
-        .limit(10);
+        .order('date', { ascending: true });
       if (valErr) {
         ({ data: valeurs } = await db
           .from('metrique_valeurs')
           .select('valeur, date')
           .eq('metrique_id', m.id)
-          .order('date', { ascending: true })
-          .limit(10));
+          .order('date', { ascending: true }));
       }
 
       metricsStore[m.id] = { m, valeurs: valeurs || [] };
@@ -2407,6 +2406,7 @@ function openLog(metriqueId, name, unit, lastVal, type, cible) {
   const dateInput = document.getElementById('log-date-input');
   dateInput.max = today;
   dateInput.value = today;
+  currentLogChosenDate = today; // initialisation (onchange prend le relais si modifiée)
   // Nouvelle saisie : pas de note ni de réponse coach existantes
   initialNoteForLog = '';
   const noteInput = document.getElementById('log-note-input');
@@ -2450,10 +2450,11 @@ function openLogEdit(metriqueId, name, unit, type, cible, date, valeur) {
   } else {
     input.value = valeur;
   }
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr(new Date());
   const dateInput = document.getElementById('log-date-input');
   dateInput.max = today;
   dateInput.value = date;
+  currentLogChosenDate = date; // initialisation (onchange prend le relais si modifiée)
 
   // Pré-remplir la note + afficher l'éventuelle réponse coach déjà reçue
   // (retrouvées via metricsStore plutôt que passées en paramètre, pour
@@ -2479,8 +2480,9 @@ function openLogEdit(metriqueId, name, unit, type, cible, date, valeur) {
 }
 function closeLog() {
   document.getElementById('modal-log').classList.remove('open');
-  currentMetriqueId = null;
-  currentLogEditDate = null;
+  currentMetriqueId   = null;
+  currentLogEditDate  = null;
+  currentLogChosenDate = '';
 }
 async function saveLog() {
   const input = document.getElementById('log-input');
@@ -2496,7 +2498,8 @@ async function saveLog() {
   if (!currentMetriqueId) { closeLog(); return; }
 
   const today = toLocalDateStr(new Date());
-  let chosenDate = document.getElementById('log-date-input').value || today;
+  // Priorité : valeur capturée via onchange (fiable sur iOS), puis fallback sur le DOM
+  let chosenDate = currentLogChosenDate || document.getElementById('log-date-input').value || today;
   if (chosenDate > today) chosenDate = today; // pas de date future
 
   // Si on édite une saisie existante et que la date a changé, on supprime
@@ -2516,17 +2519,28 @@ async function saveLog() {
   if (noteVal)                    payload.commentaire = noteVal;
   if (noteChanged && noteVal)     payload.lu_coach     = false;
 
-  let { error } = await db.from('metrique_valeurs').upsert(payload, { onConflict: 'metrique_id,date' });
+  let { data: upsertData, error } = await db.from('metrique_valeurs')
+    .upsert(payload, { onConflict: 'metrique_id,date' })
+    .select('id');
   if (error && ('commentaire' in payload || 'lu_coach' in payload)) {
     // Migration SQL (section 27) pas encore exécutée — on retombe sur les
     // colonnes de base pour ne pas bloquer la sauvegarde de la valeur.
-    ({ error } = await db.from('metrique_valeurs').upsert(
-      { metrique_id: currentMetriqueId, valeur: v, date: chosenDate },
-      { onConflict: 'metrique_id,date' }
-    ));
+    ({ data: upsertData, error } = await db.from('metrique_valeurs')
+      .upsert({ metrique_id: currentMetriqueId, valeur: v, date: chosenDate }, { onConflict: 'metrique_id,date' })
+      .select('id'));
   }
 
-  if (error) { toast('Erreur : ' + error.message); return; }
+  if (error) {
+    console.error('saveLog error:', error);
+    alert('Impossible d\'enregistrer : ' + error.message + '\n\nContacte ton coach si le problème persiste.');
+    return;
+  }
+  // Détection échec silencieux (RLS bloque sans retourner d'erreur)
+  if (!upsertData || upsertData.length === 0) {
+    console.error('saveLog: upsert silencieux — 0 lignes écrites. metrique_id:', currentMetriqueId, 'date:', chosenDate);
+    alert('La sauvegarde a échoué (accès refusé par la base de données).\n\nDis à ton coach que la date "' + chosenDate + '" est bloquée.');
+    return;
+  }
   const savedMetriqueId = currentMetriqueId;
   closeLog();
   toast('Valeur enregistrée ✓');
