@@ -652,11 +652,26 @@ function checkAccountActive(session){
   <!-- Échauffement (chargé dynamiquement, masqué si vide) -->
   <div class="section-label" id="ech-section-label" style="display:none">Échauffement</div>
   <div class="exo-list" id="ech-list" style="display:none"></div>
+  <!-- Note coach échauffement -->
+  <div id="ech-note-wrapper" style="display:none;padding:0 16px 12px;">
+    <textarea id="ech-note-input" class="exo-comment-input" rows="2"
+      placeholder="Note pour le coach (échauffement…)"
+      oninput="scheduleSeanceNoteAutosave('ech')"
+      onblur="flushSeanceNote('ech')"></textarea>
+  </div>
 
   <!-- Exercices (chargés dynamiquement) -->
   <div class="section-label" id="exo-section-label">Exercices</div>
   <div class="exo-list" id="exo-list">
     <div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>
+  </div>
+
+  <!-- Note coach séance globale -->
+  <div style="padding:0 16px 12px;">
+    <textarea id="seance-note-input" class="exo-comment-input" rows="2"
+      placeholder="Note pour le coach (ressenti global de la séance…)"
+      oninput="scheduleSeanceNoteAutosave('global')"
+      onblur="flushSeanceNote('global')"></textarea>
   </div>
 
   <div class="validate-section">
@@ -1022,6 +1037,12 @@ function checkAccountActive(session){
     // Reset
     document.getElementById('session-title-text').textContent = '…';
     document.getElementById('session-date-chip').textContent = '…';
+    const echNoteWrap = document.getElementById('ech-note-wrapper');
+    const echNoteEl   = document.getElementById('ech-note-input');
+    const seanceNoteEl= document.getElementById('seance-note-input');
+    if (echNoteWrap)  echNoteWrap.style.display  = 'none';
+    if (echNoteEl)    echNoteEl.value   = '';
+    if (seanceNoteEl) seanceNoteEl.value = '';
     document.getElementById('exo-list').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);font-size:14px">Chargement…</div>';
     document.getElementById('progress-label').textContent = '0 / 0 exercices';
     document.getElementById('progress-fill').style.width = '0%';
@@ -1036,6 +1057,9 @@ function checkAccountActive(session){
     const { data: seance } = await db.from('seances').select('*').eq('id', seanceId).single();
     if (!seance) return;
     currentSeanceStatut = seance.statut;
+
+    // Charger les notes client
+    if (seanceNoteEl) seanceNoteEl.value = seance.note_client || '';
 
     const dateObj = new Date(seance.date + 'T12:00:00');
     const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1128,6 +1152,13 @@ function checkAccountActive(session){
       const echListEl2 = document.getElementById('ech-list');
       echListEl2.style.display = '';
       echListEl2.innerHTML = echs.map((e, i) => renderEchCard(e, i)).join('');
+      // Afficher la note échauffement + charger la valeur sauvegardée
+      const echNoteW = document.getElementById('ech-note-wrapper');
+      if (echNoteW) {
+        echNoteW.style.display = '';
+        const en = document.getElementById('ech-note-input');
+        if (en) en.value = seance.note_echauffement_client || '';
+      }
     }
 
     const exoList = document.getElementById('exo-list');
@@ -2072,19 +2103,56 @@ function checkAccountActive(session){
     }
   }
 
+  // ── Notes séance globale + échauffement ──────────────────
+  let seanceNoteTimer = null;
+  let echNoteTimer    = null;
+
+  function scheduleSeanceNoteAutosave(target) {
+    if (target === 'ech') {
+      clearTimeout(echNoteTimer);
+      echNoteTimer = setTimeout(() => flushSeanceNote('ech'), 1500);
+    } else {
+      clearTimeout(seanceNoteTimer);
+      seanceNoteTimer = setTimeout(() => flushSeanceNote('global'), 1500);
+    }
+  }
+
+  async function flushSeanceNote(target) {
+    if (!currentSeanceId) return;
+    if (target === 'ech') {
+      clearTimeout(echNoteTimer);
+      const val = document.getElementById('ech-note-input')?.value ?? '';
+      await db.from('seances').update({ note_echauffement_client: val }).eq('id', currentSeanceId);
+    } else {
+      clearTimeout(seanceNoteTimer);
+      const val = document.getElementById('seance-note-input')?.value ?? '';
+      await db.from('seances').update({ note_client: val }).eq('id', currentSeanceId);
+    }
+  }
+
   // ── Notifications ────────────────────────────────────────
   const NOTIF_LABELS = {
-    bilan_reponse:      'Réponse au bilan',
-    drive_correction:   'Correction dans Drive',
-    video_correction:   'Correction vidéo',
-    reponse_commentaire:'Réponse à ton commentaire'
+    bilan_reponse:    'Réponse au bilan',
+    drive_correction: 'Correction dans Drive',
+    video_correction: 'Correction vidéo',
+    reponse_metrique: 'Réponse dans Métriques',
+    reponse_training: 'Réponse dans l\'entraînement'
+  };
+  const NOTIF_SUBS = {
+    bilan_reponse:    'Ton coach t\'a envoyé une mise à jour',
+    drive_correction: 'Va voir ton Drive pour la correction',
+    video_correction: 'Va voir ton Drive pour la correction vidéo',
+    reponse_metrique: 'Ton coach a répondu → va dans Métriques',
+    reponse_training: 'Ton coach a répondu → voir ci-dessous dans tes séances'
   };
   const NOTIF_ICONS = {
-    bilan_reponse:      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
-    drive_correction:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
-    video_correction:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
-    reponse_commentaire:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`
+    bilan_reponse:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    drive_correction: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
+    video_correction: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
+    reponse_metrique: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`,
+    reponse_training: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`
   };
+  const NOTIF_IS_REPLY = (t) => t === 'reponse_metrique' || t === 'reponse_training';
 
   async function loadNotifications() {
     const banner = document.getElementById('notif-banner');
@@ -2096,11 +2164,12 @@ function checkAccountActive(session){
       .order('created_at', { ascending: false });
     if (error || !notifs || notifs.length === 0) { banner.style.display = 'none'; return; }
     banner.style.display = 'flex';
+    const fallbackIcon = NOTIF_ICONS.reponse_training;
     banner.innerHTML = notifs.map(n => {
-      const isReply = n.type === 'reponse_commentaire';
-      const label = NOTIF_LABELS[n.type] || n.type;
-      const icon  = NOTIF_ICONS[n.type]  || NOTIF_ICONS.reponse_commentaire;
-      const sub   = isReply ? 'Ton coach a répondu à ton message' : 'Ton coach t\'a envoyé une mise à jour';
+      const isReply = NOTIF_IS_REPLY(n.type);
+      const label   = NOTIF_LABELS[n.type] || n.type;
+      const sub     = NOTIF_SUBS[n.type]   || 'Ton coach t\'a envoyé une mise à jour';
+      const icon    = NOTIF_ICONS[n.type]  || fallbackIcon;
       return `<div class="notif-card${isReply ? ' notif-reply' : ''}">
         <div class="notif-card-icon">${icon}</div>
         <div class="notif-card-text">${label}<div class="notif-card-sub">${sub}</div></div>

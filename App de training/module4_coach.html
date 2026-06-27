@@ -2292,8 +2292,8 @@ async function replyToMetricComment(metriqueId, valDate) {
     .update({ reponse_coach: text, reponse_lue: false, lu_coach: true })
     .eq('metrique_id', metriqueId).eq('date', valDate);
   if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 27)'); return; }
-  // Auto-notif → la cliente voit la réponse du coach
-  if (currentClientId) await db.from('notifications').insert({ client_id: currentClientId, type: 'reponse_commentaire' });
+  // Auto-notif → la cliente voit la réponse du coach (métrique)
+  if (currentClientId) await db.from('notifications').insert({ client_id: currentClientId, type: 'reponse_metrique' });
   toast('Réponse envoyée ✓');
   if (currentClientId) await loadComments(currentClientId);
 }
@@ -2319,8 +2319,8 @@ async function appendThreadMsg(safeExoId, exoId) {
     .eq('id', exoId);
 
   if (error) { toast('Erreur : ' + error.message); return; }
-  // Auto-notif → la cliente voit la réponse du coach
-  if (currentClientId) await db.from('notifications').insert({ client_id: currentClientId, type: 'reponse_commentaire' });
+  // Auto-notif → la cliente voit la réponse du coach (training)
+  if (currentClientId) await db.from('notifications').insert({ client_id: currentClientId, type: 'reponse_training' });
   toast('Message envoyé ✓');
   await loadComments(currentClientId);
 }
