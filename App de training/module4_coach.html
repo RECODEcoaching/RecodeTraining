@@ -2906,7 +2906,8 @@ function openEditExoCommon(seanceId, exo) {
   const uni = !!exo.unilateral;
   document.getElementById('p-uni').checked = uni;
   document.getElementById('uni-extra').classList.toggle('open', uni);
-  document.getElementById('p-repos-cote').value = exo.repos_cote ?? 40;
+  document.getElementById('p-repos-cote').value      = exo.repos_cote  ?? 40;
+  document.getElementById('p-repos-serie-uni').value = exo.repos_serie ?? 90;
 
   document.querySelector('#modal-exo-picker .modal-header-title').textContent = 'Modifier l\'exercice';
   document.getElementById('btn-save-picker').textContent = 'Enregistrer les modifications';
@@ -2928,11 +2929,16 @@ async function savePickerExo() {
 
   // ─── Mode édition : UPDATE de l'exercice existant ───
   if (editingExoRowId) {
+    // Pour un exercice unilatéral on lit repos_serie depuis p-repos-serie-uni
+    // (affiché dans le panneau uni-extra) ; pour un exercice normal on lit p-repos.
+    const reposSerie = uni
+      ? (parseInt(document.getElementById('p-repos-serie-uni').value) || 90)
+      : (parseInt(document.getElementById('p-repos').value) || 90);
     const updatePayload = {
       series:      parseInt(document.getElementById('p-series').value) || 3,
       reps:        document.getElementById('p-reps').value || '10',
       rir:         parseInt(document.getElementById('p-rir').value) ?? 2,
-      repos_serie: parseInt(document.getElementById('p-repos').value) || 90,
+      repos_serie: reposSerie,
       charge:      chargeText || null,
       charge_kg:   (!isNaN(chargeKg) && chargeKg > 0) ? chargeKg : null,
       unilateral:  uni,
@@ -2971,6 +2977,9 @@ async function savePickerExo() {
   const { data: existing } = await db.from('seance_exercices').select('ordre').eq('seance_id', pickerSeanceId).order('ordre', {ascending:false}).limit(1);
   const nextOrdre = (existing && existing.length > 0) ? (existing[0].ordre + 1) : 0;
 
+  const reposSerieInsert = uni
+    ? (parseInt(document.getElementById('p-repos-serie-uni').value) || 90)
+    : (parseInt(document.getElementById('p-repos').value) || 90);
   const payload = {
     seance_id:   pickerSeanceId,
     exercice_id: pickerSelectedId || null,
@@ -2979,7 +2988,7 @@ async function savePickerExo() {
     series:      parseInt(document.getElementById('p-series').value) || 3,
     reps:        document.getElementById('p-reps').value || '10',
     rir:         parseInt(document.getElementById('p-rir').value) ?? 2,
-    repos_serie: parseInt(document.getElementById('p-repos').value) || 90,
+    repos_serie: reposSerieInsert,
     charge:      chargeText || null,
     charge_kg:   (!isNaN(chargeKg) && chargeKg > 0) ? chargeKg : null,
     unilateral:  uni,
