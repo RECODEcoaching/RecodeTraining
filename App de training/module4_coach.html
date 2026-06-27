@@ -2501,10 +2501,10 @@ async function loadSeanceExercices(seanceId) {
   container.innerHTML = '<div class="seance-exo-empty">Chargement…</div>';
 
   // Fallback à 4 niveaux : on essaie du plus complet au plus basique
-  const COLS_V4 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data, superset_group';
-  const COLS_V3 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
-  const COLS_V2 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
-  const COLS_V1 = 'id, nom_exo, charge, series, reps, rir, repos_serie, unilateral, ordre, notes';
+  const COLS_V4 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, repos_cote, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data, superset_group';
+  const COLS_V3 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, repos_cote, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client, series_data';
+  const COLS_V2 = 'id, nom_exo, charge, charge_kg, series, reps, rir, repos_serie, repos_cote, unilateral, ordre, notes, charge_reelle, reps_reelles, notes_client';
+  const COLS_V1 = 'id, nom_exo, charge, series, reps, rir, repos_serie, repos_cote, unilateral, ordre, notes';
 
   let { data, error } = await db.from('seance_exercices').select(COLS_V4)
     .eq('seance_id', seanceId).order('ordre', { ascending: true });
