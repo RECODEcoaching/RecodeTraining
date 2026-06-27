@@ -881,6 +881,11 @@ async function hashPin(pin) {
           <div class="client-detail-meta" id="detail-meta">—</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <button id="btn-notif-coach" onclick="toggleNotifMenu()"
+            style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span>Notifier</span>
+          </button>
           <button id="btn-drive-coach" onclick="openDriveEditor()"
             style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.49"/></svg>
@@ -904,6 +909,31 @@ async function hashPin(pin) {
         <div style="display:flex;gap:8px;">
           <button onclick="saveDriveUrl()" class="btn btn-accent btn-sm" style="font-size:11px;">Enregistrer</button>
           <button onclick="document.getElementById('drive-editor').style.display='none'" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;">Annuler</button>
+        </div>
+      </div>
+
+      <!-- Notification menu (inline) -->
+      <div id="notif-menu" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">Envoyer une notification à la cliente</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <button onclick="sendManualNotif('bilan_reponse')"
+            style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:background 0.15s;" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--bg)'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Réponse au bilan
+          </button>
+          <button onclick="sendManualNotif('drive_correction')"
+            style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:background 0.15s;" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--bg)'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            Correction dans Drive
+          </button>
+          <button onclick="sendManualNotif('video_correction')"
+            style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:background 0.15s;" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--bg)'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            Correction vidéo
+          </button>
+        </div>
+        <div style="margin-top:10px;">
+          <button onclick="document.getElementById('notif-menu').style.display='none'" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;">Annuler</button>
         </div>
       </div>
 
@@ -1888,6 +1918,8 @@ function backToClients() {
 // ═══════════════════════════════════════════════════════════
 function openDriveEditor() {
   const editor = document.getElementById('drive-editor');
+  // Fermer le menu notif si ouvert
+  document.getElementById('notif-menu').style.display = 'none';
   editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
 }
 
@@ -1912,6 +1944,29 @@ async function saveDriveUrl() {
   }
   document.getElementById('drive-editor').style.display = 'none';
   toast(url ? 'Lien Drive enregistré ✓' : 'Lien Drive supprimé');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NOTIFICATIONS MANUELLES (coach → cliente)
+// ═══════════════════════════════════════════════════════════
+function toggleNotifMenu() {
+  const m = document.getElementById('notif-menu');
+  // Fermer le drive-editor si ouvert
+  document.getElementById('drive-editor').style.display = 'none';
+  m.style.display = (m.style.display === 'none' || m.style.display === '') ? 'block' : 'none';
+}
+
+async function sendManualNotif(type) {
+  if (!currentClientId) return;
+  const labels = {
+    bilan_reponse:    'Réponse au bilan',
+    drive_correction: 'Correction dans Drive',
+    video_correction: 'Correction vidéo'
+  };
+  const { error } = await db.from('notifications').insert({ client_id: currentClientId, type });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Notification envoyée : ' + (labels[type] || type) + ' ✓');
+  document.getElementById('notif-menu').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2237,6 +2292,8 @@ async function replyToMetricComment(metriqueId, valDate) {
     .update({ reponse_coach: text, reponse_lue: false, lu_coach: true })
     .eq('metrique_id', metriqueId).eq('date', valDate);
   if (error) { toast('Erreur : ' + error.message + ' — exécute le SQL (section 27)'); return; }
+  // Auto-notif → la cliente voit la réponse du coach
+  if (currentClientId) await db.from('notifications').insert({ client_id: currentClientId, type: 'reponse_commentaire' });
   toast('Réponse envoyée ✓');
   if (currentClientId) await loadComments(currentClientId);
 }
@@ -2262,6 +2319,8 @@ async function appendThreadMsg(safeExoId, exoId) {
     .eq('id', exoId);
 
   if (error) { toast('Erreur : ' + error.message); return; }
+  // Auto-notif → la cliente voit la réponse du coach
+  if (currentClientId) await db.from('notifications').insert({ client_id: currentClientId, type: 'reponse_commentaire' });
   toast('Message envoyé ✓');
   await loadComments(currentClientId);
 }

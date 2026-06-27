@@ -161,6 +161,27 @@ function checkAccountActive(session){
     padding: 20px 20px 10px; letter-spacing: 0.6px; text-transform: uppercase;
   }
 
+  /* ── NOTIFICATION BANNER ── */
+  .notif-banner { padding: 12px 20px 4px; display: flex; flex-direction: column; gap: 8px; }
+  .notif-card {
+    display: flex; align-items: center; gap: 11px;
+    background: var(--surface); border-radius: var(--radius-sm);
+    padding: 11px 14px; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border-left: 3px solid var(--accent);
+  }
+  .notif-card.notif-reply { border-left-color: #3B82F6; }
+  .notif-card-icon { flex-shrink: 0; }
+  .notif-card-text { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.35; }
+  .notif-card-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+  .notif-lu-btn {
+    flex-shrink: 0; padding: 5px 11px; border-radius: 20px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-muted); font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: var(--transition);
+  }
+  .notif-lu-btn:active { background: var(--surface2); }
+
   /* ── SESSION CARDS ── */
   .sessions-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
   .session-card {
@@ -594,6 +615,9 @@ function checkAccountActive(session){
       </button>
     </div>
   </div>
+
+  <!-- Bandeau notifications non lues -->
+  <div class="notif-banner" id="notif-banner" style="display:none;"></div>
 
   <div class="sessions-list" id="sessions-list">
     <div style="text-align:center;padding:48px 20px;color:var(--text-dim);font-size:14px">Chargement…</div>
@@ -2048,6 +2072,48 @@ function checkAccountActive(session){
     }
   }
 
+  // ── Notifications ────────────────────────────────────────
+  const NOTIF_LABELS = {
+    bilan_reponse:      'Réponse au bilan',
+    drive_correction:   'Correction dans Drive',
+    video_correction:   'Correction vidéo',
+    reponse_commentaire:'Réponse à ton commentaire'
+  };
+  const NOTIF_ICONS = {
+    bilan_reponse:      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    drive_correction:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
+    video_correction:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
+    reponse_commentaire:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`
+  };
+
+  async function loadNotifications() {
+    const banner = document.getElementById('notif-banner');
+    if (!banner || !SESSION) return;
+    const { data: notifs, error } = await db.from('notifications')
+      .select('id, type, created_at')
+      .eq('client_id', SESSION.client_id)
+      .eq('lu', false)
+      .order('created_at', { ascending: false });
+    if (error || !notifs || notifs.length === 0) { banner.style.display = 'none'; return; }
+    banner.style.display = 'flex';
+    banner.innerHTML = notifs.map(n => {
+      const isReply = n.type === 'reponse_commentaire';
+      const label = NOTIF_LABELS[n.type] || n.type;
+      const icon  = NOTIF_ICONS[n.type]  || NOTIF_ICONS.reponse_commentaire;
+      const sub   = isReply ? 'Ton coach a répondu à ton message' : 'Ton coach t\'a envoyé une mise à jour';
+      return `<div class="notif-card${isReply ? ' notif-reply' : ''}">
+        <div class="notif-card-icon">${icon}</div>
+        <div class="notif-card-text">${label}<div class="notif-card-sub">${sub}</div></div>
+        <button class="notif-lu-btn" onclick="markNotifRead('${n.id}')">Lu</button>
+      </div>`;
+    }).join('');
+  }
+
+  async function markNotifRead(id) {
+    await db.from('notifications').update({ lu: true }).eq('id', id);
+    loadNotifications();
+  }
+
   // ── Init ─────────────────────────────────────────────────
   if (SESSION) {
     const av = document.querySelector('.avatar');
@@ -2057,6 +2123,7 @@ function checkAccountActive(session){
   }
   updateWeekLabel();
   loadWeekSessions();
+  loadNotifications();
   loadClientDriveUrl();
   loadDayScore();
 </script>
