@@ -1113,7 +1113,7 @@ function checkAccountActive(session){
     });
 
     // Marquer les réponses coach comme lues (silencieusement)
-    const unreadIds = (exos || []).filter(e => e.reponse_coach && e.reponse_lue === false).map(e => e.id);
+    const unreadIds = (exos || []).filter(e => exoHasUnreadCoach(e)).map(e => e.id);
     if (unreadIds.length) {
       db.from('seance_exercices').update({ reponse_lue: true }).in('id', unreadIds).then(() => {});
     }
@@ -1250,6 +1250,15 @@ function checkAccountActive(session){
     return html;
   }
 
+  function exoHasUnreadCoach(exo) {
+    if (exo.reponse_lue !== false) return false;
+    if (exo.reponse_coach) return true;
+    try {
+      const t = Array.isArray(exo.messages_thread) ? exo.messages_thread : (exo.messages_thread ? JSON.parse(exo.messages_thread) : []);
+      return t.some(m => m.auteur === 'coach');
+    } catch(e) { return false; }
+  }
+
   function renderExoCard(exo, index, supersetRole) {
     const reposSerie = exo.repos_serie || 90;
     const reposCote  = exo.repos_cote  || 45;
@@ -1272,6 +1281,9 @@ function checkAccountActive(session){
     const alertBtn = `<div class="exo-alert-btn${activeAlert ? ' active' : ''}" onclick="event.stopPropagation();toggleExoAlert('${safeNomExo}')" title="${alertTitle}">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="${activeAlert ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
     </div>`;
+    const alertNote = (activeAlert && activeAlert.note)
+      ? `<div style="font-size:11px;color:#d97706;font-weight:500;margin-top:2px;">⚠ ${activeAlert.note}</div>`
+      : '';
 
     if (exo.unilateral) {
       const params      = `${exo.series} × ${exo.reps} reps/bras · RIR ${exo.rir} · Côté ${reposCote}'' · Série ${reposStr}`;
@@ -1304,12 +1316,14 @@ function checkAccountActive(session){
       const rawTagsUni = exo.exercices?.tags || [];
       const tagsUni = Array.isArray(rawTagsUni) ? rawTagsUni : (rawTagsUni ? String(rawTagsUni).split(',').map(t=>t.trim()).filter(Boolean) : []);
       const tagsHtmlUni = tagsUni.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${tagsUni.map(t=>`<span style="font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border-radius:10px;padding:1px 7px;">${t}</span>`).join('')}</div>` : '';
+      const unreadDotUni = exoHasUnreadCoach(exo) ? `<span style="width:8px;height:8px;background:#EF4444;border-radius:50%;display:inline-block;margin-left:5px;flex-shrink:0;vertical-align:middle;" title="Réponse du coach non lue"></span>` : '';
       return `<div class="exo-card" data-exo-id="${exo.id}" data-unilateral="true" data-rest-side="${reposCote}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
         <div class="exo-header" onclick="toggleExo(this)">
           <div class="exo-num">${index + 1}</div>
           <div class="exo-info">
-            <div class="exo-name">${exo.nom_exo} <span class="uni-badge">Uni</span></div>
+            <div class="exo-name">${exo.nom_exo} <span class="uni-badge">Uni</span>${unreadDotUni}</div>
             <div class="exo-params">${params}</div>
+            ${alertNote}
             ${tagsHtmlUni}
           </div>
           ${histBtn}${alertBtn}${videoBtnUni}
@@ -1355,12 +1369,14 @@ function checkAccountActive(session){
     const savedNote = exo.notes_client || '';
     window._exoInitialNote = window._exoInitialNote || {};
     window._exoInitialNote[exo.id] = savedNote;
+    const unreadDot = exoHasUnreadCoach(exo) ? `<span style="width:8px;height:8px;background:#EF4444;border-radius:50%;display:inline-block;margin-left:5px;flex-shrink:0;vertical-align:middle;" title="Réponse du coach non lue"></span>` : '';
     return `<div class="exo-card" data-exo-id="${exo.id}" data-rest-series="${reposSerie}" data-superset-role="${supersetRole||''}">
       <div class="exo-header" onclick="toggleExo(this)">
         <div class="exo-num">${index + 1}</div>
         <div class="exo-info">
-          <div class="exo-name">${exo.nom_exo}</div>
+          <div class="exo-name">${exo.nom_exo}${unreadDot}</div>
           <div class="exo-params">${params}</div>
+          ${alertNote}
           ${tagsHtml}
         </div>
         ${histBtn}${alertBtn}${videoBtnHtml}
@@ -1603,7 +1619,7 @@ function checkAccountActive(session){
     thread.push({ auteur: 'client', contenu, ts: new Date().toISOString() });
 
     const { error } = await db.from('seance_exercices')
-      .update({ messages_thread: thread, reponse_lue: false })
+      .update({ messages_thread: thread, lu_coach: false })
       .eq('id', exoId);
 
     input.disabled = false;

@@ -1533,7 +1533,7 @@ CREATE POLICY "Allow all anon on seance_echauffement"
           </div>
           <div class="param-block">
             <label>Repos (s)</label>
-            <input type="number" id="p-repos" value="90" step="15">
+            <input type="number" id="p-repos" value="90" min="0" step="15">
           </div>
         </div>
         <div class="uni-toggle-row">
@@ -1543,11 +1543,11 @@ CREATE POLICY "Allow all anon on seance_echauffement"
         <div class="uni-extra" id="uni-extra">
           <div class="param-block">
             <label>Repos côté (s)</label>
-            <input type="number" id="p-repos-cote" value="40" step="5">
+            <input type="number" id="p-repos-cote" value="40" min="0" step="5">
           </div>
           <div class="param-block">
             <label>Repos série (s)</label>
-            <input type="number" id="p-repos-serie-uni" value="60" step="15">
+            <input type="number" id="p-repos-serie-uni" value="60" min="0" step="15">
           </div>
         </div>
         <div>
@@ -1980,7 +1980,7 @@ async function getClientsWithUnreadComments() {
   const unread = new Set();
   try {
     const { data: unreadExos } = await db.from('seance_exercices')
-      .select('seance_id').eq('lu_coach', false).not('notes_client', 'is', null);
+      .select('seance_id').eq('lu_coach', false);
     const seanceIds = [...new Set((unreadExos || []).map(r => r.seance_id).filter(Boolean))];
     if (seanceIds.length) {
       const { data: seancesOf } = await db.from('seances').select('id, client_id').in('id', seanceIds);
@@ -2555,7 +2555,7 @@ async function loadSeanceExercices(seanceId) {
     if (e.charge_kg)  planned += ` · ${e.charge_kg} kg`;
     else if (e.charge) planned += ` · ${e.charge}`;
     if (e.rir !== null && e.rir !== undefined) planned += ` · RIR ${e.rir}`;
-    if (e.repos_serie) planned += ` · Repos ${Math.floor(e.repos_serie/60)}'${e.repos_serie%60 ? String(e.repos_serie%60).padStart(2,'0') : ''}`;
+    if (e.repos_serie != null) planned += ` · Repos ${Math.floor(e.repos_serie/60)}'${e.repos_serie%60 ? String(e.repos_serie%60).padStart(2,'0') : ''}`;
     if (e.unilateral) planned += ' · Uni';
 
     // Réalisé (si la cliente a saisi)
@@ -4078,6 +4078,14 @@ async function addHabit() {
 }
 
 // Charger les métriques d'une cliente depuis Supabase
+// Helper: minutes → "7h30" (utilisé pour les métriques type "temps")
+function minsToHHMMCoach(mins) {
+  const m = Math.round(parseFloat(mins) || 0);
+  const h = Math.floor(m / 60);
+  const mn = m % 60;
+  return `${h}h${mn ? String(mn).padStart(2,'0') : ''}`;
+}
+
 async function loadClientMetrics(clientId) {
   const list    = document.getElementById('coach-metrics-list');
   const emptyEl = document.getElementById('coach-metrics-empty');
@@ -4195,14 +4203,21 @@ async function loadClientMetrics(clientId) {
         }
         // Dernière valeur
         const last     = vals[0];
-        const lastNum  = parseFloat(last.valeur);
         const lastDate = new Date(last.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-        valEl.querySelector('div:first-child').innerHTML = `${last.valeur}${m.unite ? ' <span style="font-weight:400;color:var(--muted)">' + m.unite + '</span>' : ''}`;
+        const isTemps  = m.type === 'temps';
+        const lastDisp = isTemps ? minsToHHMMCoach(last.valeur) : last.valeur;
+        const uniteHtml = (!isTemps && m.unite) ? ` <span style="font-weight:400;color:var(--muted)">${m.unite}</span>` : '';
+        valEl.querySelector('div:first-child').innerHTML = `${lastDisp}${uniteHtml}`;
         // Moyenne 7 derniers jours
         const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const recent7 = vals.filter(v => new Date(v.date + 'T12:00:00') >= sevenDaysAgo).map(v => parseFloat(v.valeur)).filter(v => !isNaN(v));
         const avg7 = recent7.length ? (recent7.reduce((a,b) => a+b, 0) / recent7.length) : null;
-        const avg7txt = avg7 !== null ? `Moy. 7j : ${avg7 % 1 === 0 ? avg7 : avg7.toFixed(1)}${m.unite||''}` : lastDate;
+        let avg7txt;
+        if (avg7 !== null) {
+          const avg7disp  = isTemps ? minsToHHMMCoach(avg7) : (avg7 % 1 === 0 ? avg7 : avg7.toFixed(1));
+          const avg7unite = (!isTemps && m.unite) ? m.unite : '';
+          avg7txt = `Moy. 7j : ${avg7disp}${avg7unite}`;
+        } else { avg7txt = lastDate; }
         valEl.querySelector('div:nth-child(2)').textContent = avg7txt;
         // Mini sparkline (30 dernières valeurs, ordre croissant)
         const chartNums = vals.map(v => parseFloat(v.valeur)).filter(v => !isNaN(v)).reverse();

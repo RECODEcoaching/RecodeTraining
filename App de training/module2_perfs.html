@@ -238,7 +238,7 @@ function checkAccountActive(session){
 
   canvas#perfChart {
     width: 100% !important;
-    height: 200px !important;
+    height: 280px !important;
     display: block;
   }
 
@@ -791,19 +791,19 @@ function renderChart(history, metric) {
   const canvas = document.getElementById('perfChart');
   const ctx = canvas.getContext('2d');
 
-  // Reverse so oldest → newest left to right
-  const data = [...history].reverse();
+  // Reverse so oldest → newest left to right, filter out zero-value entries for this metric
+  const data = [...history].reverse().filter(d => (d[metric] ?? 0) > 0);
 
   const dpr = window.devicePixelRatio || 1;
   canvas.width = canvas.offsetWidth * dpr;
-  canvas.height = 200 * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
   ctx.scale(dpr, dpr);
   const W = canvas.offsetWidth;
-  const H = 200;
+  const H = canvas.offsetHeight;
   ctx.clearRect(0, 0, W, H);
 
   const values = data.map(d => d[metric]);
-  const hasData = values.some(v => v > 0);
+  const hasData = values.length > 0;
 
   // Si aucune valeur > 0 : afficher message
   if (!hasData) {

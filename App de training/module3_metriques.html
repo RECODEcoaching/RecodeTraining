@@ -499,9 +499,10 @@ function checkAccountActive(session){
   .cal-num-selected { box-shadow: 0 0 0 2px var(--accent); }
   .cal-dots { display:flex; gap:2px; margin-top:1px; }
   .cal-dot { width: 3px; height: 3px; border-radius: 50%; }
-  .cal-dot-temp  { background: #6D28D9; }
-  .cal-dot-mucus { background: #8b5cf6; }
-  .cal-dot-saign { background: #e879a0; }
+  .cal-dot-temp     { background: #6D28D9; }
+  .cal-dot-mucus    { background: #8b5cf6; }
+  .cal-dot-saign    { background: #e879a0; }
+  .cal-dot-spotting { background: #f97316; }
   .cal-j1-dot {
     position: absolute; top: 3px; right: 1px;
     width: 5px; height: 5px; border-radius: 50%; background: #e879a0;
@@ -773,6 +774,7 @@ function checkAccountActive(session){
       <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:#c4b5fd;border:1px solid #7c3aed;"></div>Ovulation</div>
       <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:rgba(109,40,217,0.22);border:1px solid #6D28D9;"></div>Lutéale</div>
       <div class="cal-legend-item"><span style="color:#7c3aed;font-size:11px;">★</span>Ovulation estimée</div>
+      <div class="cal-legend-item"><span class="cal-dot cal-dot-spotting" style="width:6px;height:6px;display:inline-block;"></span>Spotting</div>
     </div>
   </div>
 
@@ -1781,7 +1783,8 @@ async function buildCycleCalendar() {
         const left  = (i / 7 * 100).toFixed(2);
         const width = ((j - i) / 7 * 100).toFixed(2);
         const opacity = cell.isFuture ? '0.4' : '1';
-        html += `<div class="cal-pill cal-pill-${cell.phase}" style="left:${left}%;width:${width}%;opacity:${opacity};"></div>`;
+        const pillPhase = cell.phase.replace('phase-', '');
+        html += `<div class="cal-pill cal-pill-${pillPhase}" style="left:${left}%;width:${width}%;opacity:${opacity};"></div>`;
         i = j;
       } else { i++; }
     }
@@ -1794,6 +1797,7 @@ async function buildCycleCalendar() {
       if (log?.temperature)                             dots += '<span class="cal-dot cal-dot-temp"></span>';
       if (log?.glaire && log.glaire !== 'absente')      dots += '<span class="cal-dot cal-dot-mucus"></span>';
       if (log?.saignement && log.saignement !== 'aucun') dots += '<span class="cal-dot cal-dot-saign"></span>';
+      if (log?.spotting) dots += '<span class="cal-dot cal-dot-spotting"></span>';
       const numCls = cell.isToday ? 'cal-num cal-num-today' : (cell.isFuture ? 'cal-num cal-num-muted' : 'cal-num');
       // Cliquable pour aujourd'hui et le passé — permet à la cliente de choisir
       // un jour pour la carte "Saisie du jour" (saisie/édition rétroactive).
