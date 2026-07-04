@@ -896,6 +896,10 @@ async function hashPin(pin) {
             <svg id="btn-toggle-active-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             <span id="btn-toggle-active-label">Désactiver l'accès</span>
           </button>
+          <button onclick="exportClientCSV()" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;" title="Exporter toutes les données en CSV">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export CSV</span>
+          </button>
           <button class="btn btn-accent btn-sm" onclick="openAddSeance()">+ Ajouter séance</button>
         </div>
       </div>
@@ -1570,6 +1574,10 @@ CREATE POLICY "Allow all anon on seance_echauffement"
           <label class="form-label">Charge prévue (optionnel)</label>
           <input class="form-input" id="p-charge" placeholder="ex : 40 kg, BW, élastique…">
         </div>
+        <div style="margin-top:10px;">
+          <label class="form-label">Consigne coach (optionnel)</label>
+          <textarea id="p-notes" rows="2" class="form-input" placeholder="ex : attention à la descente, contrôler l'excentrique, prendre le temps…" style="resize:vertical;min-height:56px;font-size:12px;line-height:1.5;"></textarea>
+        </div>
       </div>
       <div id="picker-error" style="display:none;font-size:12px;color:var(--danger);padding:7px 0;"></div>
       <div style="display:flex;gap:7px;margin-top:12px;">
@@ -1955,6 +1963,120 @@ async function saveBirthdayCoach() {
   } else {
     bdDisplay.textContent = 'Non renseignée';
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORT CSV
+// ═══════════════════════════════════════════════════════════
+async function exportClientCSV() {
+  if (!currentClientId) return;
+  const prenom  = currentClientData?.prenom || 'cliente';
+  const dateStr = new Date().toISOString().split('T')[0];
+
+  // Helper : échappe une valeur pour CSV (guillemets doubles)
+  function esc(v) { return v == null ? '' : String(v).replace(/"/g, '""'); }
+  function row(...cols) { return cols.map(c => `"${esc(c)}"`).join(',') + '\n'; }
+
+  let csv = '﻿'; // BOM UTF-8 pour Excel
+
+  // ── 1. PERFORMANCES ─────────────────────────────────────
+  csv += row('=== PERFORMANCES ===');
+  csv += row('Date','Séance','Exercice','Séries prévues','Reps prévues','RIR','Charge prévu (kg)','Reps réalisées','Charge réalisée (kg)','Note cliente');
+
+  const { data: seances } = await db.from('seances')
+    .select('id, date, titre').eq('client_id', currentClientId)
+    .order('date', { ascending: true });
+
+  if (seances?.length) {
+    const seanceMap = Object.fromEntries(seances.map(s => [s.id, s]));
+    const { data: exos } = await db.from('seance_exercices')
+      .select('seance_id, nom_exo, series, reps, rir, charge, charge_kg, charge_reelle, reps_reelles, notes_client, series_data')
+      .in('seance_id', seances.map(s => s.id))
+      .order('ordre', { ascending: true });
+
+    (exos || []).forEach(e => {
+      const s = seanceMap[e.seance_id]; if (!s) return;
+      let sdArr = null;
+      try { sdArr = e.series_data ? (Array.isArray(e.series_data) ? e.series_data : JSON.parse(e.series_data)) : null; } catch {}
+      const chargePrevu = e.charge_kg ?? e.charge ?? '';
+      if (sdArr?.length) {
+        sdArr.forEach(sd => {
+          const repsReal  = sd.reps ?? sd.reps_g ?? sd.reps_d ?? '';
+          const chargeReal = sd.charge ?? '';
+          csv += row(s.date, s.titre || '', e.nom_exo, e.series, e.reps, e.rir ?? '', chargePrevu, repsReal, chargeReal, e.notes_client || '');
+        });
+      } else {
+        csv += row(s.date, s.titre || '', e.nom_exo, e.series, e.reps, e.rir ?? '', chargePrevu, e.reps_reelles ?? '', e.charge_reelle ?? '', e.notes_client || '');
+      }
+    });
+  }
+
+  csv += '\n';
+
+  // ── 2. MÉTRIQUES ────────────────────────────────────────
+  csv += row('=== MÉTRIQUES ===');
+  csv += row('Date','Métrique','Type','Valeur','Unité','Commentaire');
+
+  const { data: metriques } = await db.from('client_metriques')
+    .select('id, nom, type, unite').eq('client_id', currentClientId);
+
+  if (metriques?.length) {
+    const metMap = Object.fromEntries(metriques.map(m => [m.id, m]));
+    const { data: valeurs } = await db.from('metrique_valeurs')
+      .select('metrique_id, date, valeur, commentaire')
+      .in('metrique_id', metriques.map(m => m.id))
+      .order('date', { ascending: true });
+    (valeurs || []).forEach(v => {
+      const m = metMap[v.metrique_id]; if (!m) return;
+      csv += row(v.date, m.nom, m.type || '', v.valeur, m.unite || '', v.commentaire || '');
+    });
+  }
+
+  csv += '\n';
+
+  // ── 3. HABITUDES ────────────────────────────────────────
+  csv += row('=== HABITUDES ASSIGNÉES ===');
+  csv += row('Habitude','Type','Fréquence');
+
+  const { data: habitudes } = await db.from('client_habitudes')
+    .select('nom, type, frequence_count, frequence_unite, icone')
+    .eq('client_id', currentClientId).order('created_at', { ascending: true });
+
+  (habitudes || []).forEach(h => {
+    const freq = `${h.frequence_count || 1}× / ${h.frequence_unite || 'jour'}`;
+    csv += row((h.icone || '') + ' ' + h.nom, h.type, freq);
+  });
+
+  csv += '\n';
+
+  // ── 4. CYCLE ────────────────────────────────────────────
+  csv += row('=== CYCLE ===');
+  csv += row('Date','J1 (début cycle)','Saignement','Température (°C)','Glaire','Spotting');
+
+  const { data: cycleLogs } = await db.from('cycle_daily_log')
+    .select('date, saignement, temperature, glaire, spotting')
+    .eq('client_id', currentClientId).order('date', { ascending: true });
+
+  // Récupérer les J1 (début de cycle) depuis cycle_logs
+  const { data: cycleStarts } = await db.from('cycle_logs')
+    .select('date, notes').eq('client_id', currentClientId)
+    .or('notes.eq.J1,notes.eq.J1_FIN_REGLES').order('date', { ascending: true });
+  const j1Set = new Set((cycleStarts || []).map(c => c.date));
+
+  (cycleLogs || []).forEach(r => {
+    csv += row(r.date, j1Set.has(r.date) ? 'oui' : '', r.saignement || '', r.temperature || '', r.glaire || '', r.spotting ? 'oui' : '');
+  });
+
+  // ── Téléchargement ──────────────────────────────────────
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `RECODE_${prenom}_${dateStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2880,6 +3002,8 @@ async function openExoPicker(seanceId) {
   document.getElementById('picker-error').style.display = 'none';
   document.getElementById('p-uni').checked = false;
   document.getElementById('uni-extra').classList.remove('open');
+  document.getElementById('p-charge').value = '';
+  document.getElementById('p-notes').value  = '';
   document.querySelector('#modal-exo-picker .modal-header-title').textContent = 'Ajouter un exercice';
   document.getElementById('btn-save-picker').textContent = 'Ajouter à la séance';
   document.getElementById('modal-exo-picker').classList.add('open');
@@ -2961,6 +3085,7 @@ function openEditExoCommon(seanceId, exo) {
   document.getElementById('p-rir').value     = (exo.rir !== null && exo.rir !== undefined) ? exo.rir : 2;
   document.getElementById('p-repos').value   = exo.repos_serie ?? 90;
   document.getElementById('p-charge').value  = exo.charge || '';
+  document.getElementById('p-notes').value   = exo.notes  || '';
 
   const uni = !!exo.unilateral;
   document.getElementById('p-uni').checked = uni;
@@ -3001,6 +3126,7 @@ async function savePickerExo() {
       charge_kg:   (!isNaN(chargeKg) && chargeKg > 0) ? chargeKg : null,
       unilateral:  uni,
       repos_cote:  uni ? pi('p-repos-cote', 40) : null,
+      notes:       document.getElementById('p-notes').value.trim() || null,
     };
 
     btn.disabled = true; btn.textContent = 'Enregistrement…';
@@ -3050,6 +3176,7 @@ async function savePickerExo() {
     charge_kg:   (!isNaN(chargeKg) && chargeKg > 0) ? chargeKg : null,
     unilateral:  uni,
     repos_cote:  uni ? piI('p-repos-cote', 40) : null,
+    notes:       document.getElementById('p-notes').value.trim() || null,
   };
 
   btn.disabled = true; btn.textContent = 'Ajout…';
