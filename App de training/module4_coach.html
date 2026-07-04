@@ -912,6 +912,22 @@ async function hashPin(pin) {
         </div>
       </div>
 
+      <!-- Anniversaire (inline) -->
+      <div id="birthday-coach-row" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;">
+        <span style="font-size:15px;">🎂</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;" id="birthday-coach-display">—</span>
+        <button onclick="openBirthdayEditor()" style="padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-weight:600;">Modifier</button>
+      </div>
+      <div id="birthday-coach-editor" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">🎂 Date d'anniversaire</div>
+        <input id="birthday-coach-input" type="date"
+          style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text);background:var(--bg);box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveBirthdayCoach()" class="btn btn-accent btn-sm" style="font-size:11px;">Enregistrer</button>
+          <button onclick="document.getElementById('birthday-coach-editor').style.display='none'" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;">Annuler</button>
+        </div>
+      </div>
+
       <!-- Notification menu (inline) -->
       <div id="notif-menu" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">Envoyer une notification à la cliente</div>
@@ -1914,6 +1930,34 @@ function backToClients() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  ANNIVERSAIRE
+// ═══════════════════════════════════════════════════════════
+function openBirthdayEditor() {
+  const editor = document.getElementById('birthday-coach-editor');
+  document.getElementById('notif-menu').style.display = 'none';
+  editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveBirthdayCoach() {
+  const date = document.getElementById('birthday-coach-input').value || null;
+  const { error } = await db.from('clients').update({ date_naissance: date }).eq('id', currentClientId);
+  if (error) { alert('Erreur : ' + error.message); return; }
+  if (currentClientData) currentClientData.date_naissance = date;
+  document.getElementById('birthday-coach-editor').style.display = 'none';
+  const bdDisplay = document.getElementById('birthday-coach-display');
+  if (date) {
+    const bd = new Date(date + 'T12:00:00');
+    const today = new Date();
+    const isToday = bd.getDate() === today.getDate() && bd.getMonth() === today.getMonth();
+    bdDisplay.textContent = bd.toLocaleDateString('fr-FR', { day:'numeric', month:'long' })
+      + ' ' + bd.getFullYear()
+      + (isToday ? ' 🎉 Anniversaire aujourd\'hui !' : '');
+  } else {
+    bdDisplay.textContent = 'Non renseignée';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  DRIVE URL
 // ═══════════════════════════════════════════════════════════
 function openDriveEditor() {
@@ -2005,7 +2049,7 @@ async function loadClients() {
 
   const { data, error } = await db
     .from('clients')
-    .select('id, email, prenom, created_at, is_first_login, drive_url, actif')
+    .select('id, email, prenom, created_at, is_first_login, drive_url, actif, date_naissance')
     .order('prenom', { ascending: true });
   const unreadClientIds = await getClientsWithUnreadComments();
 
@@ -2098,6 +2142,21 @@ function openClientFromDB(client, colorIdx) {
   }
   document.getElementById('drive-editor').style.display = 'none';
   document.getElementById('drive-url-input').value = client.drive_url || '';
+
+  // Anniversaire
+  document.getElementById('birthday-coach-editor').style.display = 'none';
+  document.getElementById('birthday-coach-input').value = client.date_naissance || '';
+  const bdDisplay = document.getElementById('birthday-coach-display');
+  if (client.date_naissance) {
+    const bd = new Date(client.date_naissance + 'T12:00:00');
+    const today = new Date();
+    const isToday = bd.getDate() === today.getDate() && bd.getMonth() === today.getMonth();
+    bdDisplay.textContent = bd.toLocaleDateString('fr-FR', { day:'numeric', month:'long' })
+      + ' ' + bd.getFullYear()
+      + (isToday ? ' 🎉 Anniversaire aujourd\'hui !' : '');
+  } else {
+    bdDisplay.textContent = 'Non renseignée';
+  }
 
   // Plan HTML — chargé en lazy à l'ouverture de l'onglet Plan
   document.getElementById('plan-html-input').value = '';

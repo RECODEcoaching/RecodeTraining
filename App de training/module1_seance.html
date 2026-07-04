@@ -2211,6 +2211,132 @@ function checkAccountActive(session){
   loadNotifications();
   loadClientDriveUrl();
   loadDayScore();
+  checkBirthday();
+
+  // ── Anniversaire ────────────────────────────────────────────
+
+  async function checkBirthday() {
+    if (!SESSION) return;
+    try {
+      const { data } = await db.from('clients')
+        .select('date_naissance, prenom')
+        .eq('id', SESSION.client_id)
+        .single();
+      if (!data) return;
+
+      if (!data.date_naissance) {
+        // Pas encore de date → afficher le prompt
+        document.getElementById('birthday-modal').style.display = 'flex';
+        return;
+      }
+
+      // Vérifier si c'est son anniversaire aujourd'hui
+      const today = new Date();
+      const bday  = new Date(data.date_naissance + 'T12:00:00');
+      if (today.getDate() === bday.getDate() && today.getMonth() === bday.getMonth()) {
+        const age = today.getFullYear() - bday.getFullYear();
+        document.getElementById('birthday-msg-text').innerHTML =
+          `Joyeux anniversaire ${data.prenom}&nbsp;! 🎂<br><span style="font-size:15px;font-weight:500;opacity:0.75;">${age} ans aujourd'hui</span>`;
+        document.getElementById('birthday-overlay').style.display = 'flex';
+        startConfetti();
+      }
+    } catch(e) {}
+  }
+
+  async function saveBirthday() {
+    const input = document.getElementById('birthday-input');
+    const date  = input?.value;
+    if (!date) { input?.focus(); return; }
+    const btn = document.getElementById('birthday-save-btn');
+    btn.disabled = true; btn.textContent = '…';
+    const { error } = await db.from('clients').update({ date_naissance: date }).eq('id', SESSION.client_id);
+    btn.disabled = false; btn.textContent = 'Enregistrer';
+    if (error) { alert('Erreur : ' + error.message); return; }
+    document.getElementById('birthday-modal').style.display = 'none';
+    // Si c'est son anniversaire aujourd'hui
+    const today = new Date();
+    const bday  = new Date(date + 'T12:00:00');
+    if (today.getDate() === bday.getDate() && today.getMonth() === bday.getMonth()) {
+      document.getElementById('birthday-overlay').style.display = 'flex';
+      startConfetti();
+    }
+  }
+
+  function closeBirthdayOverlay() {
+    document.getElementById('birthday-overlay').style.display = 'none';
+    stopConfetti();
+  }
+
+  // ── Confettis ───────────────────────────────────────────────
+  let _confettiRaf = null;
+  function startConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    canvas.style.display = 'block';
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    const colors = ['#f97316','#7c3aed','#e879a0','#facc15','#34d399','#60a5fa','#fb923c'];
+    const particles = Array.from({ length: 140 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 6 + 3,
+      speed: Math.random() * 3 + 2,
+      angle: Math.random() * 360,
+      spin: (Math.random() - 0.5) * 8,
+      drift: (Math.random() - 0.5) * 1.5,
+    }));
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let done = true;
+      particles.forEach(p => {
+        p.y += p.speed; p.angle += p.spin; p.x += p.drift;
+        if (p.y < canvas.height + 20) done = false;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle * Math.PI / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+      if (done) { stopConfetti(); return; }
+      _confettiRaf = requestAnimationFrame(draw);
+    }
+    _confettiRaf = requestAnimationFrame(draw);
+    setTimeout(stopConfetti, 6000);
+  }
+  function stopConfetti() {
+    if (_confettiRaf) { cancelAnimationFrame(_confettiRaf); _confettiRaf = null; }
+    const c = document.getElementById('confetti-canvas');
+    if (c) { c.style.display = 'none'; c.getContext('2d').clearRect(0,0,c.width,c.height); }
+  }
 </script>
+
+<!-- ── Modals anniversaire ──────────────────────────────────── -->
+<canvas id="confetti-canvas" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;"></canvas>
+
+<!-- Prompt saisie de la date -->
+<div id="birthday-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface,#fff);border-radius:20px;padding:28px 22px;max-width:320px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px;">🎂</div>
+    <div style="font-size:16px;font-weight:800;margin-bottom:6px;">Ta date d'anniversaire</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:18px;line-height:1.5;">Pour qu'on puisse te souhaiter ton anniversaire le jour&nbsp;J&nbsp;!</div>
+    <input type="date" id="birthday-input" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:14px;color:#111827;">
+    <button id="birthday-save-btn" onclick="saveBirthday()" style="width:100%;padding:13px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">Enregistrer</button>
+    <button onclick="document.getElementById('birthday-modal').style.display='none'" style="width:100%;padding:10px;background:none;border:none;color:#9ca3af;font-size:13px;cursor:pointer;">Plus tard</button>
+  </div>
+</div>
+
+<!-- Message anniversaire + confettis -->
+<div id="birthday-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface,#fff);border-radius:24px;padding:32px 24px;max-width:300px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="font-size:56px;margin-bottom:14px;">🎉</div>
+    <div id="birthday-msg-text" style="font-size:18px;font-weight:800;margin-bottom:10px;line-height:1.35;color:#111827;"></div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:22px;line-height:1.5;">Profite bien de ta journée spéciale 🌟</div>
+    <button onclick="closeBirthdayOverlay()" style="padding:12px 28px;background:#7c3aed;color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">Merci&nbsp;!</button>
+  </div>
+</div>
+
 </body>
 </html>
