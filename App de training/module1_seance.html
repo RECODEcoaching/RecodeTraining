@@ -1207,11 +1207,11 @@ function checkAccountActive(session){
 
   // ── Rendu d'un exercice d'échauffement (texte libre, sans séries) ──
   function renderEchCard(item, index) {
-    const safeNomExo = item.nom_exo.replace(/'/g,"\\'");
+    const safeNomExo = item.nom_exo.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     const videoUrl   = item.exercices?.url_video || null;
     const consigne   = item.consigne || '';
     const videoBtn = videoUrl
-      ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${safeNomExo}', '${consigne.replace(/'/g,"\\'").replace(/\n/g,' ')}', '${videoUrl}')">
+      ? `<div class="exo-video-btn" onclick="event.stopPropagation(); openVideoModal('${safeNomExo}', '${consigne.replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,' ')}', '${videoUrl}')">
            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
          </div>`
       : '';
@@ -1424,14 +1424,19 @@ function checkAccountActive(session){
     const seanceMap = {};
     seances.forEach(s => { seanceMap[s.id] = s; });
 
-    const { data: rows } = await db.from('seance_exercices')
+    const { data: rowsRaw } = await db.from('seance_exercices')
       .select('seance_id, charge_reelle, reps_reelles, charge, charge_kg, series_data, notes_client')
       .eq('nom_exo', nomExo)
       .in('seance_id', seances.map(s => s.id))
-      .order('seance_id', { ascending: false })
-      .limit(10);
+      .limit(20);
 
-    if (!rows || !rows.length) {
+    const rows = (rowsRaw || []).sort((a, b) => {
+      const da = seanceMap[a.seance_id]?.date || '';
+      const db2 = seanceMap[b.seance_id]?.date || '';
+      return db2.localeCompare(da); // plus récent en premier
+    }).slice(0, 10);
+
+    if (!rows.length) {
       document.getElementById('exo-history-body').innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:13px;">Aucun historique pour cet exercice.</div>';
       return;
     }
