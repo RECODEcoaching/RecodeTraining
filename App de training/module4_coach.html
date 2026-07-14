@@ -1205,6 +1205,24 @@ async function hashPin(pin) {
           <div style="padding:8px 12px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);">APERÇU</div>
           <iframe id="plan-preview-iframe" style="width:100%;height:480px;border:none;display:block;"></iframe>
         </div>
+
+        <div class="divider" style="margin-top:28px;margin-bottom:20px;"></div>
+        <div class="section-title">Exo / Mindset</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+          Contenu HTML personnalisé (exercices de mobilité, réflexions mindset…) visible uniquement par cette cliente dans son profil.
+        </div>
+        <textarea id="exo-mindset-input" class="form-input" rows="14"
+          placeholder="<!DOCTYPE html>&#10;<html><body>&#10;  <h1>Tes exercices du moment</h1>&#10;  ...&#10;</body></html>"
+          style="font-family:monospace;font-size:12px;resize:vertical;width:100%;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+          <button class="btn btn-accent" onclick="saveExoMindsetHtml()">Enregistrer</button>
+          <button onclick="previewExoMindsetHtml()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Prévisualiser</button>
+          <button onclick="clearExoMindsetHtml()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--danger);font-size:13px;font-weight:600;cursor:pointer;">Effacer</button>
+        </div>
+        <div id="exo-mindset-preview-wrap" style="display:none;margin-top:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <div style="padding:8px 12px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);">APERÇU</div>
+          <iframe id="exo-mindset-preview-iframe" style="width:100%;height:480px;border:none;display:block;"></iframe>
+        </div>
       </div>
 
     </div><!-- end screen-client-detail -->
@@ -3758,11 +3776,13 @@ function switchClientTab(btn, id) {
 
 async function loadClientPlanHtml() {
   if (!currentClientId) return;
-  const { data } = await db.from('clients').select('plan_html, video_plan_url').eq('id', currentClientId).single();
+  const { data } = await db.from('clients').select('plan_html, video_plan_url, exo_mindset_html').eq('id', currentClientId).single();
   const html = data?.plan_html || '';
   document.getElementById('plan-html-input').value = html;
   document.getElementById('plan-video-url-input').value = data?.video_plan_url || '';
   if (currentClientData) currentClientData.plan_html = html;
+  document.getElementById('exo-mindset-input').value = data?.exo_mindset_html || '';
+  document.getElementById('exo-mindset-preview-wrap').style.display = 'none';
 }
 
 // ─── CYCLE : vue coach ─────────────────────────────────────────
@@ -4947,6 +4967,29 @@ function clearPlanHtml() {
   document.getElementById('plan-html-input').value = '';
   document.getElementById('plan-preview-wrap').style.display = 'none';
   savePlanHtml();
+}
+
+// ─── EXO / MINDSET PAR CLIENTE ────────────────────────────────
+async function saveExoMindsetHtml() {
+  if (!currentClientId) return;
+  const html = document.getElementById('exo-mindset-input').value.trim();
+  const { error } = await db.from('clients').update({ exo_mindset_html: html || null }).eq('id', currentClientId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Exo / Mindset enregistré ✓');
+}
+
+function previewExoMindsetHtml() {
+  const html = document.getElementById('exo-mindset-input').value;
+  if (!html.trim()) { toast('Rien à prévisualiser'); return; }
+  document.getElementById('exo-mindset-preview-iframe').srcdoc = html;
+  document.getElementById('exo-mindset-preview-wrap').style.display = 'block';
+}
+
+function clearExoMindsetHtml() {
+  if (!confirm('Effacer le contenu Exo / Mindset de cette cliente ?')) return;
+  document.getElementById('exo-mindset-input').value = '';
+  document.getElementById('exo-mindset-preview-wrap').style.display = 'none';
+  saveExoMindsetHtml();
 }
 
 // ─── NOTION URL GLOBALE ───────────────────────────────────────

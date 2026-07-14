@@ -430,6 +430,23 @@ function checkAccountActive(session){
     </div>
   </div>
 
+  <!-- Carte Exo / Mindset -->
+  <div class="plan-card" id="card-exo-mindset" style="display:none;" onclick="openExoMindsetModal()">
+    <div class="plan-card-icon purple">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+    </div>
+    <div class="plan-card-body">
+      <div class="plan-card-title">Exo / Mindset</div>
+      <div class="plan-card-sub">Exercices & réflexions personnalisés</div>
+    </div>
+    <div class="plan-card-arrow">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
   <!-- Carte Espace collectif Notion -->
   <div class="plan-card" id="card-notion" style="display:none;" onclick="openNotionLink()">
     <div class="plan-card-icon dark">
@@ -560,6 +577,19 @@ function checkAccountActive(session){
   </div>
 </div>
 
+<!-- MODAL EXO / MINDSET PLEIN ÉCRAN -->
+<div class="plan-modal" id="modal-exo-mindset">
+  <div class="plan-modal-header">
+    <button class="plan-modal-close" onclick="closeExoMindsetModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="plan-modal-title">Exo / Mindset</div>
+  </div>
+  <div class="plan-modal-body">
+    <iframe id="exo-mindset-iframe" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+  </div>
+</div>
+
 <!-- MODAL CHANGER PIN -->
 <div class="modal-overlay" id="modal-pin">
   <div class="modal-sheet">
@@ -620,7 +650,7 @@ async function loadProfile() {
   if (savedPhoto) showPhoto(savedPhoto);
 
   // Date d'inscription + plan HTML + Drive URL + vidéo plan depuis Supabase
-  const { data } = await db.from('clients').select('created_at, objectif, plan_html, drive_url, video_plan_url').eq('id', SESSION.client_id).single();
+  const { data } = await db.from('clients').select('created_at, objectif, plan_html, exo_mindset_html, drive_url, video_plan_url').eq('id', SESSION.client_id).single();
   if (data) {
     const d = new Date(data.created_at);
     document.getElementById('info-since').textContent = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -629,6 +659,13 @@ async function loadProfile() {
     // Afficher la carte "Mon programme" si le coach a défini un plan
     if (data.plan_html) {
       document.getElementById('card-plan').dataset.planHtml = data.plan_html;
+      document.getElementById('section-plan').style.display = 'block';
+    }
+
+    // Afficher la carte "Exo / Mindset" si le coach a défini du contenu
+    if (data.exo_mindset_html) {
+      document.getElementById('card-exo-mindset').dataset.html = data.exo_mindset_html;
+      document.getElementById('card-exo-mindset').style.display = 'flex';
       document.getElementById('section-plan').style.display = 'block';
     }
 
@@ -691,6 +728,20 @@ function closePlanModal() {
   // Vider l'iframe pour libérer les ressources
   const iframe = document.getElementById('plan-iframe');
   iframe.srcdoc = '';
+}
+
+function openExoMindsetModal() {
+  const card = document.getElementById('card-exo-mindset');
+  const html = card.dataset.html || '';
+  if (!html) return;
+  document.getElementById('exo-mindset-iframe').srcdoc = html;
+  document.getElementById('modal-exo-mindset').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeExoMindsetModal() {
+  document.getElementById('modal-exo-mindset').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('exo-mindset-iframe').srcdoc = '';
 }
 
 function openNotionLink() {
