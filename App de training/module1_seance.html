@@ -137,11 +137,28 @@ function checkAccountActive(session){
     text-transform: uppercase; letter-spacing: 0.5px;
   }
   .dss-value { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
-  .day-insight-card {
-    background: rgba(255,255,255,0.08); border-radius: 14px; padding: 11px 14px;
-    font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.92);
+  /* Toggle timer de repos */
+  .rest-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 14px; position: relative; z-index: 1;
+    padding: 9px 12px; background: rgba(255,255,255,0.08);
+    border-radius: 12px;
   }
+  .rest-toggle-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 6px; }
+  .rest-toggle-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .rest-toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .rest-toggle-slider {
+    position: absolute; inset: 0; border-radius: 20px;
+    background: rgba(255,255,255,0.25); cursor: pointer;
+    transition: background 0.2s;
+  }
+  .rest-toggle-slider::before {
+    content: ''; position: absolute; width: 14px; height: 14px;
+    left: 3px; top: 3px; border-radius: 50%; background: #fff;
+    transition: transform 0.2s;
+  }
+  .rest-toggle-switch input:checked + .rest-toggle-slider { background: #22c55e; }
+  .rest-toggle-switch input:checked + .rest-toggle-slider::before { transform: translateX(16px); }
   /* Week navigation */
   .week-nav { display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
   .week-nav-btn {
@@ -382,7 +399,7 @@ function checkAccountActive(session){
 
   /* Rest timer */
   .rest-timer {
-    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(10px);
+    position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%) translateY(10px);
     background: var(--surface); border: 1px solid var(--border-md);
     border-radius: 28px; padding: 9px 16px 9px 14px;
     display: flex; align-items: center; gap: 10px;
@@ -391,10 +408,19 @@ function checkAccountActive(session){
     transition: opacity 0.25s ease, transform 0.25s ease;
   }
   .rest-timer.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .rest-timer.go {
+    background: #16a34a; border-color: #16a34a;
+    animation: rest-go-pulse 0.5s ease-in-out 3;
+  }
+  .rest-timer.go .rest-countdown { color: #fff; font-size: 16px; }
+  .rest-timer.go .rest-label    { color: rgba(255,255,255,0.85); }
+  .rest-timer.go .rest-close    { background: rgba(255,255,255,0.2); color: #fff; }
+  @keyframes rest-go-pulse { 0%,100%{transform:translateX(-50%) scale(1);} 50%{transform:translateX(-50%) scale(1.06);} }
   .rest-dot {
     width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
     animation: pulse 1s ease-in-out infinite;
   }
+  .rest-timer.go .rest-dot { background: #fff; }
   @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
   .rest-info { display: flex; flex-direction: column; gap: 1px; }
   .rest-label { font-size: 9px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
@@ -604,7 +630,16 @@ function checkAccountActive(session){
         </div>
       </div>
     </div>
-    <div class="day-insight-card" id="day-insight" style="display:none"></div>
+    <div class="rest-toggle-row">
+      <div class="rest-toggle-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Timer de repos automatique
+      </div>
+      <label class="rest-toggle-switch">
+        <input type="checkbox" id="rest-timer-toggle" checked onchange="onRestTimerToggle(this.checked)">
+        <span class="rest-toggle-slider"></span>
+      </label>
+    </div>
     <div class="week-nav">
       <button class="week-nav-btn" onclick="shiftWeek(-1)" aria-label="Semaine précédente">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -646,7 +681,7 @@ function checkAccountActive(session){
     <div class="session-title" id="session-title-text">Séance</div>
     <div class="session-chips">
       <span class="chip accent" id="session-date-chip">—</span>
-      <span class="chip" id="session-chrono-chip" style="display:none;background:var(--accent-bg);color:var(--accent);font-variant-numeric:tabular-nums;">⏱ 0:00</span>
+      <span class="chip" id="session-chrono-chip" style="display:none;background:var(--accent-bg);color:var(--accent);font-variant-numeric:tabular-nums;cursor:pointer;" onclick="stopSessionChrono();this.style.display='none';" title="Appuie pour stopper">⏱ 0:00</span>
     </div>
     <div id="session-avg-info" style="display:none;font-size:11px;color:var(--text-muted);margin-top:2px;padding:0 2px;"></div>
     <div class="session-progress" id="session-progress">
@@ -697,9 +732,9 @@ function checkAccountActive(session){
 
 <!-- REST TIMER -->
 <div class="rest-timer" id="rest-timer">
-  <div class="rest-dot"></div>
+  <div class="rest-dot" id="rest-dot"></div>
   <div class="rest-info">
-    <div class="rest-label">Repos</div>
+    <div class="rest-label" id="rest-label">Repos</div>
     <div class="rest-countdown" id="rest-countdown">2:30</div>
   </div>
   <button class="rest-close" onclick="stopRest()">
@@ -2034,6 +2069,20 @@ function checkAccountActive(session){
     if (label) label.textContent = done + ' / ' + total + ' exercices';
   }
 
+  // ── Toggle timer de repos ─────────────────────────────────
+  function getRestTimerEnabled() {
+    return localStorage.getItem('recode_rest_timer') !== 'false';
+  }
+  function onRestTimerToggle(enabled) {
+    localStorage.setItem('recode_rest_timer', enabled ? 'true' : 'false');
+    if (!enabled) stopRest();
+  }
+  // Init toggle au chargement
+  (function initRestToggle() {
+    const cb = document.getElementById('rest-timer-toggle');
+    if (cb) cb.checked = getRestTimerEnabled();
+  })();
+
   // ── Rest timer ────────────────────────────────────────────
   let restInterval = null;
   let restSecs = 0;
@@ -2041,15 +2090,27 @@ function checkAccountActive(session){
   function startRest(secs, label) {
     if (restInterval) clearInterval(restInterval);
     restSecs = secs;
+    const timerEl = document.getElementById('rest-timer');
+    timerEl.classList.remove('go');
     document.getElementById('rest-label').textContent = label || 'Repos';
-    document.getElementById('rest-timer').classList.add('visible');
+    timerEl.classList.add('visible');
     renderCountdown();
     restInterval = setInterval(() => {
       restSecs--;
       if (restSecs <= 0) {
         clearInterval(restInterval); restInterval = null;
-        document.getElementById('rest-timer').classList.remove('visible');
-        if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+        // Vibration
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+        // Alerte visuelle "Go !"
+        const goLabel = label === 'Repos côté' ? '→ Côté droit !' : '💪 Série suivante !';
+        document.getElementById('rest-label').textContent = goLabel;
+        document.getElementById('rest-countdown').textContent = 'Go !';
+        timerEl.classList.add('go');
+        // Auto-dismiss après 3 secondes
+        setTimeout(() => {
+          timerEl.classList.remove('visible', 'go');
+          document.getElementById('rest-label').textContent = 'Repos';
+        }, 3000);
       } else { renderCountdown(); }
     }, 1000);
   }
@@ -2062,7 +2123,8 @@ function checkAccountActive(session){
 
   function stopRest() {
     if (restInterval) { clearInterval(restInterval); restInterval = null; }
-    document.getElementById('rest-timer').classList.remove('visible');
+    const timerEl = document.getElementById('rest-timer');
+    timerEl.classList.remove('visible', 'go');
   }
 
   function parseRest(card, type) {
@@ -2095,10 +2157,10 @@ function checkAccountActive(session){
     if (input.value) input.classList.add('done'); else input.classList.remove('done');
     const row  = input.closest('.series-row');
     const card = input.closest('.exo-card');
-    if (row) {
-      const rowInputs = row.querySelectorAll('.serie-input:not(.prescribed)');
-      // 1er exercice d'un super-set : pas de repos, on enchaîne direct sur le 2e
-      if (Array.from(rowInputs).every(i => i.value.trim() !== '') && card?.dataset.supersetRole !== 'first') {
+    if (row && card?.dataset.supersetRole !== 'first' && getRestTimerEnabled()) {
+      // Déclenche le repos dès que les reps sont saisies (sans attendre la charge)
+      const repsInput = row.querySelector('[data-field="reps"]');
+      if (repsInput && repsInput.value.trim() !== '') {
         startRest(parseRest(card, 'series'), 'Repos série');
       }
     }
@@ -2112,15 +2174,17 @@ function checkAccountActive(session){
     const card = input.closest('.exo-card');
     const row  = input.closest('.series-row');
     const isSupersetFirst = card.dataset.supersetRole === 'first';
-    if (input.classList.contains('side-g') && input.value.trim() !== '') {
-      if (!isSupersetFirst) startRest(parseRest(card, 'side'), 'Repos côté');
-    } else if (input.classList.contains('side-d') && input.value.trim() !== '') {
-      const charge = row.querySelector('.serie-input:not(.prescribed):not(.side-g):not(.side-d)');
-      if ((!charge || charge.value.trim() !== '') && !isSupersetFirst) startRest(parseRest(card, 'series'), 'Repos série');
-    } else if (!input.classList.contains('side-g') && !input.classList.contains('side-d')) {
-      const sideD = row.querySelector('.side-d');
-      if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '' && !isSupersetFirst) {
-        startRest(parseRest(card, 'series'), 'Repos série');
+    if (getRestTimerEnabled()) {
+      if (input.classList.contains('side-g') && input.value.trim() !== '') {
+        if (!isSupersetFirst) startRest(parseRest(card, 'side'), 'Repos côté');
+      } else if (input.classList.contains('side-d') && input.value.trim() !== '') {
+        const charge = row.querySelector('.serie-input:not(.prescribed):not(.side-g):not(.side-d)');
+        if ((!charge || charge.value.trim() !== '') && !isSupersetFirst) startRest(parseRest(card, 'series'), 'Repos série');
+      } else if (!input.classList.contains('side-g') && !input.classList.contains('side-d')) {
+        const sideD = row.querySelector('.side-d');
+        if (sideD && sideD.value.trim() !== '' && input.value.trim() !== '' && !isSupersetFirst) {
+          startRest(parseRest(card, 'series'), 'Repos série');
+        }
       }
     }
     updateExoNum(card);
@@ -2244,20 +2308,6 @@ function checkAccountActive(session){
     const seancesEl = document.getElementById('dss-seances');
     if (seancesEl) seancesEl.textContent = Math.round(seancesPct * 100) + '%';
 
-    // ── Conseil du jour (généré par règles) ──
-    let insight = '';
-    if (habitsPct !== null && habitsPct < 0.5 && habitsPct <= seancesPct) {
-      insight = `Tes habitudes ont pris du retard cette semaine (${Math.round(habitsPct * 100)}%) — un petit geste aujourd'hui peut relancer la dynamique.`;
-    } else if (seancesPct < 0.5 && (habitsPct === null || seancesPct < habitsPct)) {
-      insight = `Quelques séances ont été manquées cette semaine (${Math.round(seancesPct * 100)}%) — à toi de jouer pour la suite.`;
-    } else if (combined < 0.8) {
-      insight = `Bonne dynamique cette semaine (${Math.round(combined * 100)}%) — encore un peu d'effort pour finir fort.`;
-    }
-    const insightEl = document.getElementById('day-insight');
-    if (insightEl) {
-      if (insight) { insightEl.textContent = insight; insightEl.style.display = 'block'; }
-      else { insightEl.style.display = 'none'; }
-    }
   }
 
   // ── Notes séance globale + échauffement ──────────────────
