@@ -646,7 +646,9 @@ function checkAccountActive(session){
     <div class="session-title" id="session-title-text">Séance</div>
     <div class="session-chips">
       <span class="chip accent" id="session-date-chip">—</span>
+      <span class="chip" id="session-chrono-chip" style="display:none;background:var(--accent-bg);color:var(--accent);font-variant-numeric:tabular-nums;">⏱ 0:00</span>
     </div>
+    <div id="session-avg-info" style="display:none;font-size:11px;color:var(--text-muted);margin-top:2px;padding:0 2px;"></div>
     <div class="session-progress" id="session-progress">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="progress-label" id="progress-label">0 / 0 exercices</div>
@@ -796,6 +798,67 @@ function checkAccountActive(session){
   let currentSeanceStatut = null;
   let clientDriveUrl      = null;
   let currentExoNoteName  = null; // nom de l'exercice courant dans la modale historique (pour les notes perso)
+
+  // ── Chrono de séance ──────────────────────────────────────
+  let sessionChronoStarted   = false;
+  let sessionChronoInterval  = null;
+  let sessionChronoStartDate = null;
+  let sessionCompositionHash = null;
+
+  function computeCompositionHash(exos) {
+    if (!exos || !exos.length) return null;
+    const names = exos.map(e => (e.nom_exo || '').trim().toLowerCase()).filter(Boolean).sort();
+    return names.join('|');
+  }
+
+  function startSessionChrono(startDate) {
+    sessionChronoStartDate = startDate;
+    sessionChronoStarted   = true;
+    const chip = document.getElementById('session-chrono-chip');
+    if (!chip) return;
+    chip.style.display = '';
+    function tick() {
+      const elapsed = Math.floor((Date.now() - startDate.getTime()) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      chip.textContent = '⏱ ' + m + ':' + String(s).padStart(2, '0');
+    }
+    tick();
+    if (sessionChronoInterval) clearInterval(sessionChronoInterval);
+    sessionChronoInterval = setInterval(tick, 1000);
+  }
+
+  function stopSessionChrono() {
+    if (sessionChronoInterval) { clearInterval(sessionChronoInterval); sessionChronoInterval = null; }
+    sessionChronoStarted   = false;
+    sessionChronoStartDate = null;
+  }
+
+  async function loadSessionAverage(seanceId, hash) {
+    if (!hash || !SESSION) return;
+    try {
+      const { data: peers } = await db.from('seances')
+        .select('started_at, ended_at')
+        .eq('client_id', SESSION.client_id)
+        .eq('composition_hash', hash)
+        .eq('statut', 'validée')
+        .not('started_at', 'is', null)
+        .not('ended_at', 'is', null)
+        .neq('id', seanceId);
+      if (!peers || !peers.length) return;
+      const durations = peers.map(s => {
+        const ms = new Date(s.ended_at) - new Date(s.started_at);
+        return ms / 60000;
+      }).filter(d => d >= 5 && d <= 180);
+      if (!durations.length) return;
+      const avg = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+      const el = document.getElementById('session-avg-info');
+      if (el) {
+        el.textContent = '⏱ ~' + avg + ' min en moyenne (' + durations.length + ' séance' + (durations.length > 1 ? 's' : '') + ')';
+        el.style.display = '';
+      }
+    } catch(e) {}
+  }
 
   // ── Chargement Drive URL ─────────────────────────────────
   async function loadClientDriveUrl() {
@@ -994,14 +1057,23 @@ function checkAccountActive(session){
       <span style="display:inline-block;width:5px;height:5px;background:#fff;border-radius:50%;"></span>Réponse coach
     </span>` : '';
 
+    // Durée de la séance (si started_at + ended_at disponibles)
+    let dureeMin = null;
+    if (s.started_at && s.ended_at) {
+      const ms = new Date(s.ended_at) - new Date(s.started_at);
+      const d = Math.round(ms / 60000);
+      if (d >= 5 && d <= 180) dureeMin = d;
+    }
+    const dureeTag = dureeMin ? `<div class="session-tag">⏱ ${dureeMin} min</div>` : '';
+
     return `<div class="${cardClass}" onclick="openSession('${s.id}')">
       <div class="session-meta">
         <div class="session-day">${dayLabel}</div>
         <div style="display:flex;align-items:center;"><div class="session-status ${statusClass}">${statusLabel}</div>${badge}</div>
       </div>
       <div class="session-name">${s.titre}</div>
-      <div class="session-info" id="card-info-${s.id}">
-        <div class="session-tag">—</div>
+      <div class="session-info" id="card-info-${s.id}" data-duree="${dureeMin || ''}">
+        ${dureeTag || '<div class="session-tag">—</div>'}
       </div>
     </div>`;
   }
@@ -1042,6 +1114,13 @@ function checkAccountActive(session){
   // ── Ouverture d'une séance ───────────────────────────────
   async function openSession(seanceId) {
     currentSeanceId = seanceId;
+    // Reset chrono de la séance précédente
+    stopSessionChrono();
+    sessionCompositionHash = null;
+    const chronoChip = document.getElementById('session-chrono-chip');
+    if (chronoChip) { chronoChip.style.display = 'none'; chronoChip.textContent = '⏱ 0:00'; }
+    const avgEl = document.getElementById('session-avg-info');
+    if (avgEl) avgEl.style.display = 'none';
     showScreen('screen-session');
 
     // Reset
@@ -1122,6 +1201,26 @@ function checkAccountActive(session){
       }
     });
 
+    // ── Composition hash + chrono ────────────────────────────
+    sessionCompositionHash = computeCompositionHash(exos || []);
+    if (sessionCompositionHash) {
+      // Mettre à jour le hash en base (silencieux, ne bloque pas le rendu)
+      db.from('seances').update({ composition_hash: sessionCompositionHash })
+        .eq('id', seanceId).then(() => {});
+      // Charger la moyenne si séance non encore validée ou validée (affichée dans les 2 cas)
+      loadSessionAverage(seanceId, sessionCompositionHash);
+    }
+    // État du chrono selon seance.started_at / ended_at
+    if (seance.started_at && !seance.ended_at && seance.statut !== 'validée') {
+      startSessionChrono(new Date(seance.started_at));
+    } else if (seance.started_at && seance.ended_at) {
+      const dureeMin = Math.round((new Date(seance.ended_at) - new Date(seance.started_at)) / 60000);
+      if (dureeMin >= 5 && dureeMin <= 180) {
+        const chip = document.getElementById('session-chrono-chip');
+        if (chip) { chip.textContent = '⏱ ' + dureeMin + ' min'; chip.style.display = ''; }
+      }
+    }
+
     // Marquer les réponses coach comme lues (silencieusement)
     const unreadIds = (exos || []).filter(e => exoHasUnreadCoach(e)).map(e => e.id);
     if (unreadIds.length) {
@@ -1180,9 +1279,13 @@ function checkAccountActive(session){
       // Appliquer l'indicateur vert sur les exercices déjà complets (données sauvegardées)
       exoList.querySelectorAll('.exo-card').forEach(updateExoNum);
       document.getElementById('progress-label').textContent = '0 / ' + exos.length + ' exercices';
-      // Mettre à jour le compteur sur la card semaine
+      // Mettre à jour le compteur sur la card semaine (conserver la durée si dispo)
       const cardInfo = document.getElementById('card-info-' + seanceId);
-      if (cardInfo) cardInfo.innerHTML = `<div class="session-tag">${exos.length} exercice${exos.length > 1 ? 's' : ''}</div>`;
+      if (cardInfo) {
+        const dureeMin = cardInfo.dataset.duree;
+        const dureeTag = dureeMin ? `<div class="session-tag">⏱ ${dureeMin} min</div>` : '';
+        cardInfo.innerHTML = `<div class="session-tag">${exos.length} exercice${exos.length > 1 ? 's' : ''}</div>${dureeTag}`;
+      }
       setTimeout(() => {
         const firstHeader = exoList.querySelector('.exo-header');
         if (firstHeader) toggleExo(firstHeader);
@@ -1770,6 +1873,15 @@ function checkAccountActive(session){
       promises.push(db.from('seance_exercices').update({ series_data: seriesData }).eq('id', exoId));
     }
 
+    // ── Démarrer le chrono à la première saisie ───────────────
+    if (!sessionChronoStarted && currentSeanceId && currentSeanceStatut !== 'validée'
+        && (hasData || (notesClient && noteChanged))) {
+      const now = new Date();
+      startSessionChrono(now);
+      db.from('seances').update({ started_at: now.toISOString() })
+        .eq('id', currentSeanceId).then(() => {});
+    }
+
     if (promises.length) await Promise.allSettled(promises);
   }
 
@@ -1793,13 +1905,26 @@ function checkAccountActive(session){
     const exoCards = document.querySelectorAll('.exo-card[data-exo-id]');
     await Promise.allSettled(Array.from(exoCards).map(card => saveExoCardData(card)));
 
-    // 2. Valider la séance
-    const { error } = await db.from('seances').update({ statut: 'validée' }).eq('id', currentSeanceId);
+    // 2. Valider la séance + enregistrer ended_at
+    const endedAt = new Date();
+    const updatePayload = { statut: 'validée', ended_at: endedAt.toISOString() };
+    if (sessionCompositionHash) updatePayload.composition_hash = sessionCompositionHash;
+    const { error } = await db.from('seances').update(updatePayload).eq('id', currentSeanceId);
     if (error) {
       btn.disabled = false; btn.style.opacity = '1';
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Valider la séance';
       alert('Erreur lors de la validation. Réessaie.');
       return;
+    }
+    // Arrêter le chrono et afficher la durée finale
+    stopSessionChrono();
+    if (sessionChronoStartDate) {
+      const dureeMin = Math.round((endedAt - sessionChronoStartDate) / 60000);
+      const chip = document.getElementById('session-chrono-chip');
+      if (chip && dureeMin >= 5 && dureeMin <= 180) {
+        chip.textContent = '⏱ ' + dureeMin + ' min';
+        chip.style.display = '';
+      }
     }
     document.getElementById('success-overlay').classList.add('open');
   }
@@ -1824,6 +1949,7 @@ function checkAccountActive(session){
   }
 
   async function closeSuccess() {
+    stopSessionChrono();
     document.getElementById('success-overlay').classList.remove('open');
     showScreen('screen-week');
     await loadWeekSessions();
@@ -1836,7 +1962,7 @@ function checkAccountActive(session){
     window.scrollTo(0, 0);
   }
 
-  function goBack() { showScreen('screen-week'); }
+  function goBack() { stopSessionChrono(); showScreen('screen-week'); }
 
   function toggleExo(header) {
     const body  = header.nextElementSibling;

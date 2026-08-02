@@ -936,20 +936,15 @@ async function hashPin(pin) {
       <div id="notif-menu" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">Envoyer une notification à la cliente</div>
         <div style="display:flex;flex-direction:column;gap:7px;">
-          <button onclick="sendManualNotif('bilan_reponse')"
-            style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:background 0.15s;" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--bg)'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Réponse au bilan
-          </button>
           <button onclick="sendManualNotif('drive_correction')"
             style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:background 0.15s;" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--bg)'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-            Correction dans Drive
+            Réponse au bilan dans le drive
           </button>
           <button onclick="sendManualNotif('video_correction')"
             style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;text-align:left;transition:background 0.15s;" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--bg)'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-            Correction vidéo
+            Correction vidéo dans le drive
           </button>
         </div>
         <div style="margin-top:10px;">
@@ -2143,9 +2138,8 @@ function toggleNotifMenu() {
 async function sendManualNotif(type) {
   if (!currentClientId) return;
   const labels = {
-    bilan_reponse:    'Réponse au bilan',
-    drive_correction: 'Correction dans Drive',
-    video_correction: 'Correction vidéo'
+    drive_correction: 'Réponse au bilan dans le drive',
+    video_correction: 'Correction vidéo dans le drive'
   };
   const { error } = await db.from('notifications').insert({ client_id: currentClientId, type });
   if (error) { toast('Erreur : ' + error.message); return; }
