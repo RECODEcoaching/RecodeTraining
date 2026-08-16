@@ -2636,7 +2636,7 @@ function openMetricDetail(id) {
     chartWrap.innerHTML = `<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:20px 0;">Pas encore assez de données pour afficher une évolution</div>`;
   }
 
-  // Stats min / moyenne / max sur l'historique chargé
+  // Stats min / moyenne / max sur l'historique chargé + moy. 7 derniers jours
   const statsRow = document.getElementById('detail-stats-row');
   if (valeurs.length >= 2) {
     const nums = valeurs.map(v => v.valeur);
@@ -2646,10 +2646,22 @@ function openMetricDetail(id) {
       ? n => minsToHHMM(n)
       : n => Math.abs(n) < 10 ? n.toFixed(1) : Math.round(n);
     const u = type === 'temps' ? '' : (m.unite || '');
+
+    // Moyenne 7 derniers jours
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0,0,0,0);
+    const recent = valeurs.filter(v => new Date(v.date + 'T12:00:00') >= cutoff);
+    const avg7Html = recent.length
+      ? `<div class="detail-stat" style="border:1px solid var(--accent);background:var(--accent-bg);">
+           <div class="detail-stat-label" style="color:var(--accent);">Moy. 7j</div>
+           <div class="detail-stat-value" style="color:var(--accent);">${fmt(recent.reduce((a,b)=>a+b.valeur,0)/recent.length)} ${u}</div>
+         </div>`
+      : '';
+
     statsRow.innerHTML = `
       <div class="detail-stat"><div class="detail-stat-label">Min</div><div class="detail-stat-value">${fmt(min)} ${u}</div></div>
       <div class="detail-stat"><div class="detail-stat-label">Moy.</div><div class="detail-stat-value">${fmt(avg)} ${u}</div></div>
       <div class="detail-stat"><div class="detail-stat-label">Max</div><div class="detail-stat-value">${fmt(max)} ${u}</div></div>
+      ${avg7Html}
     `;
     statsRow.style.display = 'flex';
   } else {
