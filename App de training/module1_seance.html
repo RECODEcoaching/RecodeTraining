@@ -2087,32 +2087,45 @@ function checkAccountActive(session){
   let restInterval = null;
   let restSecs = 0;
 
+  const REST_STORAGE_KEY = 'recode_rest_timer_state';
+
   function startRest(secs, label) {
+    if (restInterval) clearInterval(restInterval);
+    // Persister en localStorage pour survivre au passage en arrière-plan
+    localStorage.setItem(REST_STORAGE_KEY, JSON.stringify({
+      startedAt: Date.now(), totalSecs: secs, label: label || 'Repos'
+    }));
+    _runRestTimer(secs, label || 'Repos');
+  }
+
+  function _runRestTimer(secs, label) {
     if (restInterval) clearInterval(restInterval);
     restSecs = secs;
     const timerEl = document.getElementById('rest-timer');
     timerEl.classList.remove('go');
-    document.getElementById('rest-label').textContent = label || 'Repos';
+    document.getElementById('rest-label').textContent = label;
     timerEl.classList.add('visible');
     renderCountdown();
     restInterval = setInterval(() => {
       restSecs--;
-      if (restSecs <= 0) {
-        clearInterval(restInterval); restInterval = null;
-        // Vibration
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-        // Alerte visuelle "Go !"
-        const goLabel = label === 'Repos côté' ? '→ Côté droit !' : '💪 Série suivante !';
-        document.getElementById('rest-label').textContent = goLabel;
-        document.getElementById('rest-countdown').textContent = 'Go !';
-        timerEl.classList.add('go');
-        // Auto-dismiss après 3 secondes
-        setTimeout(() => {
-          timerEl.classList.remove('visible', 'go');
-          document.getElementById('rest-label').textContent = 'Repos';
-        }, 3000);
-      } else { renderCountdown(); }
+      if (restSecs <= 0) { _restFinished(label); }
+      else { renderCountdown(); }
     }, 1000);
+  }
+
+  function _restFinished(label) {
+    if (restInterval) { clearInterval(restInterval); restInterval = null; }
+    localStorage.removeItem(REST_STORAGE_KEY);
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+    const timerEl = document.getElementById('rest-timer');
+    const goLabel = label === 'Repos côté' ? '→ Côté droit !' : '💪 Série suivante !';
+    document.getElementById('rest-label').textContent = goLabel;
+    document.getElementById('rest-countdown').textContent = 'Go !';
+    timerEl.classList.add('go');
+    setTimeout(() => {
+      timerEl.classList.remove('visible', 'go');
+      document.getElementById('rest-label').textContent = 'Repos';
+    }, 3000);
   }
 
   function renderCountdown() {
@@ -2123,9 +2136,28 @@ function checkAccountActive(session){
 
   function stopRest() {
     if (restInterval) { clearInterval(restInterval); restInterval = null; }
+    localStorage.removeItem(REST_STORAGE_KEY);
     const timerEl = document.getElementById('rest-timer');
     timerEl.classList.remove('visible', 'go');
   }
+
+  // Reprendre le timer si l'app revient au premier plan
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const raw = localStorage.getItem(REST_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const { startedAt, totalSecs, label } = JSON.parse(raw);
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = totalSecs - elapsed;
+      if (remaining <= 0) {
+        localStorage.removeItem(REST_STORAGE_KEY);
+        _restFinished(label);
+      } else {
+        _runRestTimer(remaining, label);
+      }
+    } catch(e) { localStorage.removeItem(REST_STORAGE_KEY); }
+  });
 
   function parseRest(card, type) {
     if (type === 'side') return parseInt(card.dataset.restSide) || 45;

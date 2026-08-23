@@ -1120,6 +1120,9 @@ async function hashPin(pin) {
         <div class="metrics-manage" id="coach-habits-list">
           <div id="coach-habits-empty" style="padding:18px 0;font-size:12px;color:var(--dim);text-align:center;">Aucune habitude assignée</div>
         </div>
+
+        <div class="section-title" id="coach-habits-history-title" style="margin-top:16px;display:none">Historique — 4 semaines</div>
+        <div id="coach-habits-history"></div>
       </div>
 
       <!-- Cycle -->
@@ -4636,6 +4639,7 @@ async function loadClientHabits(clientId) {
 
   if (!habitudes || habitudes.length === 0) {
     if (emptyEl2) emptyEl2.style.display = '';
+    loadHabitsHistory(clientId);
     return;
   }
 
@@ -4668,6 +4672,94 @@ async function loadClientHabits(clientId) {
       if (barEl) barEl.style.width = pct + '%';
     });
   });
+
+  loadHabitsHistory(clientId);
+}
+
+async function loadHabitsHistory(clientId) {
+  const container = document.getElementById('coach-habits-history');
+  const titleEl   = document.getElementById('coach-habits-history-title');
+  if (!container) return;
+  container.innerHTML = '';
+  if (titleEl) titleEl.style.display = 'none';
+
+  const { data: habitudes } = await db.from('client_habitudes').select('*')
+    .eq('client_id', clientId).order('created_at', { ascending: true });
+  if (!habitudes || habitudes.length === 0) return;
+
+  // Build array of last 28 dates (oldest first)
+  const today = new Date();
+  const dates  = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    dates.push(toLocalDateStr(d));
+  }
+
+  // Single batch query for all habitude_valeurs in the 28-day window
+  const { data: valeurs } = await db.from('habitude_valeurs')
+    .select('habitude_id,valeur,date')
+    .in('habitude_id', habitudes.map(h => h.id))
+    .gte('date', dates[0]).lte('date', dates[27]);
+
+  // Build lookup: habitId → { date: valeur }
+  const lookup = {};
+  (valeurs || []).forEach(v => {
+    if (!lookup[v.habitude_id]) lookup[v.habitude_id] = {};
+    lookup[v.habitude_id][v.date] = v.valeur;
+  });
+
+  const dayLetters = ['D','L','M','M','J','V','S'];
+
+  const html = habitudes.map(h => {
+    const map  = lookup[h.id] || {};
+    const filled = dates.filter(d => map[d] != null && map[d] !== '').length;
+    const pct    = Math.round(filled / 28 * 100);
+
+    // Day-of-week header aligned to first week
+    const headerDots = dates.slice(0, 7).map(d => {
+      const letter = dayLetters[new Date(d + 'T12:00:00').getDay()];
+      return `<div style="width:10px;height:10px;font-size:8px;color:var(--dim);text-align:center;line-height:10px;flex-shrink:0">${letter}</div>`;
+    }).join('');
+
+    const weeksRows = [0, 1, 2, 3].map(w => {
+      const weekDates = dates.slice(w * 7, w * 7 + 7);
+      const label = new Date(weekDates[0] + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      const dots = weekDates.map(d => {
+        const val = map[d];
+        let bg;
+        if (val == null || val === '') {
+          bg = 'var(--border)';
+        } else if (h.type === 'oui-non') {
+          bg = (val == 1 || val === 'oui' || val === true) ? '#22c55e' : '#ef4444';
+        } else {
+          bg = 'var(--accent)';
+        }
+        const dateLabel = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+        const valLabel  = val != null && val !== '' ? String(val) : 'non saisi';
+        return `<div title="${dateLabel} : ${valLabel}" style="width:10px;height:10px;border-radius:50%;background:${bg};flex-shrink:0"></div>`;
+      }).join('');
+      return `<div style="display:flex;align-items:center;gap:4px">
+        <div style="font-size:9px;color:var(--dim);width:36px;text-align:right;flex-shrink:0">${label}</div>
+        <div style="display:flex;gap:3px">${dots}</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${h.icone || '🌿'} ${h.nom}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent)">${pct}% sur 28j</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+        <div style="width:36px"></div>
+        <div style="display:flex;gap:3px">${headerDots}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">${weeksRows}</div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = html;
+  if (titleEl) titleEl.style.display = '';
 }
 
 async function removeMetricDB(id, btn) {
