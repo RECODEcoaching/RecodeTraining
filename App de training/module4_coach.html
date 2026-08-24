@@ -763,6 +763,143 @@ async function hashPin(pin) {
   }
   .cm-lib-pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
   .cm-lib-pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); font-weight: 600; }
+
+/* ═══ MODULE DIÈTE ═══ */
+.dt-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.dt-tab{padding:8px 14px;border:1.5px solid var(--border-md,rgba(0,0,0,.10));background:#fff;border-radius:9px;
+  font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:.15s ease}
+.dt-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.cpane{display:none}.cpane.on{display:block}
+.gpane{display:none}.gpane.on{display:block}
+.att{display:flex;gap:8px;align-items:flex-start;background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.22);border-radius:9px;padding:9px 11px;margin-top:10px;font-size:11.5px;line-height:1.5;color:#92400E}
+.att-i{flex-shrink:0;width:15px;height:15px;border-radius:50%;background:var(--warn);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.att-row{font-size:11px;color:#92400E;line-height:1.45;margin-top:3px;max-width:520px}
+.srcflag{font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;letter-spacing:.02em;white-space:nowrap}
+.src-ok{background:var(--success-bg);color:var(--success)}
+.src-chk{background:rgba(217,119,6,.1);color:var(--warn)}
+.inh{font-size:9.5px;color:var(--text-dim);font-weight:600}
+.reset-i{border:none;background:none;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;padding:2px 5px}
+.warn-box{background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.25);border-radius:10px;padding:12px 13px;font-size:12px;color:#92400E;line-height:1.55;margin-bottom:16px}
+.ref-pick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.ref-b{padding:10px 15px;border:1.5px solid var(--border-md);background:var(--surface);border-radius:10px;cursor:pointer;text-align:left;transition:var(--transition);max-width:280px}
+.ref-b.on{border-color:var(--accent);background:var(--accent-bg-soft)}
+.ref-bt{font-size:13px;font-weight:700}
+.ref-bs{font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4}
+.lvl-sel{padding:6px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:12.5px;font-weight:600;outline:none;background:var(--surface);cursor:pointer;width:130px}
+.lvl-sel:focus{border-color:var(--accent)}
+.lvl-sel.lvl1{border-color:rgba(22,163,74,.4);color:var(--success)}
+.lvl-sel.lvl2{border-color:rgba(217,119,6,.4);color:var(--warn)}
+.lvl-sel.lvl3{border-color:rgba(220,38,38,.4);color:var(--danger)}
+.mini-b{width:110px;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
+.micro-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.note-box{background:var(--accent-bg-soft);border:1px solid var(--accent-bg);border-radius:11px;padding:12px 13px;font-size:11px;color:var(--text-muted);line-height:1.55;margin-bottom:12px}
+.empty{text-align:center;padding:26px 10px;color:var(--text-dim);font-size:12.5px}
+.split{background:var(--surface2);border-radius:11px;padding:12px 13px;margin-bottom:10px}
+.split-h{font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.split-bar{height:9px;background:var(--surface3);border-radius:5px;overflow:hidden;display:flex}
+.split-l{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:7px;font-weight:600}
+.fod-q{display:inline-flex;align-items:center;justify-content:center;width:11px;height:11px;border-radius:50%;background:var(--surface3);color:var(--text-dim);font-size:8px;font-weight:800}
+.hd-zone{position:absolute;top:0;bottom:0;background:rgba(22,163,74,.22);z-index:0}
+/* ═══ COACH ═══ */
+.coach{max-width:1180px;margin:0 auto;padding:22px 26px 60px}
+.chd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.ctitle{font-size:22px;font-weight:800;letter-spacing:-.035em}
+.csub{font-size:12.5px;color:var(--text-muted);margin-top:2px}
+.csel{padding:9px 13px;border:1.5px solid var(--border-md);border-radius:10px;font-size:13.5px;font-weight:600;background:var(--surface);outline:none;cursor:pointer}
+.ctabs{display:flex;gap:2px;border-bottom:1.5px solid var(--border);margin-bottom:22px;flex-wrap:wrap}
+.ctab{padding:11px 16px;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:var(--transition)}
+.ctab:hover{color:var(--text)}
+.ctab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.cpane{display:none}.cpane.on{display:block}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:19px;box-shadow:var(--shadow);margin-bottom:18px}
+.cct{font-size:15px;font-weight:800;letter-spacing:-.025em;margin-bottom:3px}
+.ccs{font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.55}
+.jtbar{display:flex;gap:7px;margin-bottom:17px;flex-wrap:wrap;align-items:center}
+.jt{padding:7px 14px;border:1.5px solid var(--border-md);background:var(--surface);border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;transition:var(--transition);color:var(--text-muted)}
+.jt.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.jt-add{padding:7px 13px;border:1.5px dashed var(--border-md);background:none;border-radius:20px;font-size:12.5px;font-weight:700;color:var(--accent);cursor:pointer}
+.jt-del{padding:7px 11px;border:none;background:none;color:var(--danger);font-size:12px;font-weight:600;cursor:pointer}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;padding:9px 8px;border-bottom:1.5px solid var(--border)}
+.tbl td{padding:8px;border-bottom:1px solid var(--surface2)}
+.tbl input{width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;text-align:center;background:var(--surface)}
+.tbl input:focus{border-color:var(--accent)}
+.tbl input.nom-in{text-align:left;font-weight:600}
+.tbl .tot-row td{font-weight:800;background:var(--surface2);border-bottom:none}
+.tbl-del{border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:3px 7px}
+.tbl-del:hover{color:var(--danger)}
+.rb{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+.bs{padding:9px 15px;border-radius:10px;font-size:12.5px;font-weight:700;border:none;cursor:pointer;transition:var(--transition)}
+.bs-p{background:var(--accent);color:#fff}
+.bs-o{background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border-md)}
+.bs-g{background:var(--success);color:#fff}
+.bs-r{background:var(--surface);color:var(--danger);border:1.5px solid rgba(220,38,38,.3)}
+.bs:active{transform:scale(.97)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.cald{border:1.5px solid var(--border);border-radius:10px;padding:9px 6px;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface)}
+.cald:hover{border-color:var(--accent)}
+.caldn{font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase}
+.caldd{font-size:16px;font-weight:800;margin:2px 0 5px}
+.caljt{font-size:9.5px;font-weight:700;color:var(--accent);background:var(--accent-bg);border-radius:5px;padding:2px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jrow{display:flex;align-items:center;gap:13px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface)}
+.jrd{font-size:12.5px;font-weight:700;width:110px;flex-shrink:0}
+.jrb{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;min-width:60px}
+.jrb i{display:block;height:100%;border-radius:4px}
+.jrv{font-size:12.5px;font-weight:700;width:130px;text-align:right;flex-shrink:0}
+.jre{font-size:11.5px;font-weight:700;width:70px;text-align:right;flex-shrink:0}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(146px,1fr));gap:13px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow)}
+.sk{font-size:10.5px;color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.sv{font-size:25px;font-weight:800;letter-spacing:-.035em;margin:4px 0 1px}
+.sd{font-size:11.5px;font-weight:700}
+.up{color:var(--danger)}.down{color:var(--warn)}.ok{color:var(--success)}
+.pend{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--border);border-radius:11px;margin-bottom:10px;background:var(--surface);flex-wrap:wrap}
+.pi{flex:1;min-width:180px}
+.pn{font-size:14px;font-weight:700}
+.pm{font-size:11.5px;color:var(--text-muted);margin-top:3px}
+.pby{font-size:11px;color:var(--text-dim);margin-top:2px}
+.pa{display:flex;gap:8px}
+.cbadge{display:inline-block;background:var(--danger);color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:9px;margin-left:6px;vertical-align:middle}
+.ddm{margin-bottom:14px}
+.ddh{font-size:12.5px;font-weight:800;color:var(--accent);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.dde{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;gap:12px}
+.dde span:first-child{color:var(--text-muted)}
+.micro-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.micro-tbl th{text-align:left;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;padding:8px 6px;border-bottom:1.5px solid var(--border)}
+.micro-tbl td{padding:7px 6px;border-bottom:1px solid var(--surface2)}
+.micro-tbl input{width:78px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12.5px;outline:none;text-align:center;background:var(--surface)}
+.micro-tbl input:focus{border-color:var(--accent)}
+.micro-tbl input.over{border-color:var(--accent);background:var(--accent-bg-soft);font-weight:700;color:var(--accent)}
+.lvl-sel{padding:6px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:12.5px;font-weight:600;outline:none;background:var(--surface);cursor:pointer;width:130px}
+.lvl-sel:focus{border-color:var(--accent)}
+.lvl-sel.lvl1{border-color:rgba(22,163,74,.4);color:var(--success)}
+.lvl-sel.lvl2{border-color:rgba(217,119,6,.4);color:var(--warn)}
+.lvl-sel.lvl3{border-color:rgba(220,38,38,.4);color:var(--danger)}
+.att{display:flex;gap:8px;align-items:flex-start;background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.22);border-radius:9px;padding:9px 11px;margin-top:10px;font-size:11.5px;line-height:1.5;color:#92400E}
+.att-i{flex-shrink:0;width:15px;height:15px;border-radius:50%;background:var(--warn);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.split{background:var(--surface2);border-radius:11px;padding:12px 13px;margin-bottom:10px}
+.split-h{font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.split-bar{height:9px;background:var(--surface3);border-radius:5px;overflow:hidden;display:flex}
+.split-bar i{display:block;height:100%}
+.split-l{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:7px;font-weight:600}
+.att-row{font-size:11px;color:#92400E;line-height:1.45;margin-top:3px;max-width:520px}
+.nut-att{width:13px;height:13px;border-radius:50%;background:var(--warn);color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-style:normal}
+.ref-pick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.ref-b{padding:10px 15px;border:1.5px solid var(--border-md);background:var(--surface);border-radius:10px;cursor:pointer;text-align:left;transition:var(--transition);max-width:280px}
+.ref-b.on{border-color:var(--accent);background:var(--accent-bg-soft)}
+.ref-bt{font-size:13px;font-weight:700}
+.ref-bs{font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4}
+.mini-b{width:110px;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
+.mini-b i{display:block;height:100%;border-radius:4px}
+.srcflag{font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;letter-spacing:.02em;white-space:nowrap}
+.src-ok{background:var(--success-bg);color:var(--success)}
+.src-chk{background:rgba(217,119,6,.1);color:var(--warn)}
+.inh{font-size:9.5px;color:var(--text-dim);font-weight:600}
+.reset-i{border:none;background:none;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;padding:2px 5px}
+.warn-box{background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.25);border-radius:10px;padding:12px 13px;font-size:12px;color:#92400E;line-height:1.55;margin-bottom:16px}
+.warn-box b{font-weight:800}
+@media(max-width:640px){.coach{padding:16px 14px 50px}.jrv{width:auto}.jrd{width:76px;font-size:11.5px}.cal{grid-template-columns:repeat(4,1fr)}}
+
 </style>
 </head>
 <body>
@@ -793,6 +930,9 @@ async function hashPin(pin) {
     </div>
     <div class="nav-link" onclick="showScreen('biblio-habits',this)">
       <span class="nav-icon">🌿</span> Habitudes
+    </div>
+    <div class="nav-link" onclick="showScreen('diete',this)">
+      <span class="nav-icon">🥗</span> Diète
     </div>
   </div>
   <div class="sidebar-footer">
@@ -958,6 +1098,7 @@ async function hashPin(pin) {
         <div class="client-tab"         onclick="switchClientTab(this,'metrics')">Métriques</div>
         <div class="client-tab"         onclick="switchClientTab(this,'habits')">Habitudes</div>
         <div class="client-tab"         onclick="switchClientTab(this,'cycle')">Cycle</div>
+        <div class="client-tab"         onclick="switchClientTab(this,'diete')">Diète</div>
         <div class="client-tab"         onclick="switchClientTab(this,'comments')">Commentaires</div>
         <div class="client-tab"         onclick="switchClientTab(this,'plan')">Plan</div>
       </div>
@@ -1164,6 +1305,18 @@ async function hashPin(pin) {
         </div>
       </div>
 
+      <!-- Diète -->
+      <div class="client-tab-content" id="ctab-diete">
+        <div class="dt-tabs">
+          <div class="dt-tab on" onclick="setCPane(this,'cibles')">Cibles</div>
+          <div class="dt-tab" onclick="setCPane(this,'journal')">Journal</div>
+          <div class="dt-tab" onclick="setCPane(this,'micro')">Micronutrition</div>
+        </div>
+        <div class="cpane on" id="cpane-cibles"></div>
+        <div class="cpane" id="cpane-journal"></div>
+        <div class="cpane" id="cpane-micro"></div>
+      </div>
+
       <!-- Commentaires -->
       <div class="client-tab-content" id="ctab-comments">
         <div class="section-title">Commentaires clientes</div>
@@ -1360,6 +1513,17 @@ async function hashPin(pin) {
     <!-- ══════════════════════════════════════
          SCREEN : PROGRAMMATION 4 SEMAINES
     ══════════════════════════════════════ -->
+    <!-- Diète : réglages qui valent pour toutes les clientes -->
+    <div class="screen" id="screen-diete">
+      <div class="section-title">Diète</div>
+      <div class="dt-tabs">
+        <div class="dt-tab on" onclick="setGPane(this,'defauts')">Cibles par défaut</div>
+        <div class="dt-tab" onclick="setGPane(this,'alim')">Bibliothèque d'aliments <span id="pend-cnt"></span></div>
+      </div>
+      <div class="gpane on" id="cpane-defauts"></div>
+      <div class="gpane" id="cpane-alim"></div>
+    </div>
+
     <div class="screen" id="screen-prog">
       <div class="prog-topbar">
         <div class="prog-nav-group">
@@ -1940,6 +2104,7 @@ function showScreen(id, navEl) {
     'biblio-metrics':'Métriques',
     'biblio-habits': 'Habitudes',
     prog:            'Programmation',
+    diete:           'Diète',
   };
   document.getElementById('topbar-title').textContent = titles[id] || '';
   if (id === 'biblio-exos')    loadExercices();
@@ -1947,6 +2112,7 @@ function showScreen(id, navEl) {
   if (id === 'biblio-metrics') { loadBiblioMetrics(); loadGroupesMetriques(); }
   if (id === 'clients')        loadClients();
   if (id === 'prog')           initProgScreen();
+  if (id === 'diete')          ouvrirDieteGlobale();
 }
 
 function backToClients() {
@@ -3769,6 +3935,7 @@ function switchClientTab(btn, id) {
   if (id === 'cycle')   loadClientCycleData();
   if (id === 'habits')  loadBilanCoach(currentClientId);
   if (id === 'plan')    loadClientPlanHtml();
+  if (id === 'diete')   ouvrirDiete(currentClientId);
 }
 
 async function loadClientPlanHtml() {
@@ -6445,6 +6612,505 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
 loadClients();
 loadNotionUrl();
 loadAppVideoUrl();
+</script>
+<script src="recode-diete.js"></script>
+<script>
+// ── Module Diète — vue coach ────────────────────────────────
+// Le socle (recode-diete.js) fournit les calculs et les accès à la base.
+// Cette page ne dessine pas la vue cliente : les appels croisés sont neutralisés.
+function renderCli(){}
+function majSelecteurCliente(){}
+let dieteChargee = false;
+
+function majSelecteurCliente(){
+  const sel=document.getElementById('view-client');
+  if(!sel)return;
+  sel.innerHTML=Object.values(S.clients).map(c=>
+    '<option value="'+c.id+'"'+(c.id===viewClient?' selected':'')+'>'+esc(c.nom)+'</option>').join('');
+}async function applyRefSet(ref){
+  if(!REF_SETS[ref])return;
+  S.defaults.refSet=ref;
+  Object.entries(REF_SETS[ref].v).forEach(([k,v])=>S.defaults.micro[k]=v);
+  await dbDefaults();renderCoach();renderCli();
+  toast('Référentiel « '+REF_SETS[ref].nom+' » appliqué');
+}// Panneaux de la fiche cliente
+function renderCoach(){
+  majBadgeAliments();
+  renderCibles();renderJournal();renderCoachMicro();
+}
+// Panneaux de l'écran Diète global
+function renderDieteGlobale(){
+  majBadgeAliments();
+  renderDefauts();renderAlim();
+}
+function majBadgeAliments(){
+  const nb=ALIM_META.filter(m=>m&&m.statut==='en_attente').length;
+  const b=document.getElementById('pend-cnt');
+  if(b) b.innerHTML=nb?'<span class="cbadge">'+nb+'</span>':'';
+}
+function setGPane(el,id){
+  document.querySelectorAll('#screen-diete .dt-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.gpane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('cpane-'+id).classList.add('on');
+}
+// L'écran global n'a pas besoin d'une cliente : on charge le socle et les réglages communs.
+async function ouvrirDieteGlobale(){
+  try{
+    if(!dieteChargee){ await boot('coach', null); dieteChargee = true; }
+    renderDieteGlobale();
+  }catch(e){
+    console.error(e);
+    document.getElementById('cpane-defauts').innerHTML =
+      '<div class="empty">Impossible de charger la diète. Vérifie que les tables Supabase sont bien créées.</div>';
+  }
+}async function switchClient(k){curClient=k;coachJT='defaut';await chargerCliente(k);renderCoach();}function microRows(getVal,onChange,cl,showInherit){
+  const grp=(t,list)=>'<tr><td colspan="4" style="padding-top:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">'+t+'</div></td></tr>'
+    +list.map(x=>{
+      const v=getVal(x.k), over=showInherit&&isOverridden(x.k,cl), d=DEF_MICRO[x.k];
+      const inRef=REF_SETS[S.defaults.refSet||'ptc3'].v[x.k]!==undefined;
+      return '<tr><td style="font-weight:600">'+x.n+(d&&d.lim?' <span style="font-size:10px;color:var(--text-dim);font-weight:600">(limite)</span>':'')
+        +(PTC3_MAJORE[x.k]&&(S.defaults.refSet||'ptc3')==='ptc3'?'<div class="att-row" style="color:var(--text-muted)">'+PTC3_MAJORE[x.k]+'</div>':'')
+        +(ATTENTION[x.k]?'<div class="att-row"><b>!</b> '+ATTENTION[x.k]+'</div>':'')+'</td>'
+        +'<td style="width:110px;vertical-align:top"><input type="number" step="any" class="'+(over?'over':'')+'" value="'+v+'" onchange="'+onChange+'(\''+x.k+'\',this.value)"></td>'
+        +'<td style="width:52px;color:var(--text-dim);font-size:12px;vertical-align:top">'+x.u+'</td>'
+        +'<td style="width:210px;vertical-align:top">'
+        +(PTC3_MAJORE[x.k]&&(S.defaults.refSet||'ptc3')==='ptc3'
+          ? '<span class="srcflag src-chk" title="'+esc(PTC3_MAJORE[x.k])+'">majoré sportive</span>'
+          : (inRef?'<span class="srcflag src-ok">'+REF_SETS[S.defaults.refSet||'ptc3'].nom.split(' ')[0]+'</span>'
+            :(d?'<span class="srcflag '+(d.src==='ok'?'src-ok':'src-chk')+'">'+(d.src==='ok'?'confirmé':'à vérifier')+'</span>':'')))
+        +(showInherit?(over?' <button class="reset-i" onclick="resetMicro(\''+x.k+'\')">rétablir</button>':' <span class="inh">hérité</span>'):'')+'</td></tr>';}).join('');
+  return '<table class="micro-tbl"><tr><th>Nutriment</th><th>Cible / jour</th><th>Unité</th><th>Source</th></tr>'
+    +grp('Acides gras',NUT.filter(x=>x.grp==='ag'))
+    +grp('Minéraux',NUT.filter(x=>x.grp==='min'))
+    +grp('Vitamines',NUT.filter(x=>x.grp==='vit'))
+    +'</table>';
+}function fodRows(getVal,onChange,cl,showInherit){
+  return '<table class="micro-tbl"><tr><th>Nutriment</th><th>Seuil / repas</th><th>Unité</th><th>Source</th></tr>'
+    +'<tr><td style="font-weight:600">Rapport fructose / glucose<div class="att-row" style="color:var(--text-muted)">Seul indicateur évalué automatiquement. Repose sur un mécanisme physiologique, pas sur un seuil arbitraire.</div></td>'
+    +'<td style="width:130px"><span style="color:var(--success);font-size:12.5px;font-weight:700">≤ 1</span></td>'
+    +'<td style="width:52px;color:var(--text-dim);font-size:12px">rapport</td>'
+    +'<td style="width:210px"><span class="srcflag src-ok">physiologique</span></td></tr>'
+    +NUT.filter(x=>x.grp==='fod').map(x=>{
+      const over=showInherit&&isFodOverridden(x.k,cl), info=DEF_FODMAP[x.k].info, v=getVal(x.k);
+      return '<tr><td style="font-weight:600">'+x.n+'</td>'
+        +'<td style="width:130px">'+(info?'<span style="color:var(--text-dim);font-size:12px">grammes bruts</span>'
+          :x.manuel?'<span style="color:var(--warn);font-size:12px;font-weight:600">faible / moyen / haut</span>'
+          :'<input type="number" step="any" placeholder="aucun" class="'+(over?'over':'')+'" value="'+(v||'')+'" onchange="'+onChange+'(\''+x.k+'\',this.value)">')+'</td>'
+        +'<td style="width:52px;color:var(--text-dim);font-size:12px">'+(x.manuel?'niveau':x.u)+'</td>'
+        +'<td style="width:210px">'+(x.manuel?'<span class="srcflag src-chk">classé par aliment</span>'
+          :info?'<span class="inh">affiché sans jugement</span>'
+          :(v?'<span class="srcflag src-chk">seuil posé par toi</span>':'<span class="inh">aucun seuil — optionnel</span>'))
+        +(showInherit&&!info&&!x.manuel&&over?' <button class="reset-i" onclick="resetFod(\''+x.k+'\')">rétablir</button>':'')+'</td></tr>';}).join('')
+    +'</table>';
+}async function setDefaultFod(k,v){S.defaults.fodmap[k]=+v||0;await dbDefaults();renderCoach();renderCli();}async function setClientFod(k,v){
+  const cl=client();if(!cl.fodmapOverrides)cl.fodmapOverrides={};
+  const nv=+v||0;
+  if(nv===S.defaults.fodmap[k])delete cl.fodmapOverrides[k];else cl.fodmapOverrides[k]=nv;
+  await dbClientConfig(cl.id);renderCoach();renderCli();
+}async function resetFod(k){const cl=client();if(cl.fodmapOverrides)delete cl.fodmapOverrides[k];await dbClientConfig(cl.id);renderCoach();renderCli();}function renderDefauts(){
+  const d=S.defaults;
+  document.getElementById('cpane-defauts').innerHTML=
+    '<div class="ccard"><div class="cct">Cibles par défaut — toutes les clientes</div>'
+    +'<div class="ccs">Ce que reçoit automatiquement toute cliente. Chaque valeur peut ensuite être remplacée individuellement dans l\'onglet « Cibles cliente » ; '
+    +'tant qu\'elle ne l\'est pas, elle suit ce tableau. Si tu modifies une valeur ici, toutes les clientes qui n\'ont pas de valeur personnalisée sur ce nutriment sont mises à jour.</div>'
+    +ANSES_NOTE
+    +'<div style="font-size:12.5px;font-weight:800;margin:6px 0 10px">Macros de référence</div>'
+    +'<table class="tbl"><tr><th>Calories</th><th>Protéines</th><th>Glucides</th><th>Lipides</th><th>Fibres</th></tr><tr>'
+    +['kcal','p','g','l','f'].map(k=>'<td><input type="number" value="'+d[k]+'" onchange="setDefaultMacro(\''+k+'\',this.value)"></td>').join('')+'</tr></table>'
+    +'<div style="font-size:12.5px;font-weight:800;margin:22px 0 10px">Référentiel appliqué à toutes les clientes</div>'
+    +'<div class="ref-pick">'+Object.entries(REF_SETS).map(([k,r])=>
+      '<button class="ref-b'+((S.defaults.refSet||'vnr')===k?' on':'')+'" onclick="applyRefSet(\''+k+'\')">'
+      +'<div class="ref-bt">'+r.nom+'</div><div class="ref-bs">'+r.desc+'</div></button>').join('')+'</div>'
+    +'<div class="warn-box" style="margin-bottom:0"><b>Les trois jeux ne disent pas la même chose.</b> Sur la vitamine D : 50 µg en PTC3 majoré, 17,5 µg en PTC3 brut, 15 µg pour l\'ANSES. '
+    +'Sur le sodium : 4 000 mg en cible chez PTC3, contre 2 000 mg en limite chez l\'ANSES — les deux référentiels sont en désaccord sur le sens même de la valeur. '
+    +'Changer de référentiel efface les personnalisations sur les nutriments concernés.</div>'
+    +'<div style="font-size:12.5px;font-weight:800;margin:22px 0 4px">Micronutriments — par jour</div>'
+    +microRows(k=>S.defaults.micro[k],'setDefaultMicro',null,false)
+    +'<div style="font-size:12.5px;font-weight:800;margin:26px 0 10px">Sucres fermentescibles — seuils par repas</div>'
+    +FOD_NOTE+fodRows(k=>S.defaults.fodmap[k],'setDefaultFod',null,false)+'</div>';
+}async function setDefaultMacro(k,v){S.defaults[k]=+v||0;await dbDefaults();renderCoach();renderCli();}async function setDefaultMicro(k,v){S.defaults.micro[k]=+v||0;await dbDefaults();renderCoach();renderCli();}async function setClientMicro(k,v){
+  const cl=client();if(!cl.microOverrides)cl.microOverrides={};
+  const nv=+v||0;
+  if(nv===S.defaults.micro[k])delete cl.microOverrides[k]; else cl.microOverrides[k]=nv;
+  await dbClientConfig(cl.id);renderCoach();renderCli();
+}async function resetMicro(k){const cl=client();if(cl.microOverrides)delete cl.microOverrides[k];await dbClientConfig(cl.id);renderCoach();renderCli();}function renderCibles(){
+  const cl=client();
+  if(!cl.cibles[coachJT])coachJT='defaut';
+  const c=cl.cibles[coachJT], jts=Object.keys(cl.cibles);
+  const chips=jts.map(k=>'<button class="jt'+(k===coachJT?' on':'')+'" onclick="pickJT(\''+k+'\')">'+(k==='defaut'?'Jour standard':cap(k))+'</button>').join('')
+    +'<button class="jt-add" onclick="addJT()">+ Type de jour</button>'
+    +(coachJT!=='defaut'?'<button class="jt-del" onclick="delJT()">Supprimer ce type</button>':'');
+  const tot=c.repas.reduce((s,r)=>({kcal:s.kcal+ +r.kcal,p:s.p+ +r.p,g:s.g+ +r.g,l:s.l+ +r.l,f:s.f+ +r.f}),{kcal:0,p:0,g:0,l:0,f:0});
+  const warn=(a,b)=>Math.abs(a-b)>Math.max(b*.02,2)?' style="color:var(--danger)"':'';
+  const rows=c.repas.map((r,i)=>'<tr><td><input class="nom-in" value="'+esc(r.nom)+'" onchange="setRepas('+i+',\'nom\',this.value)"></td>'
+    +['kcal','p','g','l','f'].map(k=>'<td><input type="number" value="'+r[k]+'" onchange="setRepas('+i+',\''+k+'\',this.value)"></td>').join('')
+    +'<td style="width:34px"><button class="tbl-del" onclick="delRepas('+i+')">×</button></td></tr>').join('');
+  const nOver=cl.microOverrides?Object.keys(cl.microOverrides).length:0;
+  const nFod=cl.fodmapOverrides?Object.keys(cl.fodmapOverrides).length:0;
+
+  document.getElementById('cpane-cibles').innerHTML=
+    '<div class="ccard"><div class="cct">Objectifs journaliers — '+esc(cl.nom)+'</div>'
+    +'<div class="ccs">Un jeu de cibles par type de jour. Le « jour standard » s\'applique par défaut ; les autres se posent sur des dates précises dans le calendrier plus bas.</div>'
+    +'<div class="jtbar">'+chips+'</div>'
+    +'<table class="tbl"><tr><th>Total du jour</th><th>Calories</th><th>Protéines</th><th>Glucides</th><th>Lipides</th><th>Fibres</th></tr>'
+    +'<tr><td style="font-weight:700;color:var(--text-muted)">Cible</td>'
+    +['kcal','p','g','l','f'].map(k=>'<td><input type="number" value="'+c[k]+'" onchange="setCible(\''+k+'\',this.value)"></td>').join('')+'</tr></table>'
+    +'<div class="rb"><button class="bs bs-p" onclick="autoSplit()">Répartir automatiquement sur les repas</button>'
+    +'<button class="bs bs-o" onclick="applyDefaults()">Reprendre les cibles par défaut</button>'
+    +'<button class="bs bs-o" onclick="openCopy()">Copier ces cibles vers…</button></div></div>'
+
+    +'<div class="ccard"><div class="cct">Répartition par repas</div>'
+    +'<div class="ccs">Ces repas sont exactement ceux que la cliente voit dans son application. La ligne de total passe en rouge si la somme s\'écarte de la cible du jour. '
+    +'La cliente peut aussi créer ses propres repas de son côté : ils apparaissent dans son journal sans cible, et tu les vois dans l\'onglet Journal.</div>'
+    +'<table class="tbl"><tr><th>Repas</th><th>Calories</th><th>Protéines</th><th>Glucides</th><th>Lipides</th><th>Fibres</th><th></th></tr>'+rows
+    +'<tr class="tot-row"><td>Somme des repas</td><td'+warn(tot.kcal,c.kcal)+'>'+Math.round(tot.kcal)+'</td><td'+warn(tot.p,c.p)+'>'+Math.round(tot.p)+'</td>'
+    +'<td'+warn(tot.g,c.g)+'>'+Math.round(tot.g)+'</td><td'+warn(tot.l,c.l)+'>'+Math.round(tot.l)+'</td><td'+warn(tot.f,c.f)+'>'+Math.round(tot.f)+'</td><td></td></tr></table>'
+    +'<div class="rb"><button class="bs bs-o" onclick="addRepas()">+ Ajouter un repas</button></div></div>'
+
+    +'<div class="ccard"><div class="cct">Micronutriments — '+esc(cl.nom)+'</div>'
+    +'<div class="ccs">'+(nOver?'<b>'+nOver+' valeur'+(nOver>1?'s':'')+' personnalisée'+(nOver>1?'s':'')+'</b> pour cette cliente (en violet). Les autres suivent tes cibles par défaut.'
+      :'Aucune personnalisation : tout suit tes cibles par défaut. Modifie une valeur pour la personnaliser sur cette cliente uniquement.')+'</div>'
+    +ANSES_NOTE
+    +microRows(k=>microTarget(k,cl),'setClientMicro',cl,true)+'</div>'
+
+    +'<div class="ccard"><div class="cct">Sucres fermentescibles — seuils par repas</div>'
+    +'<div class="ccs">'+(nFod?'<b>'+nFod+' seuil'+(nFod>1?'x':'')+' personnalisé'+(nFod>1?'s':'')+'</b> pour cette cliente.':'Tout suit tes seuils par défaut.')
+    +' Ces valeurs s\'appliquent à <b>chaque repas</b>, pas à la journée. La cliente les voit directement sous chacun de ses repas.</div>'
+    +FOD_NOTE+fodRows(k=>fodTarget(k,cl),'setClientFod',cl,true)+'</div>'
+
+    +'<div class="ccard"><div class="cct">Calendrier — type de jour</div>'
+    +'<div class="ccs">Clique sur un jour pour lui assigner un type. Utile pour le cyclage glucidique ou les jours d\'entraînement.</div>'
+    +renderCal(cl)+'</div>';
+}async function applyDefaults(){
+  if(!confirm('Remplacer les macros de ce type de jour par tes cibles par défaut ?'))return;
+  const c=client().cibles[coachJT],d=S.defaults;
+  ['kcal','p','g','l','f'].forEach(k=>c[k]=d[k]);
+  await dbCible(curClient,coachJT);renderCoach();renderCli();toast('Cibles par défaut appliquées');
+}function renderCal(cl){
+  const days=[];for(let i=-3;i<=10;i++)days.push(addDays(todayStr(),i));
+  return '<div class="cal">'+days.map(d=>{const jt=cl.jours[d],dd=parseD(d);
+    return '<div class="cald" onclick="cycleJT(\''+d+'\')"><div class="caldn">'+['dim','lun','mar','mer','jeu','ven','sam'][dd.getDay()]+'</div>'
+      +'<div class="caldd">'+dd.getDate()+'</div><div class="caljt">'+(jt&&cl.cibles[jt]?cap(jt):'standard')+'</div></div>';}).join('')+'</div>';
+}async function cycleJT(date){
+  const cl=client(),jts=Object.keys(cl.cibles);
+  if(jts.length<2){toast('Crée d\'abord un autre type de jour');return;}
+  const cur=cl.jours[date]||'defaut',next=jts[(jts.indexOf(cur)+1)%jts.length];
+  if(next==='defaut')delete cl.jours[date];else cl.jours[date]=next;
+  await dbJour(curClient,date,next);renderCibles();renderCli();
+}function pickJT(k){coachJT=k;renderCibles();}async function addJT(){
+  const n=prompt('Nom du type de jour (ex : entrainement, off, refeed)');if(!n)return;
+  const key=norm(n).replace(/ +/g,'_');
+  if(!key||client().cibles[key]){toast('Nom invalide ou déjà utilisé');return;}
+  const copie=JSON.parse(JSON.stringify(client().cibles[coachJT]));
+  delete copie._id; copie.repas.forEach(r=>delete r._id);
+  client().cibles[key]=copie;
+  coachJT=key; await dbCible(curClient,key); renderCibles(); toast('Créé');
+}async function delJT(){
+  if(coachJT==='defaut')return;if(!confirm('Supprimer ce type de jour ?'))return;
+  const cl=client(), supprime=coachJT;
+  await dbDelCible(curClient,supprime);
+  delete cl.cibles[supprime];
+  for(const d of Object.keys(cl.jours)){ if(cl.jours[d]===supprime){ delete cl.jours[d]; await dbJour(curClient,d,'defaut'); } }
+  coachJT='defaut';renderCibles();renderCli();
+}async function setCible(k,v){client().cibles[coachJT][k]=+v||0;await dbCible(curClient,coachJT);renderCibles();renderCli();}async function setRepas(i,k,v){const r=client().cibles[coachJT].repas[i];r[k]=(k==='nom')?v:(+v||0);await dbCible(curClient,coachJT);renderCibles();renderCli();}async function addRepas(){client().cibles[coachJT].repas.push({nom:'Nouveau repas',kcal:0,p:0,g:0,l:0,f:0});await dbCible(curClient,coachJT);renderCibles();renderCli();}async function delRepas(i){const c=client().cibles[coachJT];if(c.repas.length<=1){toast('Il faut au moins un repas');return;}c.repas.splice(i,1);await dbCible(curClient,coachJT);renderCibles();renderCli();}async function autoSplit(){
+  const c=client().cibles[coachJT],n=c.repas.length;
+  c.repas.forEach((r,i)=>['kcal','p','g','l','f'].forEach(k=>{const per=c[k]/n;r[k]=(i===n-1)?Math.round(c[k]-Math.round(per)*(n-1)):Math.round(per);}));
+  await dbCible(curClient,coachJT);renderCibles();renderCli();toast('Réparti sur '+n+' repas');
+}async function openCopy(){
+  const cl=client(),opts=[];
+  Object.keys(cl.cibles).forEach(k=>{if(k!==coachJT)opts.push(['jt:'+k,'Type de jour « '+(k==='defaut'?'standard':cap(k))+' » (même cliente)']);});
+  Object.entries(S.clients).forEach(([k,c])=>{if(k!==curClient)opts.push(['cl:'+k,'Cliente '+c.nom+' (jour standard)']);});
+  if(!opts.length){toast('Aucune destination');return;}
+  const r=prompt('Copier les cibles de « '+(coachJT==='defaut'?'standard':cap(coachJT))+' » vers :\n\n'+opts.map((o,i)=>(i+1)+'. '+o[1]).join('\n')+'\n\nNuméro :');
+  const i=parseInt(r,10)-1;if(isNaN(i)||!opts[i])return;
+  const src=JSON.parse(JSON.stringify(cl.cibles[coachJT]));
+  delete src._id; src.repas.forEach(r=>delete r._id);
+  if(opts[i][0].startsWith('jt:')){
+    const jt=opts[i][0].slice(3);
+    if(cl.cibles[jt]){ src._id=cl.cibles[jt]._id; }
+    cl.cibles[jt]=src; await dbCible(curClient,jt);
+  } else {
+    const autre=opts[i][0].slice(3);
+    await chargerCliente(autre);
+    if(S.clients[autre].cibles.defaut) src._id=S.clients[autre].cibles.defaut._id;
+    S.clients[autre].cibles.defaut=src; await dbCible(autre,'defaut');
+  }
+  renderCoach();renderCli();toast('Cibles copiées');
+}function renderJournal(){
+  const cl=client(),days=[];for(let i=13;i>=0;i--)days.push(addDays(todayStr(),-i));
+  const rows=days.map(d=>({d,tot:totalsFor(d,cl),cib:ciblesFor(d,cl),n:entriesFor(d,cl).length}));
+  const last7=rows.slice(-7).filter(r=>r.n>0);
+  const avg=(a,k)=>a.length?a.reduce((s,r)=>s+r.tot[k],0)/a.length:0;
+  const avgT=(a,k)=>a.length?a.reduce((s,r)=>s+r.cib[k],0)/a.length:0;
+  const stats=[['Calories','kcal','kcal','kcal'],['Protéines','p','p','g'],['Glucides','g','g','g'],['Lipides','l','l','g'],['Fibres','fib','f','g']].map(([nom,tk,ck,u])=>{
+    const v=avg(last7,tk),t=avgT(last7,ck),d=t?(v-t)/t*100:0,cls=Math.abs(d)<=7?'ok':(d>0?'up':'down');
+    return '<div class="stat"><div class="sk">'+nom+' — moy. 7 j</div><div class="sv">'+Math.round(v)+'<span style="font-size:13px;font-weight:600;color:var(--text-muted)"> '+u+'</span></div>'
+      +'<div class="sd '+cls+'">'+(last7.length?(d>=0?'+':'')+Math.round(d)+'% vs cible ('+Math.round(t)+u+')':'aucune donnée')+'</div></div>';}).join('');
+  const list=rows.slice().reverse().map(r=>{
+    const lbl=parseD(r.d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+    if(!r.n)return '<div class="jrow" style="opacity:.5"><div class="jrd">'+lbl+'</div><div class="jrb"></div><div class="jrv" style="color:var(--text-dim)">non renseigné</div><div class="jre"></div></div>';
+    const ratio=r.cib.kcal?r.tot.kcal/r.cib.kcal:0;
+    const col=(ratio>=.9&&ratio<=1.1)?'var(--success)':(ratio>1.1?'var(--danger)':'var(--warn)');
+    return '<div class="jrow" style="cursor:pointer" onclick="openDay(\''+r.d+'\')"><div class="jrd">'+lbl+'</div>'
+      +'<div class="jrb"><i style="width:'+Math.min(ratio*100,100)+'%;background:'+col+'"></i></div>'
+      +'<div class="jrv">'+Math.round(r.tot.kcal)+' / '+r.cib.kcal+' kcal</div>'
+      +'<div class="jre" style="color:'+col+'">'+((ratio-1)*100>=0?'+':'')+Math.round((ratio-1)*100)+'%</div></div>';}).join('');
+  const adh=rows.filter(r=>r.n).length;
+  document.getElementById('cpane-journal').innerHTML='<div class="sg">'+stats+'</div>'
+    +'<div class="ccard"><div class="cct">14 derniers jours</div>'
+    +'<div class="ccs">'+adh+' jour(s) renseigné(s) sur 14 — les moyennes ignorent les jours vides. Clique sur une ligne pour le détail des repas.</div>'
+    +'<div class="rb" style="margin:0 0 14px"><button class="bs bs-o" onclick="exportCSV()">Exporter le journal (CSV)</button></div>'
+    +list+'</div>';
+}function openDay(date){
+  if(!document.getElementById('ov-day')) return;   // modale absente de cette page
+  const cl=client(),cib=ciblesFor(date,cl),ents=entriesFor(date,cl),tot=totalsFor(date,cl),meals=mealsFor(date,cl);
+  document.getElementById('dd-title').textContent=cl.nom+' — '+parseD(date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('dd-sub').textContent=Math.round(tot.kcal)+' / '+cib.kcal+' kcal · P '+Math.round(tot.p)+'/'+cib.p+' · G '+Math.round(tot.g)+'/'+cib.g+' · L '+Math.round(tot.l)+'/'+cib.l+' · Fibres '+Math.round(tot.fib)+'/'+cib.f;
+  document.getElementById('dd-body').innerHTML=meals.map(r=>{
+    const mine=ents.filter(e=>e.meal===r.idx),k=mine.reduce((s,e)=>s+e.mac.kcal,0);
+    return '<div class="ddm"><div class="ddh">'+esc(r.nom)+(r.libre?' (ajouté par la cliente)':'')+' — '+Math.round(k)+(r.kcal?' / '+r.kcal:'')+' kcal</div>'
+      +(mine.length?mine.map(e=>'<div class="dde"><span>'+esc(e.nom)+' · '+e.q+' g</span><span>'+Math.round(e.mac.kcal)+' kcal</span></div>').join('')
+        :'<div class="dde" style="color:var(--text-dim)"><span>Rien d\'enregistré</span><span></span></div>')+'</div>';}).join('');
+  document.getElementById('ov-day').classList.add('on');
+}function closeDay(){const o=document.getElementById('ov-day');if(o)o.classList.remove('on');}function renderCoachMicro(){
+  const cl=client(),days=[];for(let i=6;i>=0;i--)days.push(addDays(todayStr(),-i));
+  const filled=days.map(d=>({d,tot:totalsFor(d,cl),n:entriesFor(d,cl).length})).filter(r=>r.n>0);
+  if(!filled.length){document.getElementById('cpane-micro').innerHTML='<div class="ccard"><div class="empty">Aucune donnée sur les 7 derniers jours.</div></div>';return;}
+  const line=(x)=>{
+    const v=filled.reduce((s,r)=>s+r.tot[x.k],0)/filled.length, st=nutStatus(x.k,v,cl);
+    return {x,v,st};
+  };
+  const rows=(list)=>list.map(line).map(m=>
+    '<tr><td style="font-weight:600">'+m.x.n+(DEF_MICRO[m.x.k]&&DEF_MICRO[m.x.k].lim?' <span style="font-size:10px;color:var(--text-dim)">(limite)</span>':'')+'</td>'
+    +'<td>'+fmt(m.v)+' '+m.x.u+'</td><td style="color:var(--text-muted)">'+fmt(m.st.t)+' '+m.x.u+'</td>'
+    +'<td><span class="mini-b"><i style="width:'+Math.min(m.st.pct,100)+'%;background:'+m.st.col+'"></i></span></td>'
+    +'<td style="font-weight:800;color:'+m.st.col+'">'+Math.round(m.st.pct)+'%</td>'
+    +'<td style="color:'+m.st.col+';font-size:11.5px;font-weight:600">'+m.st.txt+'</td>'
+    +'<td>'+(isOverridden(m.x.k,cl)?'<span class="srcflag src-ok">personnalisé</span>':'<span class="inh">défaut</span>')+'</td></tr>').join('');
+  const all=NUT.filter(x=>x.grp==='min'||x.grp==='vit').map(line);
+  const deficits=all.filter(m=>!m.st.lim&&m.st.pct<60).sort((a,b)=>a.st.pct-b.st.pct);
+  const excess=all.filter(m=>m.st.lim&&m.st.pct>100);
+  const t6=filled.reduce((s,r)=>s+r.tot.o6,0)/filled.length, t3=filled.reduce((s,r)=>s+r.tot.o3,0)/filled.length;
+  // analyse FODMAP repas par repas sur 7 jours
+  const fodHits=[], fodKeys=NUT.filter(x=>x.grp==='fod'&&!DEF_FODMAP[x.k].info);
+  let nbRepas=0, nbIncomplets=0;
+  days.forEach(d=>{
+    const ents=entriesFor(d,cl); if(!ents.length)return;
+    mealsFor(d,cl).forEach(m=>{
+      const mine=ents.filter(e=>e.meal===m.idx); if(!mine.length)return;
+      nbRepas++;
+      if(NUT.filter(x=>x.manuel).some(x=>sumNut(mine,x.k).inconnus>0))nbIncomplets++;
+      fodKeys.forEach(x=>{
+        const n=nivRepas(x.k,mine,cl);
+        if(n===3){const s=sumNut(mine,x.k);
+          fodHits.push({d,meal:m.nom,nom:x.n,val:x.manuel?'haut':fmt(s.v)+' g',ref:x.manuel?'classement':fodTarget(x.k,cl)+' g'});}});
+      const rs=ratioFGStatus(mine);
+      if(rs.niv>=2)fodHits.push({d,meal:m.nom,nom:'Rapport fructose/glucose',val:r1(rs.r),ref:'≤ 1',ratio:true});});});
+  const head='<tr><th>Nutriment</th><th>Moy. 7 j</th><th>Cible</th><th>Couverture</th><th>%</th><th>Statut</th><th>Cible</th></tr>';
+
+  document.getElementById('cpane-micro').innerHTML=
+    '<div class="sg">'
+    +'<div class="stat"><div class="sk">Jours renseignés</div><div class="sv">'+filled.length+'<span style="font-size:14px;color:var(--text-muted)">/7</span></div><div class="sd" style="color:var(--text-muted)">base des moyennes</div></div>'
+    +'<div class="stat"><div class="sk">Déficits marqués</div><div class="sv" style="color:'+(deficits.length?'var(--danger)':'var(--success)')+'">'+deficits.length+'</div><div class="sd" style="color:var(--text-muted)">sous 60% de la cible</div></div>'
+    +'<div class="stat"><div class="sk">Limites dépassées</div><div class="sv" style="color:'+(excess.length?'var(--warn)':'var(--success)')+'">'+excess.length+'</div><div class="sd" style="color:var(--text-muted)">sodium, sel, AG saturés…</div></div>'
+    +'<div class="stat"><div class="sk">Rapport oméga 6/3</div><div class="sv" style="color:'+(t3&&t6/t3<=5?'var(--success)':'var(--warn)')+'">'+(t3?r1(t6/t3):'—')+'</div><div class="sd" style="color:var(--text-muted)">on vise ≤ 5</div></div>'
+    +'<div class="stat"><div class="sk">Repas à surveiller</div><div class="sv" style="color:'+(fodHits.length?'var(--warn)':'var(--success)')+'">'+fodHits.length+'</div><div class="sd" style="color:var(--text-muted)">sur '+nbRepas+' repas · FODMAP</div></div>'
+    +'</div>'
+    +'<div class="ccard"><div class="cct">FODMAP — analyse par repas</div>'
+    +'<div class="ccs">Sont listés les repas dont le rapport fructose/glucose dépasse 1, ceux classés « haut » en fructanes ou GOS, et ceux dépassant un seuil que tu aurais posé toi-même. '
+    +nbRepas+' repas analysés'+(nbIncomplets?', dont <b>'+nbIncomplets+'</b> contenant au moins un aliment sans valeur connue en fructanes / GOS (totaux incomplets)':'')+'.</div>'
+    +(fodHits.length?'<table class="micro-tbl"><tr><th>Jour</th><th>Repas</th><th>Indicateur</th><th>Valeur</th><th>Référence</th></tr>'
+      +fodHits.slice(0,30).map(h=>'<tr><td>'+parseD(h.d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+'</td>'
+        +'<td style="font-weight:600">'+esc(h.meal)+'</td><td>'+h.nom+'</td>'
+        +'<td style="font-weight:800;color:var(--danger)">'+(h.ratio?h.val:'haut · '+h.val)+'</td>'
+        +'<td style="color:var(--text-muted)">'+h.ref+'</td></tr>').join('')
+      +'</table>'+(fodHits.length>30?'<div style="font-size:11.5px;color:var(--text-dim);margin-top:10px">'+(fodHits.length-30)+' autres non affichés.</div>':'')
+      :'<div class="empty">Rien à signaler sur la période.</div>')
+    +'</div>'
+    +(deficits.length?'<div class="warn-box"><b>À regarder chez '+esc(cl.nom)+'.</b> Sur les 7 derniers jours, ces apports restent sous 60% de la cible : '
+      +deficits.map(m=>m.x.n+' ('+Math.round(m.st.pct)+'%)').join(', ')+'. '
+      +'Attention : un déficit calculé peut venir d\'un trou dans la base CIQUAL (nutriment non renseigné pour certains aliments) autant que d\'une vraie insuffisance alimentaire — à croiser avec un bilan biologique avant toute conclusion.</div>':'')
+    +'<div class="ccard"><div class="cct">Micronutrition — moyenne 7 jours</div>'
+    +'<div class="ccs">Calculée sur les '+filled.length+' jour(s) renseigné(s). La colonne de droite indique si la cible vient de tes valeurs par défaut ou d\'une personnalisation sur cette cliente.<br><br>'
+    +'<b>Nutriments peu documentés dans CIQUAL</b> — vitamine K2 (3% des aliments renseignés), polyols (5%), lactose (8%), vitamine D (20%), fructose (29%), glucose (34%). '
+    +'Sur ceux-là, un total bas traduit surtout un manque de données, pas forcément un manque d\'apport.</div>'
+    +'<div class="rb" style="margin:0 0 14px"><button class="bs bs-o" onclick="exportMicroCSV()">Exporter la micronutrition (CSV)</button></div>'
+    +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 8px">Acides gras</div>'
+    +'<table class="micro-tbl">'+head+rows(NUT.filter(x=>x.grp==='ag'))+'</table>'
+    +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 8px">Minéraux</div>'
+    +'<table class="micro-tbl">'+head+rows(NUT.filter(x=>x.grp==='min'))+'</table>'
+    +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 8px">Vitamines</div>'
+    +'<table class="micro-tbl">'+head+rows(NUT.filter(x=>x.grp==='vit'))+'</table></div>';
+}function dl(name,content){
+  const b=new Blob(['﻿'+content],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);toast('Export téléchargé');
+}function csvEsc(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}function exportCSV(){
+  const cl=client();let out=[['Date','Repas','Aliment','Quantite_g'].concat(NUT.map(n=>n.n+' ('+n.u+')')).map(csvEsc).join(';')];
+  const days=Object.keys(cl.journal).filter(k=>!k.startsWith('_meals_')).sort();
+  days.forEach(d=>{const meals=mealsFor(d,cl);
+    entriesFor(d,cl).forEach(e=>{const m=meals.find(x=>x.idx===e.meal), man=manualOf(e);
+      out.push([d,m?m.nom:'Repas',e.nom,e.q].concat(NUT.map(n=>{
+        if(n.manuel)return man[n.k]==null?'non classe':LVL[man[n.k]].n;
+        return e.mac[n.k]==null?'non mesure':r1(e.mac[n.k]);})).map(csvEsc).join(';'));});});
+  dl('recode_diete_'+norm(cl.nom).replace(/ /g,'_')+'.csv',out.join('\n'));
+}function exportMicroCSV(){
+  const cl=client(),days=[];for(let i=6;i>=0;i--)days.push(addDays(todayStr(),-i));
+  const filled=days.map(d=>({d,tot:totalsFor(d,cl),n:entriesFor(d,cl).length})).filter(r=>r.n>0);
+  let out=[['Portee','Nutriment','Unite','Valeur','Cible','Pourcentage','Statut','Origine_cible'].map(csvEsc).join(';')];
+  NUT.filter(x=>DEF_MICRO[x.k]).forEach(x=>{
+    const v=filled.length?filled.reduce((s,r)=>s+r.tot[x.k],0)/filled.length:0,st=nutStatus(x.k,v,cl);
+    out.push(['moyenne par jour (7j)',x.n,x.u,r1(v),st.t||'',Math.round(st.pct)+'%',st.txt,isOverridden(x.k,cl)?'personnalise':'defaut'].map(csvEsc).join(';'));});
+  // FODMAP : par repas, avec le détail de chaque dépassement
+  out.push('');
+  out.push(['Portee','Jour','Repas','Nutriment','Niveau','Valeur','Reference','Donnees'].map(csvEsc).join(';'));
+  days.forEach(d=>{const ents=entriesFor(d,cl);if(!ents.length)return;
+    mealsFor(d,cl).forEach(m=>{const mine=ents.filter(e=>e.meal===m.idx);if(!mine.length)return;
+      NUT.filter(x=>x.grp==='fod').forEach(x=>{
+        const s=sumNut(mine,x.k), dd=DEF_FODMAP[x.k], n=nivRepas(x.k,mine,cl);
+        const niveau = dd.info ? 'indicatif'
+          : x.manuel ? (n===0?'non classe':LVL_NAMES[n])
+          : (s.v==null ? 'donnee absente' : (fodTarget(x.k,cl) ? LVL_NAMES[n] : 'sans seuil'));
+        out.push(['par repas',d,m.nom,x.n,niveau,
+          x.manuel?'':(s.v==null?'non mesure':r1(s.v)), x.manuel?'classement par aliment':(dd.info?'':fodTarget(x.k,cl)+' g'),
+          s.inconnus?s.inconnus+' aliment(s) sans donnee':'complet'].map(csvEsc).join(';'));});
+      const rr=ratioFGStatus(mine);
+      out.push(['par repas',d,m.nom,'Rapport fructose/glucose',rr.txt,rr.r==null?'non calculable':r1(rr.r),'<= 1',
+        rr.manquants?rr.manquants+' aliment(s) sans donnee':'complet'].map(csvEsc).join(';'));});});
+  dl('recode_micronutrition_'+norm(cl.nom).replace(/ /g,'_')+'.csv',out.join('\n'));
+}function renderAlim(){
+  const persoIdx=[]; ALIM_META.forEach((m,i)=>{ if(m&&m.source==='perso'&&m.statut!=='refuse') persoIdx.push(i); });
+  const pend=persoIdx.filter(i=>ALIM_META[i].statut==='en_attente');
+  const val =persoIdx.filter(i=>ALIM_META[i].statut==='valide');
+  const nomDe=id=>{const c=S.clients[id];return c?c.nom:'—';};
+  const carte=(i,actions)=>{
+    const a=ALIMENTS_BASE[i], kcal=a[1]||0, p=a[2]||0, g=a[3]||0, l=a[4]||0, f=a[5]||0;
+    const calc=p*4+g*4+l*9;
+    const flag=(kcal>20&&Math.abs(calc-kcal)/kcal>.25)?'<div class="pby" style="color:var(--danger)">Incohérence : d\'après les macros, ce serait ~'+Math.round(calc)+' kcal</div>':'';
+    return '<div class="pend"><div class="pi"><div class="pn">'+esc(a[0])+'</div>'
+      +'<div class="pm">'+r1(kcal)+' kcal · P '+r1(p)+' · G '+r1(g)+' · L '+r1(l)+' · Fibres '+r1(f)+' (100 g)</div>'
+      +'<div class="pby">Proposé par '+esc(nomDe(ALIM_META[i].propose_par))+'</div>'+flag+'</div>'
+      +'<div class="pa">'+actions+'</div></div>';
+  };
+  const pendHtml=pend.length?pend.map(i=>carte(i,
+      '<button class="bs bs-g" onclick="validAlim('+i+')">Valider</button>'
+     +'<button class="bs bs-r" onclick="refuseAlim('+i+')">Refuser</button>')).join('')
+    :'<div class="empty">Aucun aliment en attente</div>';
+  document.getElementById('cpane-alim').innerHTML=
+    '<div class="sg"><div class="stat"><div class="sk">Base commune</div><div class="sv">'+ALIMENTS_BASE.length+'</div><div class="sd" style="color:var(--text-muted)">aliments CIQUAL / ANSES</div></div>'
+    +'<div class="stat"><div class="sk">Ajouts validés</div><div class="sv">'+val.length+'</div><div class="sd" style="color:var(--text-muted)">visibles par toutes</div></div>'
+    +'<div class="stat"><div class="sk">En attente</div><div class="sv" style="color:'+(pend.length?'var(--danger)':'var(--text)')+'">'+pend.length+'</div><div class="sd" style="color:var(--text-muted)">à valider</div></div></div>'
+    +'<div class="warn-box">Un aliment ajouté à la main ne porte que ses macros : ses micronutriments comptent pour zéro dans la micronutrition. '
+    +'Plus tes clientes utilisent des aliments hors base, plus les totaux en vitamines et minéraux sont sous-estimés. C\'est la limite structurelle du suivi micro.</div>'
+    +'<div class="ccard"><div class="cct">Fructanes et GOS — table à constituer</div>'
+    +'<div class="warn-box"><b>Ces deux données n\'existent pas dans CIQUAL.</b> La table de l\'ANSES ne mesure ni les fructanes ni les galacto-oligosaccharides — '
+    +'ce n\'est pas un manque de ton fichier, aucune table publique française ne les fournit. Les valeurs de référence viennent essentiellement de Monash University, sous licence commerciale.<br><br>'
+    +'Tu les classes donc toi-même en <b>faible / moyen / haut</b>, sur les aliments qui comptent pour tes clientes. '
+    +'<b>La portion de référence est aussi importante que le niveau</b> : classer l\'ail « haut pour 100 g » n\'a aucun sens puisqu\'on en mange 5 g — le niveau doit correspondre à une portion réaliste, que tu indiques dans la dernière colonne. '
+    +'Un aliment non classé est traité comme <b>inconnu</b>, jamais comme zéro : '
+    +'la cliente voit un « ? » et le total de son repas est signalé comme incomplet. C\'est volontaire — afficher 0 sur un aliment non mesuré serait un faux négatif.<br><br>'
+    +'<b>'+fodInscrits().length+' aliment(s) actuellement classé(s).</b> Cette table est la tienne : elle vit maintenant dans ta base, plus dans ton navigateur.</div>'
+    +'<input class="csel" style="width:100%;max-width:420px;margin-bottom:14px" id="fod-search" placeholder="Chercher un aliment à renseigner…" oninput="renderFodSearch()">'
+    +'<div id="fod-results"></div>'
+    +'<div style="font-size:12.5px;font-weight:800;margin:22px 0 10px">Aliments renseignés ('+fodInscrits().length+')</div>'
+    +renderFodTable()+'</div>'
+    +'<div class="ccard"><div class="cct">À valider</div><div class="ccs">Une fois validé, l\'aliment rejoint la base commune et devient disponible pour toutes tes clientes.</div>'+pendHtml+'</div>'
+    +'<div class="ccard"><div class="cct">Ajouts validés</div><div class="ccs">Aliments hors CIQUAL.</div>'
+    +(val.length?val.map(i=>carte(i,
+        (ALIM_META[i].fct!=null||ALIM_META[i].gos!=null
+          ?'<span class="srcflag src-ok" style="align-self:center">fructanes / GOS classés</span>'
+          :'<button class="bs bs-o" onclick="addFod('+i+')">Classer fructanes / GOS</button>')
+       +'<button class="bs bs-r" onclick="refuseAlim('+i+')">Retirer</button>')).join('')
+      :'<div class="empty">Aucun ajout validé</div>')+'</div>';
+}function fodLabel(idx){
+  const a=ALIMENTS_BASE[idx];
+  return a ? (a[0]+(estPerso(idx)?' (perso)':'')) : '(aliment supprimé)';
+}function fodInscrits(){
+  const out=[];
+  ALIM_META.forEach((m,i)=>{ if(m && (m.fct!=null || m.gos!=null || m._inscrit)) out.push(i); });
+  return out;
+}function renderFodTable(){
+  const keys=fodInscrits().sort((a,b)=>fodLabel(a).localeCompare(fodLabel(b)));
+  if(!keys.length)return '<div class="empty">Aucun aliment renseigné.</div>';
+  const sel=(k,f,v)=>'<select class="lvl-sel'+(v?' lvl'+v:'')+'" onchange="setFod(\''+k+'\',\''+f+'\',this.value)">'
+    +[[ '','? non classé'],['1','faible'],['2','moyen'],['3','haut']]
+      .map(([val,lbl])=>'<option value="'+val+'"'+((v==null?'':String(v))===val?' selected':'')+'>'+lbl+'</option>').join('')+'</select>';
+  return '<table class="micro-tbl"><tr><th>Aliment</th><th>Fructanes</th><th>GOS</th><th>Pour une portion de</th><th></th></tr>'
+    +keys.map(k=>{const d={fct:ALIM_META[k].fct,gos:ALIM_META[k].gos,portion:ALIM_META[k].portion};
+      return '<tr><td style="font-weight:600">'+esc(fodLabel(k))+'</td>'
+        +'<td style="width:150px">'+sel(k,'fct',d.fct)+'</td>'
+        +'<td style="width:150px">'+sel(k,'gos',d.gos)+'</td>'
+        +'<td style="width:120px"><input type="number" step="any" value="'+(d.portion||100)+'" onchange="setFod(\''+k+'\',\'portion\',this.value)"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+        +'<td style="width:40px"><button class="tbl-del" onclick="delFod(\''+k+'\')">×</button></td></tr>';}).join('')+'</table>';
+}function renderFodSearch(){
+  const el=document.getElementById('fod-search'); if(!el)return;
+  const raw=el.value.trim(), q=norm(raw), box=document.getElementById('fod-results');
+  if(q.length<2){box.innerHTML='';return;}
+  const w=q.split(' ').filter(Boolean), hits=[];
+  for(let i=0;i<SEARCH_INDEX.length&&hits.length<25;i++){
+    const n=SEARCH_INDEX[i].n; let ok=true;
+    for(const x of w){if(!n.includes(x)){ok=false;break;}}
+    if(ok&&ALIM_META[SEARCH_INDEX[i].i]&&ALIM_META[SEARCH_INDEX[i].i].fct==null&&ALIM_META[SEARCH_INDEX[i].i].gos==null)hits.push(SEARCH_INDEX[i].i);
+  }
+  box.innerHTML=hits.length?hits.map(i=>'<div class="pend" style="padding:10px 13px;margin-bottom:6px">'
+    +'<div class="pi"><div class="pn" style="font-size:13px">'+esc(ALIMENTS_BASE[i][0])+'</div></div>'
+    +'<div class="pa"><button class="bs bs-o" onclick="addFod('+i+')">Renseigner</button></div></div>').join('')
+    :'<div class="empty" style="padding:14px">Aucun aliment non renseigné ne correspond.</div>';
+}async function addFod(idx){
+  ALIM_META[idx].portion=ALIM_META[idx].portion||100;
+  ALIM_META[idx]._inscrit=true;
+  await dbFodmap(idx);renderAlim();renderCli();toast('Ajouté — classe-le dans le tableau ci-dessous');}async function setFod(idx,f,v){
+  const m=ALIM_META[idx];
+  if(f==='portion') m.portion=Math.max(+v||100,1);
+  else m[f]=(v===''||v==null)?null:(+v||0);
+  // si les deux niveaux repassent à vide, l'aliment redevient « non classé », jamais « classé zéro »
+  if(m.fct==null&&m.gos==null) m._inscrit=false;
+  await dbFodmap(idx);
+  renderCli();renderCoachMicro();
+  if(f==='portion')renderAlim();
+}async function delFod(idx){
+  const m=ALIM_META[idx]; m.fct=null; m.gos=null; m.portion=100; m._inscrit=false;
+  await dbFodmap(idx);renderAlim();renderCli();}async function validAlim(idx){
+  await dbAlimentStatut(ALIM_IDS[idx],'valide');
+  ALIM_META[idx].statut='valide';
+  renderCoach();toast('« '+ALIMENTS_BASE[idx][0]+' » ajouté à la base commune');}async function refuseAlim(idx){
+  if(!confirm('Retirer cet aliment ?'))return;
+  await dbAlimentSupprime(ALIM_IDS[idx]);
+  ALIM_META[idx].statut='refuse';
+  renderCoach();renderCli();}function setCPane(el,id){
+  document.querySelectorAll('#ctab-diete .dt-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('cpane-'+id).classList.add('on');
+}
+// Chargement paresseux : rien n'est demandé à la base tant que l'onglet Diète n'est pas ouvert.
+async function ouvrirDiete(clientId){
+  const zone = document.getElementById('cpane-cibles');
+  const diag = (titre, detail) => {
+    if(zone) zone.innerHTML =
+      '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:16px;margin:10px 0">'
+      + '<div style="font-weight:800;color:#92400E;margin-bottom:6px">' + titre + '</div>'
+      + '<div style="font-size:12.5px;color:#92400E;line-height:1.6">' + detail + '</div></div>';
+  };
+  try{
+    if(typeof boot !== 'function'){
+      return diag('Le fichier recode-diete.js n\'est pas chargé',
+        'Vérifie qu\'il est bien déposé à côté de module4_coach.html, puis recharge la page en forçant le cache (Cmd+Shift+R).');
+    }
+    if(zone) zone.innerHTML = '<div class="empty">Chargement…</div>';
+    if(!dieteChargee){ await boot('coach', null); dieteChargee = true; }
+    curClient = clientId; coachJT = 'defaut';
+    if(!clientId)            return diag('Aucune cliente sélectionnée', 'Rouvre la fiche depuis la liste de tes clientes.');
+    if(!S.clients[clientId]) return diag('Cliente introuvable dans la diète',
+        'Elle est peut-être désactivée. Clientes chargées : ' + Object.keys(S.clients).length + '.');
+    await chargerCliente(clientId);
+    renderCoach();
+  }catch(e){
+    console.error('[Diète]', e);
+    diag('Erreur au chargement de la diète', (e && e.message ? e.message : String(e))
+      + '<br><br>Si le message parle d\'une table ou d\'une colonne, c\'est que le SQL n\'a pas été passé entièrement.');
+  }
+}
 </script>
 </body>
 </html>
