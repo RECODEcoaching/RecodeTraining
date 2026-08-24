@@ -489,7 +489,7 @@ button,input,select{font-family:inherit}
     <div class="sb">
       <div class="qf"><div class="qn" id="qty-nom"></div><div class="qb" id="qty-base"></div></div>
       <div class="qr"><input class="qi" id="qty-in" type="number" inputmode="decimal" value="100" oninput="updatePrev()"><span class="qu">g</span></div>
-      <div class="qfast"><button onclick="setQty(30)">30 g</button><button onclick="setQty(50)">50 g</button><button onclick="setQty(100)">100 g</button><button onclick="setQty(150)">150 g</button><button onclick="setQty(200)">200 g</button></div>
+      <div class="qfast" id="qty-fast"><button onclick="setQty(30)">30 g</button><button onclick="setQty(50)">50 g</button><button onclick="setQty(100)">100 g</button><button onclick="setQty(150)">150 g</button><button onclick="setQty(200)">200 g</button></div>
       <div class="prev" id="qty-prev"></div>
     </div>
     <div class="sf"><button class="btn btn-s" onclick="closeQty()">Retour</button><button class="btn btn-p" onclick="confirmAdd()">Ajouter</button></div>
@@ -575,14 +575,14 @@ async function switchViewClient(id){
   document.getElementById('meals').innerHTML=meals.map(r=>{
     const mine=ents.filter(e=>e.meal===r.idx), k=mine.reduce((s,e)=>s+e.mac.kcal,0);
     const pct=r.kcal?Math.min(k/r.kcal*100,100):(mine.length?100:0);
-    const rows=mine.length?mine.map(e=>'<div class="entry"><div class="ei"><div class="en">'+esc(e.nom)+'</div>'
+    const rows=mine.length?mine.map(e=>'<div class="entry"><div class="ei"><div class="en">'+dtEsc(e.nom)+'</div>'
       +'<div class="ed">'+e.q+' g · P '+r1(e.mac.p)+' / G '+r1(e.mac.g)+' / L '+r1(e.mac.l)+'</div></div>'
       +'<div class="ek">'+Math.round(e.mac.kcal)+'</div><button class="edel" onclick="delEntry(\''+e.id+'\')">×</button></div>').join('')
       :'<div class="mempty">Rien d\'enregistré</div>';
     const ic=MEAL_ICONS[(mi0++)%MEAL_ICONS.length];
     return '<div class="meal" id="meal'+r.idx+'"><div class="mh" onclick="toggleMeal(\''+r.idx+'\')">'
       +'<div class="mi">'+ic+'</div>'
-      +'<div class="minf"><div class="mnm">'+esc(r.nom)+(r.libre?'<span class="tag-libre">libre</span>':'')+'</div>'
+      +'<div class="minf"><div class="mnm">'+dtEsc(r.nom)+(r.libre?'<span class="tag-libre">libre</span>':'')+'</div>'
       +'<div class="mkc">'+Math.round(k)+(r.kcal?' / '+r.kcal:'')+' kcal'+(r.libre?' · sans cible':'')+'</div></div>'
       +'<div class="mring">'+ringSm(pct,r.libre)+'</div></div>'
       +'<div class="mbody">'+rows
@@ -670,7 +670,7 @@ async function switchViewClient(id){
       +'Le total est donc incomplet : un chiffre bas ne veut pas forcément dire un apport faible.</div>':'')
     +'<div class="ct" style="margin-bottom:8px">Aliments de ce repas</div>'
     +(detail.length?detail.map((o,i)=>'<div class="contrib"><div class="contrib-r">'+(i+1)+'</div>'
-      +'<div class="contrib-i"><div class="contrib-n">'+esc(o.e.nom)+'</div><div class="contrib-d">'+o.e.q+' g</div></div>'
+      +'<div class="contrib-i"><div class="contrib-n">'+dtEsc(o.e.nom)+'</div><div class="contrib-d">'+o.e.q+' g</div></div>'
       +'<div><div class="contrib-v" style="color:'+(x.manuel?(o.lv?LVL[o.lv].c:'var(--text-dim)'):(o.v==null?'var(--text-dim)':'inherit'))+(!x.manuel&&o.v==null?';font-size:11.5px;font-weight:600':'')+'">'
       +(x.manuel?(o.lv?LVL[o.lv].n:'non classé'):(o.v==null?'non mesuré':fmt(o.v)+' g'))+'</div></div></div>').join('')
       :'<div class="empty">Aucun aliment enregistré.</div>');
@@ -691,7 +691,7 @@ async function switchViewClient(id){
   cl.journal[key].push({id,nom:n.trim()});
   renderCli();renderCoach();
   const el=document.getElementById('meal'+id);if(el)el.classList.add('open');
-  toast('Repas ajouté');
+  dtToast('Repas ajouté');
 }async function delClientMeal(id){
   const cl=cliClient(), key='_meals_'+curDate;
   if(!cl.journal[key])return;
@@ -699,7 +699,7 @@ async function switchViewClient(id){
   await dbDelRepasLibre(id);
   cl.journal[key]=cl.journal[key].filter(m=>m.id!==id);
   cl.journal[curDate]=entriesFor(curDate,cl).filter(e=>e.meal!==id);
-  renderCli();renderCoach();toast('Repas supprimé');
+  renderCli();renderCoach();dtToast('Repas supprimé');
 }function renderMicro(cl){
   const tot=totalsFor(curDate,cl), n=entriesFor(curDate,cl).length;
   if(!n){document.getElementById('micro').innerHTML='<div class="card"><div class="empty">Rien d\'enregistré aujourd\'hui.<br>Ajoute des aliments pour voir ta micronutrition.</div></div>';return;}
@@ -813,7 +813,7 @@ async function switchViewClient(id){
     +'<div class="ct" style="margin-bottom:8px">Ce qui t\'en a apporté le plus aujourd\'hui</div>'
     +(ents.length?ents.map((e,i)=>{const part=v?e.mac[k]/v*100:0;
       return '<div class="contrib"><div class="contrib-r">'+(i+1)+'</div>'
-        +'<div class="contrib-i"><div class="contrib-n">'+esc(e.nom)+'</div><div class="contrib-d">'+e.q+' g</div></div>'
+        +'<div class="contrib-i"><div class="contrib-n">'+dtEsc(e.nom)+'</div><div class="contrib-d">'+e.q+' g</div></div>'
         +'<div><div class="contrib-v">'+fmt(e.mac[k])+' '+x.u+'</div><div class="contrib-p">'+Math.round(part)+'% du total</div></div></div>';}).join('')
       :'<div class="empty">Aucun aliment enregistré aujourd\'hui n\'en contient.</div>');
   document.getElementById('ov-nut').classList.add('on');
@@ -840,8 +840,8 @@ async function switchViewClient(id){
     +'C\'est pour cette raison qu\'on regarde le rapport et non la quantité de fructose seule : 20 g de fructose accompagnés de 25 g de glucose posent moins de problème que 8 g de fructose seuls.</div>'
     +'<div class="ct" style="margin-bottom:8px">Aliments de ce repas</div>'
     +(det.length?det.map((o,i)=>'<div class="contrib"><div class="contrib-r">'+(i+1)+'</div>'
-      +'<div class="contrib-i"><div class="contrib-n">'+esc(o.e.nom)+'</div><div class="contrib-d">'+o.e.q+' g'
-      +(entreeEstimee(o.e)?'<br><span style="color:var(--warn)">estimé d\'après « '+esc(entreeEstimee(o.e))+' »</span>':'')+'</div></div>'
+      +'<div class="contrib-i"><div class="contrib-n">'+dtEsc(o.e.nom)+'</div><div class="contrib-d">'+o.e.q+' g'
+      +(entreeEstimee(o.e)?'<br><span style="color:var(--warn)">estimé d\'après « '+dtEsc(entreeEstimee(o.e))+' »</span>':'')+'</div></div>'
       +'<div>'+(o.f==null||o.g==null
         ? '<div class="contrib-v" style="color:var(--text-dim);font-size:11.5px">non mesuré</div><div class="contrib-p">absent de la table</div>'
         : '<div class="contrib-v" style="color:'+(o.f>o.g?'var(--warn)':'var(--text)')+'">'+fmt(o.f)+' / '+fmt(o.g)+'</div><div class="contrib-p">fructose / glucose</div>')
@@ -881,7 +881,7 @@ async function switchViewClient(id){
       +'<span>'+m.x.n+'</span><span style="color:'+m.st.col+';font-weight:800">'+Math.round(m.st.pct)+'%</span></div>'
       +'<div class="nut-b"><i style="width:'+Math.min(m.st.pct,100)+'%;background:'+m.st.col+'"></i></div></div>').join('')
       :'<div class="empty" style="padding:14px">Tout est au-dessus de 80% en moyenne cette semaine.</div>')+'</div>';
-}function shiftDay(n){const nd=addDays(curDate,n);if(parseD(nd)>new Date()){toast('Pas de saisie dans le futur');return;}curDate=nd;renderCli();}function favorisDe(cl){
+}function shiftDay(n){const nd=addDays(curDate,n);if(parseD(nd)>new Date()){dtToast('Pas de saisie dans le futur');return;}curDate=nd;renderCli();}function favorisDe(cl){
   if(!cl) return [];
   const cpt={};
   Object.keys(cl.journal).forEach(k=>{
@@ -926,7 +926,7 @@ async function switchViewClient(id){
   const ms=(performance.now()-t0).toFixed(1);
   if(!out.length){
     if(q.length>=2){
-      box.innerHTML='<div class="empty">Aucun résultat pour « '+esc(raw)+' »<br><br>Tu peux le proposer avec le bouton ci-dessous.</div>';
+      box.innerHTML='<div class="empty">Aucun résultat pour « '+dtEsc(raw)+' »<br><br>Tu peux le proposer avec le bouton ci-dessous.</div>';
       return;
     }
     const fav=favorisDe(cliClient());
@@ -934,7 +934,7 @@ async function switchViewClient(id){
       ? '<div class="fav-h">Tes aliments les plus fréquents</div>'
         +fav.map(f=>{const a=ALIMENTS_BASE[f.idx];if(!a)return '';
           return '<div class="ri" onclick="pickFood('+f.idx+','+f.qmed+')"><div class="rinf">'
-            +'<div class="rn">'+esc(a[0])+'</div>'
+            +'<div class="rn">'+dtEsc(a[0])+'</div>'
             +'<div class="rm">habituellement '+f.qmed+' g · '+f.n+' fois</div></div>'
             +'<div class="rk">'+Math.round((a[1]||0)*f.qmed/100)+'</div></div>';}).join('')
       : '')
@@ -946,7 +946,7 @@ async function switchViewClient(id){
     const a=ALIMENTS_BASE[o.idx];
     const bdg = enAttente(o.idx) ? '<span class="bdg-att">À valider</span>'
               : estPerso(o.idx)  ? '<span class="bdg-p">Perso</span>' : '';
-    return '<div class="ri" onclick="pickFood('+o.idx+')"><div class="rinf"><div class="rn">'+esc(a[0])
+    return '<div class="ri" onclick="pickFood('+o.idx+')"><div class="rinf"><div class="rn">'+dtEsc(a[0])
       +bdg+(sucresConnus(o.idx)?(estimeDepuis(o.idx)?'<span class="bdg-nd">sucres estimés</span>':'')
         :'<span class="bdg-nd" title="sucres non mesurés dans la table">sucres n.d.</span>')+'</div>'
       +'<div class="rm">P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])+' · Fibres '+(a[5]==null?'n.d.':r1(a[5]))+' (100 g)</div></div><div class="rk">'+Math.round(a[1])+'</div></div>';}).join('')
@@ -957,7 +957,7 @@ async function switchViewClient(id){
   document.getElementById('qty-nom').textContent=a[0];
   const est=pendingFood.src==='base'?estimeDepuis(pendingFood.ref):null;
   document.getElementById('qty-base').innerHTML='Pour 100 g : '+Math.round(a[1])+' kcal · P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])+' · Fibres '+(a[5]==null?'n.d.':r1(a[5]))
-    +(est?'<br><span style="color:var(--warn);font-weight:600">Sucres estimés d\'après « '+esc(est)+' »</span>':'');
+    +(est?'<br><span style="color:var(--warn);font-weight:600">Sucres estimés d\'après « '+dtEsc(est)+' »</span>':'');
   const qHab=pendingFood.q0;
   const zone=document.getElementById('qty-fast');
   // raccourcis de grammage ; si la cliente a une quantité habituelle pour cet
@@ -981,7 +981,7 @@ async function switchViewClient(id){
     .map(([k,v])=>'<div class="pv"><div class="pk">'+k+'</div><div class="pvv">'+v+'</div></div>').join('');
 }async function confirmAdd(){
   const q=parseFloat(document.getElementById('qty-in').value);
-  if(!q||q<=0){toast('Indique une quantité');return;}
+  if(!q||q<=0){dtToast('Indique une quantité');return;}
   const cl=cliClient();
   if(!cl.journal[curDate])cl.journal[curDate]=[];
   const mac=macrosFor(pendingFood.arr,q), nom=pendingFood.arr[0];
@@ -990,7 +990,7 @@ async function switchViewClient(id){
   cl.journal[curDate].push({id,meal:pendingMeal,src:'base',ref:pendingFood.ref,alimentId:ALIM_IDS[pendingFood.ref],nom,q,mac});
   closeQty();closeSearch();renderCli();renderCoach();
   const el=document.getElementById('meal'+pendingMeal);if(el)el.classList.add('open');
-  toast('Ajouté à '+mealName(pendingMeal).toLowerCase());
+  dtToast('Ajouté à '+mealName(pendingMeal).toLowerCase());
 }async function delEntry(id){const cl=cliClient();await dbDelEntree(id);
   cl.journal[curDate]=entriesFor(curDate,cl).filter(e=>e.id!==id);renderCli();renderCoach();}function openProp(){
   ['p-nom','p-kcal','p-p','p-g','p-l','p-f'].forEach(i=>document.getElementById(i).value='');
@@ -1001,7 +1001,7 @@ async function switchViewClient(id){
   const nom=document.getElementById('p-nom').value.trim(),kcal=parseFloat(document.getElementById('p-kcal').value);
   const p=parseFloat(document.getElementById('p-p').value)||0,g=parseFloat(document.getElementById('p-g').value)||0;
   const l=parseFloat(document.getElementById('p-l').value)||0,f=parseFloat(document.getElementById('p-f').value)||0;
-  if(!nom||isNaN(kcal)){toast('Nom et calories obligatoires');return;}
+  if(!nom||isNaN(kcal)){dtToast('Nom et calories obligatoires');return;}
   const nn=norm(nom),chk=document.getElementById('p-check');
   if(SEARCH_INDEX.find(x=>x.n===nn)){
     chk.innerHTML='<div class="note-box" style="background:rgba(217,119,6,.07);border-color:rgba(217,119,6,.25);color:#92400E">Un aliment porte déjà ce nom exact. Vérifie avant de créer un doublon.</div>';return;}
@@ -1016,7 +1016,7 @@ async function switchViewClient(id){
   ALIM_META.push({source:'perso',statut:'en_attente',propose_par:row.propose_par,fct:null,gos:null,portion:100,estDe:null});
   ID2IDX[row.id]=ALIMENTS_BASE.length-1;
   SEARCH_INDEX.push({i:ALIMENTS_BASE.length-1,n:norm(nom)});
-  closeProp();runSearch();renderCoach();toast('Envoyé au coach — utilisable dès maintenant');
+  closeProp();runSearch();renderCoach();dtToast('Envoyé au coach — utilisable dès maintenant');
 }function openReprise(idx){
   repriseMeal=idx;
   const cl=cliClient(), nomRepas=mealName(idx);
@@ -1041,10 +1041,10 @@ async function switchViewClient(id){
       +cands.slice(0,20).map((c,i)=>{
         const d=parseD(c.date);
         return '<div class="rep-c" onclick="appliquerReprise('+i+')">'
-          +'<div class="rep-i"><div class="rep-n">'+esc(c.meal.nom)+(c.memeRepas?'<span class="rep-tag">même repas</span>':'')+'</div>'
+          +'<div class="rep-i"><div class="rep-n">'+dtEsc(c.meal.nom)+(c.memeRepas?'<span class="rep-tag">même repas</span>':'')+'</div>'
           +'<div class="rep-d">'+d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'short'})
           +' · '+c.ents.length+' aliment'+(c.ents.length>1?'s':'')+'</div>'
-          +'<div class="rep-l">'+c.ents.slice(0,3).map(e=>esc(e.nom.split(',')[0])).join(', ')+(c.ents.length>3?'…':'')+'</div></div>'
+          +'<div class="rep-l">'+c.ents.slice(0,3).map(e=>dtEsc(e.nom.split(',')[0])).join(', ')+(c.ents.length>3?'…':'')+'</div></div>'
           +'<div class="rep-k">'+Math.round(c.kcal)+'</div></div>';}).join('')
     : '<div class="empty">Aucun repas enregistré sur les 14 derniers jours.</div>';
   window._reprises=cands;
@@ -1062,7 +1062,7 @@ async function switchViewClient(id){
   }
   closeDay();renderCli();renderCoach();
   const el=document.getElementById('meal'+repriseMeal);if(el)el.classList.add('open');
-  toast(n+' aliment'+(n>1?'s repris':' repris'));
+  dtToast(n+' aliment'+(n>1?'s repris':' repris'));
 }function setPane(el,id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('pane-'+id).classList.add('on');}
 
 function renderAll(){ renderCli(); }

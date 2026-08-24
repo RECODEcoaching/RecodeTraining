@@ -257,7 +257,7 @@ let ALIM_IDS = [], ALIM_META = [], ID2IDX = {};
 
 function erreur(e, quoi){
   console.error(quoi, e);
-  toast('Erreur — ' + quoi);
+  dtToast('Erreur — ' + quoi);
   return null;
 }
 
@@ -377,7 +377,7 @@ async function boot(mode, clientId){
 function save(){}
 async function resetAll(){
   if(!confirm('Recharger les données depuis Supabase ?'))return;
-  await boot(); toast('Données rechargées');
+  await boot(); dtToast('Données rechargées');
 }
 
 function seedDemo(){}   // plus de données fictives : tout vient de Supabase
@@ -741,12 +741,26 @@ let repriseMeal=null;
 
 
 // ══ utils ══
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function dtEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function r1(n){return Math.round(n*10)/10;}
 function fmt(n){if(n==null)return '—';if(n>=100)return String(Math.round(n));if(n>=10)return String(Math.round(n*10)/10);return String(Math.round(n*100)/100);}
 function cap(s){return String(s).charAt(0).toUpperCase()+String(s).slice(1).replace(/_/g,' ');}
 let toastT;
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
+function dtToast(m){
+  let t=document.getElementById('diete-toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='diete-toast';
+    t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);'
+      +'background:#111827;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;'
+      +'z-index:9999;opacity:0;transition:.28s cubic-bezier(.4,0,.2,1);pointer-events:none;max-width:88vw;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent=m;
+  requestAnimationFrame(()=>{t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';});
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(80px)';},2200);
+}
 
 
 function renderAll(){renderCli();renderCoach();}
