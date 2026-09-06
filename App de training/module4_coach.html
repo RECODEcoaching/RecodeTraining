@@ -5922,21 +5922,41 @@ async function duplicateWeek(weekIndex) {
     // Copier les exercices
     const exos = (allExercices || []).filter(e => e.seance_id === s.id);
     if (exos.length > 0) {
-      const exoInserts = exos.map(e => ({
-        seance_id:   newSeance.id,
-        exercice_id: e.exercice_id || null,
-        nom_exo:     e.nom_exo,
-        ordre:       e.ordre,
-        series:      e.series,
-        reps:        e.reps,
-        rir:         e.rir,
-        repos_serie: e.repos_serie,
-        repos_cote:  e.repos_cote,
-        charge:      e.charge,
-        charge_kg:   e.charge_kg,
-        unilateral:  e.unilateral,
-      }));
-      const { error: exErr } = await db.from('seance_exercices').insert(exoInserts);
+      // Les super-sets sont recréés avec un NOUVEL identifiant de paire. Réutiliser
+      // celui d'origine serait dangereux : la déliaison d'un super-set ne filtre pas
+      // par séance, donc délier en semaine 2 délierait aussi la semaine 1.
+      const sgMap = {};
+      const nouvelIdSuperset = () => (crypto.randomUUID ? crypto.randomUUID()
+        : ('sg-' + Date.now() + '-' + Math.random().toString(36).slice(2)));
+      const exoInserts = exos.map(e => {
+        let sg = null;
+        if (e.superset_group) {
+          if (!sgMap[e.superset_group]) sgMap[e.superset_group] = nouvelIdSuperset();
+          sg = sgMap[e.superset_group];
+        }
+        return {
+          seance_id:   newSeance.id,
+          exercice_id: e.exercice_id || null,
+          nom_exo:     e.nom_exo,
+          ordre:       e.ordre,
+          series:      e.series,
+          reps:        e.reps,
+          rir:         e.rir,
+          repos_serie: e.repos_serie,
+          repos_cote:  e.repos_cote,
+          charge:      e.charge,
+          charge_kg:   e.charge_kg,
+          unilateral:  e.unilateral,
+          notes:       e.notes || null,        // consignes coach de l'exercice
+          superset_group: sg,
+        };
+      });
+      let { error: exErr } = await db.from('seance_exercices').insert(exoInserts);
+      if (exErr) {
+        // repli si la colonne superset_group n'existe pas encore en base
+        const sansSuperset = exoInserts.map(({ superset_group, ...reste }) => reste);
+        ({ error: exErr } = await db.from('seance_exercices').insert(sansSuperset));
+      }
       if (exErr) toast('Séance dupliquée, mais erreur exercices : ' + exErr.message);
     }
 
