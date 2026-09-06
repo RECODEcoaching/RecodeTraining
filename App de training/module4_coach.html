@@ -6790,19 +6790,29 @@ async function ouvrirDieteGlobale(){
   const chips=jts.map(k=>'<button class="jt'+(k===coachJT?' on':'')+'" onclick="pickJT(\''+k+'\')">'+(k==='defaut'?'Jour standard':cap(k))+'</button>').join('')
     +'<button class="jt-add" onclick="addJT()">+ Type de jour</button>'
     +(coachJT!=='defaut'?'<button class="jt-del" onclick="delJT()">Supprimer ce type</button>':'');
-  // Les repas en NA sont exclus de la somme : on ne totalise que ce qui est prescrit.
-  const tot={kcal:0,p:0,g:0,l:0,f:0}, naCount={kcal:0,p:0,g:0,l:0,f:0};
-  c.repas.forEach(r=>['kcal','p','g','l','f'].forEach(k=>{
-    if(r[k]==null) naCount[k]++; else tot[k]+=+r[k];
-  }));
+  // Les repas en NA sont exclus de la somme ; les fourchettes donnent un total lui-même
+  // en fourchette (somme des bornes basses – somme des bornes hautes).
+  const MK=[['kcal','kcalMin'],['p','pMin'],['g','gMin'],['l','lMin'],['f','fMin']];
+  const tot={}, totMin={}, naCount={}, aPlage={};
+  MK.forEach(([k,km])=>{ tot[k]=0; totMin[k]=0; naCount[k]=0; aPlage[k]=false;
+    c.repas.forEach(r=>{
+      if(r[k]==null){ naCount[k]++; return; }
+      tot[k]+=+r[k];
+      totMin[k]+= (r[km]!=null ? +r[km] : +r[k]);
+      if(r[km]!=null) aPlage[k]=true;
+    });
+  });
   const toutNA=k=>naCount[k]===c.repas.length;
   const warn=(a,b,k)=>toutNA(k)?'':(Math.abs(a-b)>Math.max(b*.02,2)?' style="color:var(--danger)"':'');
-  const cell=(a,b,k)=>toutNA(k)
-    ? '<td style="color:var(--text-dim)">NA</td>'
-    : '<td'+warn(a,b,k)+'>'+Math.round(a)+(naCount[k]?'<span style="font-size:10px;color:var(--text-dim)"> +'+naCount[k]+' NA</span>':'')+'</td>';
+  const cell=(k,cible)=>{
+    if(toutNA(k)) return '<td style="color:var(--text-dim)">NA</td>';
+    const txt = aPlage[k] ? Math.round(totMin[k])+'-'+Math.round(tot[k]) : String(Math.round(tot[k]));
+    return '<td'+warn(tot[k],cible,k)+'>'+txt
+      +(naCount[k]?'<span style="font-size:10px;color:var(--text-dim)"> +'+naCount[k]+' NA</span>':'')+'</td>';
+  };
   const rows=c.repas.map((r,i)=>'<tr><td><input class="nom-in" value="'+dtEsc(r.nom)+'" onchange="setRepas('+i+',\'nom\',this.value)"></td>'
-    +['kcal','p','g','l','f'].map(k=>'<td><input type="text" inputmode="decimal" class="'+(r[k]==null?'na-in':'')+'" value="'
-      +afficheNA(r[k])+'" onchange="setRepas('+i+',\''+k+'\',this.value)"></td>').join('')
+    +MK.map(([k,km])=>'<td><input type="text" class="'+(r[k]==null?'na-in':'')+'" value="'
+      +fmtPlage(r[km],r[k])+'" onchange="setRepas('+i+',\''+k+'\',this.value)"></td>').join('')
     +'<td style="width:34px"><button class="tbl-del" onclick="delRepas('+i+')">×</button></td></tr>').join('');
   const nOver=cl.microOverrides?Object.keys(cl.microOverrides).length:0;
   const nFod=cl.fodmapOverrides?Object.keys(cl.fodmapOverrides).length:0;
@@ -6820,6 +6830,8 @@ async function ouvrirDieteGlobale(){
 
     +'<div class="ccard"><div class="cct">Répartition par repas</div>'
     +'<div class="ccs">Ces repas sont exactement ceux que la cliente voit dans son application.<br><br>'
+    +'<b>Trois écritures possibles</b> dans chaque case : une valeur (<b>35</b>), une fourchette (<b>30-35</b>), ou <b>NA</b> quand tu n\'as pas de recommandation. '
+    +'Un champ vide vaut NA. La ligne de total affiche elle aussi une fourchette dès qu\'il y en a une.<br><br>'
     +'<b>Écris « NA » quand tu n\'as pas de recommandation particulière</b> sur un repas et une macro. '
     +'La cliente voit alors ce qu\'elle a mangé, sans objectif imposé. Un champ vide vaut NA. '
     +'Tu peux ne prescrire qu\'une seule ligne — par exemple 30 g de protéines et 60 g de glucides après le training — et laisser tout le reste en NA.<br><br>'
@@ -6828,7 +6840,7 @@ async function ouvrirDieteGlobale(){
     +'La ligne de total ne compte que ce qui est prescrit et ignore les NA.</div>'
     +'<table class="tbl"><tr><th>Repas</th><th>Calories</th><th>Protéines</th><th>Glucides</th><th>Lipides</th><th>Fibres</th><th></th></tr>'+rows
     +'<tr class="tot-row"><td>Somme des repas</td>'
-    +cell(tot.kcal,c.kcal,'kcal')+cell(tot.p,c.p,'p')+cell(tot.g,c.g,'g')+cell(tot.l,c.l,'l')+cell(tot.f,c.f,'f')
+    +cell('kcal',c.kcal)+cell('p',c.p)+cell('g',c.g)+cell('l',c.l)+cell('f',c.f)
     +'<td></td></tr></table>'
     +'<div class="rb"><button class="bs bs-o" onclick="addRepas()">+ Ajouter un repas</button>'
     +'<button class="bs bs-o" onclick="toutEnNA()">Tout passer en NA</button></div></div>'
@@ -6880,7 +6892,13 @@ async function ouvrirDieteGlobale(){
   coachJT='defaut';renderCibles();renderCli();
 }async function setCible(k,v){client().cibles[coachJT][k]=+v||0;await dbCible(curClient,coachJT);renderCibles();renderCli();}async function setRepas(i,k,v){
   const r=client().cibles[coachJT].repas[i];
-  r[k]=(k==='nom')?v:lireNA(v);          // « NA », vide ou « - » → aucune recommandation
+  if(k==='nom'){ r.nom=v; }
+  else {
+    // accepte « NA », « 35 » ou « 30-35 »
+    const p=lirePlage(v);
+    const cleMin={kcal:'kcalMin',p:'pMin',g:'gMin',l:'lMin',f:'fMin'}[k];
+    r[k]=p.max; r[cleMin]=p.min;
+  }
   await dbCible(curClient,coachJT);renderCibles();renderCli();
 }
 // Un repas ajouté part sans recommandation : au coach de préciser s'il le souhaite.
@@ -6893,7 +6911,10 @@ async function addRepas(){
 // Bascule tous les repas en NA d'un coup
 async function toutEnNA(){
   if(!confirm('Retirer toutes les recommandations par repas ?\n\nLes cibles du jour restent inchangées : seule la répartition repas par repas passe en NA.'))return;
-  client().cibles[coachJT].repas.forEach(r=>{ r.kcal=null;r.p=null;r.g=null;r.l=null;r.f=null; });
+  client().cibles[coachJT].repas.forEach(r=>{
+    r.kcal=null;r.p=null;r.g=null;r.l=null;r.f=null;
+    r.kcalMin=null;r.pMin=null;r.gMin=null;r.lMin=null;r.fMin=null;
+  });
   await dbCible(curClient,coachJT);renderCibles();renderCli();
   dtToast('Répartition en NA');
 }async function delRepas(i){const c=client().cibles[coachJT];if(c.repas.length<=1){dtToast('Il faut au moins un repas');return;}c.repas.splice(i,1);await dbCible(curClient,coachJT);renderCibles();renderCli();}async function autoSplit(){

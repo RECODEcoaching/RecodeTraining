@@ -224,7 +224,32 @@ function lireNA(v){
   const n=parseFloat(t.replace(',','.'));
   return isNaN(n) ? null : n;
 }
+// Une case peut valoir : NA, une valeur unique (« 35 »), ou une fourchette (« 30-35 »).
+// On renvoie toujours {min, max} : min à null signifie « valeur unique ».
+function lirePlage(v){
+  if(v===null || v===undefined) return {min:null,max:null};
+  const t=String(v).trim().toLowerCase().replace(/\s/g,'').replace(/,/g,'.');
+  if(t==='' || t==='na' || t==='n/a' || t==='-' || t==='—') return {min:null,max:null};
+  const m=t.match(/^(\d+(?:\.\d+)?)[-–à](\d+(?:\.\d+)?)$/);
+  if(m){
+    let a=parseFloat(m[1]), b=parseFloat(m[2]);
+    if(a>b){ const tmp=a; a=b; b=tmp; }        // « 35-30 » vaut « 30-35 »
+    return a===b ? {min:null,max:b} : {min:a,max:b};
+  }
+  const n=parseFloat(t);
+  return isNaN(n) ? {min:null,max:null} : {min:null,max:n};
+}
+function fmtPlage(min,max){
+  if(max==null) return 'NA';
+  return (min==null) ? String(max) : (min+'-'+max);
+}
 function afficheNA(v){ return v==null ? 'NA' : v; }
+// une valeur est-elle dans la cible d'un repas ? (tolérance de 10 % sur une valeur unique)
+function dansPlage(v,min,max){
+  if(max==null) return null;
+  if(min!=null) return v>=min && v<=max;
+  return v>=max*0.9 && v<=max*1.1;
+}
 function repas4(kcal,p,g,l,f){
   return [['Petit-déjeuner',.25],['Déjeuner',.35],['Collation',.10],['Dîner',.30]].map(([nom,r])=>({
     nom,kcal:Math.round(kcal*r),p:Math.round(p*r),g:Math.round(g*r),l:Math.round(l*r),f:Math.round(f*r)}));
@@ -333,8 +358,11 @@ async function chargerCliente(id){
   (cib.data||[]).forEach(c => {
     cl.cibles[c.jour_type] = { _id:c.id, kcal:+c.kcal, p:+c.prot, g:+c.gluc, l:+c.lip, f:+c.fibres,
       repas:(c.diete_repas||[]).sort((a,b)=>a.ordre-b.ordre)
-        .map(r => ({ _id:r.id, nom:r.nom, kcal:nOuNull(r.kcal), p:nOuNull(r.prot),
-                     g:nOuNull(r.gluc), l:nOuNull(r.lip), f:nOuNull(r.fibres) })) };
+        .map(r => ({ _id:r.id, nom:r.nom,
+          kcal:nOuNull(r.kcal), p:nOuNull(r.prot), g:nOuNull(r.gluc), l:nOuNull(r.lip), f:nOuNull(r.fibres),
+          // bornes basses des fourchettes ; null = cible unique
+          kcalMin:nOuNull(r.kcal_min), pMin:nOuNull(r.prot_min), gMin:nOuNull(r.gluc_min),
+          lMin:nOuNull(r.lip_min), fMin:nOuNull(r.fibres_min) })) };
   });
   if(!cl.cibles.defaut) await creerCiblesDefaut(id);
 
@@ -427,10 +455,18 @@ async function dbCible(id, jourType){
   // les repas sont réécrits en bloc : peu de lignes, et ça évite toute désynchronisation
   await sb.from('diete_repas').delete().eq('cible_id', c._id);
   if(c.repas.length){
-    const { data:rr } = await sb.from('diete_repas').insert(
-      c.repas.map((r,i) => ({ cible_id:c._id, ordre:i, nom:r.nom,
-        kcal:nOuNull(r.kcal), prot:nOuNull(r.p), gluc:nOuNull(r.g), lip:nOuNull(r.l), fibres:nOuNull(r.f) }))
-    ).select();
+    const lignes = c.repas.map((r,i) => ({ cible_id:c._id, ordre:i, nom:r.nom,
+      kcal:nOuNull(r.kcal), prot:nOuNull(r.p), gluc:nOuNull(r.g), lip:nOuNull(r.l), fibres:nOuNull(r.f),
+      kcal_min:nOuNull(r.kcalMin), prot_min:nOuNull(r.pMin), gluc_min:nOuNull(r.gMin),
+      lip_min:nOuNull(r.lMin), fibres_min:nOuNull(r.fMin) }));
+    let { data:rr, error } = await sb.from('diete_repas').insert(lignes).select();
+    if(error){
+      // repli si les colonnes de fourchette n'existent pas encore en base
+      const sansMin = lignes.map(({kcal_min,prot_min,gluc_min,lip_min,fibres_min,...reste}) => reste);
+      ({ data:rr, error } = await sb.from('diete_repas').insert(sansMin).select());
+      if(!error) console.warn('Fourchettes ignorées : exécute diete-fourchettes.sql dans Supabase.');
+      else erreur(error, 'enregistrement des repas');
+    }
     (rr||[]).sort((a,b)=>a.ordre-b.ordre).forEach((r,i)=>{ if(c.repas[i]) c.repas[i]._id = r.id; });
   }
 }
