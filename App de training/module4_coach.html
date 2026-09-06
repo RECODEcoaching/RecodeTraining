@@ -765,6 +765,21 @@ async function hashPin(pin) {
   .cm-lib-pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); font-weight: 600; }
 
 /* ═══ MODULE DIÈTE ═══ */
+.tbl input.na-in{color:var(--text-dim);font-style:italic;background:#FAFAFA}
+.jd{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;overflow:hidden}
+.jd-h{display:flex;align-items:center;gap:14px;padding:11px 14px;cursor:pointer}
+.jd-h:hover{background:var(--surface2,#F2F2F5)}
+.jd-date{font-size:12.5px;font-weight:700;width:132px;flex-shrink:0}
+.jd-n{display:block;font-size:10px;font-weight:600;color:var(--text-dim);margin-top:1px}
+.jd-macros{flex:1;min-width:0;font-size:12px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}
+.jd-macros b{font-size:14px;color:var(--text)}
+.jd-bar{width:90px;height:7px;background:var(--surface2,#F2F2F5);border-radius:4px;overflow:hidden;flex-shrink:0}
+.jd-bar i{display:block;height:100%;border-radius:4px}
+.jd-ec{font-size:12px;font-weight:800;width:52px;text-align:right;flex-shrink:0}
+.jd-fl{font-size:16px;color:var(--text-dim);transition:transform .2s;flex-shrink:0}
+.jd.open .jd-fl{transform:rotate(90deg)}
+.jd-b{display:none;padding:4px 16px 14px;border-top:1px solid var(--border)}
+.jd.open .jd-b{display:block}
 .dt-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
 .dt-tab{padding:8px 14px;border:1.5px solid var(--border-md,rgba(0,0,0,.10));background:#fff;border-radius:9px;
   font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:.15s ease}
@@ -6775,10 +6790,19 @@ async function ouvrirDieteGlobale(){
   const chips=jts.map(k=>'<button class="jt'+(k===coachJT?' on':'')+'" onclick="pickJT(\''+k+'\')">'+(k==='defaut'?'Jour standard':cap(k))+'</button>').join('')
     +'<button class="jt-add" onclick="addJT()">+ Type de jour</button>'
     +(coachJT!=='defaut'?'<button class="jt-del" onclick="delJT()">Supprimer ce type</button>':'');
-  const tot=c.repas.reduce((s,r)=>({kcal:s.kcal+ +r.kcal,p:s.p+ +r.p,g:s.g+ +r.g,l:s.l+ +r.l,f:s.f+ +r.f}),{kcal:0,p:0,g:0,l:0,f:0});
-  const warn=(a,b)=>Math.abs(a-b)>Math.max(b*.02,2)?' style="color:var(--danger)"':'';
+  // Les repas en NA sont exclus de la somme : on ne totalise que ce qui est prescrit.
+  const tot={kcal:0,p:0,g:0,l:0,f:0}, naCount={kcal:0,p:0,g:0,l:0,f:0};
+  c.repas.forEach(r=>['kcal','p','g','l','f'].forEach(k=>{
+    if(r[k]==null) naCount[k]++; else tot[k]+=+r[k];
+  }));
+  const toutNA=k=>naCount[k]===c.repas.length;
+  const warn=(a,b,k)=>toutNA(k)?'':(Math.abs(a-b)>Math.max(b*.02,2)?' style="color:var(--danger)"':'');
+  const cell=(a,b,k)=>toutNA(k)
+    ? '<td style="color:var(--text-dim)">NA</td>'
+    : '<td'+warn(a,b,k)+'>'+Math.round(a)+(naCount[k]?'<span style="font-size:10px;color:var(--text-dim)"> +'+naCount[k]+' NA</span>':'')+'</td>';
   const rows=c.repas.map((r,i)=>'<tr><td><input class="nom-in" value="'+dtEsc(r.nom)+'" onchange="setRepas('+i+',\'nom\',this.value)"></td>'
-    +['kcal','p','g','l','f'].map(k=>'<td><input type="number" value="'+r[k]+'" onchange="setRepas('+i+',\''+k+'\',this.value)"></td>').join('')
+    +['kcal','p','g','l','f'].map(k=>'<td><input type="text" inputmode="decimal" class="'+(r[k]==null?'na-in':'')+'" value="'
+      +afficheNA(r[k])+'" onchange="setRepas('+i+',\''+k+'\',this.value)"></td>').join('')
     +'<td style="width:34px"><button class="tbl-del" onclick="delRepas('+i+')">×</button></td></tr>').join('');
   const nOver=cl.microOverrides?Object.keys(cl.microOverrides).length:0;
   const nFod=cl.fodmapOverrides?Object.keys(cl.fodmapOverrides).length:0;
@@ -6795,12 +6819,19 @@ async function ouvrirDieteGlobale(){
     +'<button class="bs bs-o" onclick="openCopy()">Copier ces cibles vers…</button></div></div>'
 
     +'<div class="ccard"><div class="cct">Répartition par repas</div>'
-    +'<div class="ccs">Ces repas sont exactement ceux que la cliente voit dans son application. La ligne de total passe en rouge si la somme s\'écarte de la cible du jour. '
-    +'La cliente peut aussi créer ses propres repas de son côté : ils apparaissent dans son journal sans cible, et tu les vois dans l\'onglet Journal.</div>'
+    +'<div class="ccs">Ces repas sont exactement ceux que la cliente voit dans son application.<br><br>'
+    +'<b>Écris « NA » quand tu n\'as pas de recommandation particulière</b> sur un repas et une macro. '
+    +'La cliente voit alors ce qu\'elle a mangé, sans objectif imposé. Un champ vide vaut NA. '
+    +'Tu peux ne prescrire qu\'une seule ligne — par exemple 30 g de protéines et 60 g de glucides après le training — et laisser tout le reste en NA.<br><br>'
+    +'<b>Nomme les repas par contexte plutôt que par horaire</b> si ta cliente s\'entraîne à des heures variables : '
+    +'« Après le training » a du sens quelle que soit l\'heure, « Petit-déjeuner » beaucoup moins. '
+    +'La ligne de total ne compte que ce qui est prescrit et ignore les NA.</div>'
     +'<table class="tbl"><tr><th>Repas</th><th>Calories</th><th>Protéines</th><th>Glucides</th><th>Lipides</th><th>Fibres</th><th></th></tr>'+rows
-    +'<tr class="tot-row"><td>Somme des repas</td><td'+warn(tot.kcal,c.kcal)+'>'+Math.round(tot.kcal)+'</td><td'+warn(tot.p,c.p)+'>'+Math.round(tot.p)+'</td>'
-    +'<td'+warn(tot.g,c.g)+'>'+Math.round(tot.g)+'</td><td'+warn(tot.l,c.l)+'>'+Math.round(tot.l)+'</td><td'+warn(tot.f,c.f)+'>'+Math.round(tot.f)+'</td><td></td></tr></table>'
-    +'<div class="rb"><button class="bs bs-o" onclick="addRepas()">+ Ajouter un repas</button></div></div>'
+    +'<tr class="tot-row"><td>Somme des repas</td>'
+    +cell(tot.kcal,c.kcal,'kcal')+cell(tot.p,c.p,'p')+cell(tot.g,c.g,'g')+cell(tot.l,c.l,'l')+cell(tot.f,c.f,'f')
+    +'<td></td></tr></table>'
+    +'<div class="rb"><button class="bs bs-o" onclick="addRepas()">+ Ajouter un repas</button>'
+    +'<button class="bs bs-o" onclick="toutEnNA()">Tout passer en NA</button></div></div>'
 
     +'<div class="ccard"><div class="cct">Micronutriments — '+dtEsc(cl.nom)+'</div>'
     +'<div class="ccs">'+(nOver?'<b>'+nOver+' valeur'+(nOver>1?'s':'')+' personnalisée'+(nOver>1?'s':'')+'</b> pour cette cliente (en violet). Les autres suivent tes cibles par défaut.'
@@ -6847,7 +6878,25 @@ async function ouvrirDieteGlobale(){
   delete cl.cibles[supprime];
   for(const d of Object.keys(cl.jours)){ if(cl.jours[d]===supprime){ delete cl.jours[d]; await dbJour(curClient,d,'defaut'); } }
   coachJT='defaut';renderCibles();renderCli();
-}async function setCible(k,v){client().cibles[coachJT][k]=+v||0;await dbCible(curClient,coachJT);renderCibles();renderCli();}async function setRepas(i,k,v){const r=client().cibles[coachJT].repas[i];r[k]=(k==='nom')?v:(+v||0);await dbCible(curClient,coachJT);renderCibles();renderCli();}async function addRepas(){client().cibles[coachJT].repas.push({nom:'Nouveau repas',kcal:0,p:0,g:0,l:0,f:0});await dbCible(curClient,coachJT);renderCibles();renderCli();}async function delRepas(i){const c=client().cibles[coachJT];if(c.repas.length<=1){dtToast('Il faut au moins un repas');return;}c.repas.splice(i,1);await dbCible(curClient,coachJT);renderCibles();renderCli();}async function autoSplit(){
+}async function setCible(k,v){client().cibles[coachJT][k]=+v||0;await dbCible(curClient,coachJT);renderCibles();renderCli();}async function setRepas(i,k,v){
+  const r=client().cibles[coachJT].repas[i];
+  r[k]=(k==='nom')?v:lireNA(v);          // « NA », vide ou « - » → aucune recommandation
+  await dbCible(curClient,coachJT);renderCibles();renderCli();
+}
+// Un repas ajouté part sans recommandation : au coach de préciser s'il le souhaite.
+async function addRepas(){
+  const n=prompt('Nom du repas\n\nTu peux le nommer par contexte plutôt que par horaire :\n« Après le training », « Avant la séance », « Collation »…','Après le training');
+  if(n===null)return;
+  client().cibles[coachJT].repas.push({nom:(n.trim()||'Nouveau repas'),kcal:null,p:null,g:null,l:null,f:null});
+  await dbCible(curClient,coachJT);renderCibles();renderCli();
+}
+// Bascule tous les repas en NA d'un coup
+async function toutEnNA(){
+  if(!confirm('Retirer toutes les recommandations par repas ?\n\nLes cibles du jour restent inchangées : seule la répartition repas par repas passe en NA.'))return;
+  client().cibles[coachJT].repas.forEach(r=>{ r.kcal=null;r.p=null;r.g=null;r.l=null;r.f=null; });
+  await dbCible(curClient,coachJT);renderCibles();renderCli();
+  dtToast('Répartition en NA');
+}async function delRepas(i){const c=client().cibles[coachJT];if(c.repas.length<=1){dtToast('Il faut au moins un repas');return;}c.repas.splice(i,1);await dbCible(curClient,coachJT);renderCibles();renderCli();}async function autoSplit(){
   const c=client().cibles[coachJT],n=c.repas.length;
   c.repas.forEach((r,i)=>['kcal','p','g','l','f'].forEach(k=>{const per=c[k]/n;r[k]=(i===n-1)?Math.round(c[k]-Math.round(per)*(n-1)):Math.round(per);}));
   await dbCible(curClient,coachJT);renderCibles();renderCli();dtToast('Réparti sur '+n+' repas');
@@ -6871,30 +6920,80 @@ async function ouvrirDieteGlobale(){
     S.clients[autre].cibles.defaut=src; await dbCible(autre,'defaut');
   }
   renderCoach();renderCli();dtToast('Cibles copiées');
-}function renderJournal(){
-  const cl=client(),days=[];for(let i=13;i>=0;i--)days.push(addDays(todayStr(),-i));
+}
+// Période d'observation, partagée entre le journal et la micronutrition
+let dietePeriode = 14;
+function setDietePeriode(n){ dietePeriode = n; renderJournal(); renderCoachMicro(); }
+function joursPeriode(){
+  const d=[]; for(let i=dietePeriode-1;i>=0;i--) d.push(addDays(todayStr(),-i)); return d;
+}
+function toggleJour(d){
+  const el=document.getElementById('jd-'+d);
+  if(el) el.classList.toggle('open');
+}
+function renderJournal(){
+  const cl=client(), days=joursPeriode();
   const rows=days.map(d=>({d,tot:totalsFor(d,cl),cib:ciblesFor(d,cl),n:entriesFor(d,cl).length}));
-  const last7=rows.slice(-7).filter(r=>r.n>0);
-  const avg=(a,k)=>a.length?a.reduce((s,r)=>s+r.tot[k],0)/a.length:0;
+  const remplis=rows.filter(r=>r.n>0);
+  const avg =(a,k)=>a.length?a.reduce((s,r)=>s+r.tot[k],0)/a.length:0;
   const avgT=(a,k)=>a.length?a.reduce((s,r)=>s+r.cib[k],0)/a.length:0;
-  const stats=[['Calories','kcal','kcal','kcal'],['Protéines','p','p','g'],['Glucides','g','g','g'],['Lipides','l','l','g'],['Fibres','fib','f','g']].map(([nom,tk,ck,u])=>{
-    const v=avg(last7,tk),t=avgT(last7,ck),d=t?(v-t)/t*100:0,cls=Math.abs(d)<=7?'ok':(d>0?'up':'down');
-    return '<div class="stat"><div class="sk">'+nom+' — moy. 7 j</div><div class="sv">'+Math.round(v)+'<span style="font-size:13px;font-weight:600;color:var(--text-muted)"> '+u+'</span></div>'
-      +'<div class="sd '+cls+'">'+(last7.length?(d>=0?'+':'')+Math.round(d)+'% vs cible ('+Math.round(t)+u+')':'aucune donnée')+'</div></div>';}).join('');
+
+  const MACROS=[['Calories','kcal','kcal','kcal'],['Protéines','p','p','g'],['Glucides','g','g','g'],
+                ['Lipides','l','l','g'],['Fibres','fib','f','g']];
+  const stats=MACROS.map(([nom,tk,ck,u])=>{
+    const v=avg(remplis,tk), t=avgT(remplis,ck), d=t?(v-t)/t*100:0;
+    const cls=Math.abs(d)<=7?'ok':(d>0?'up':'down');
+    return '<div class="stat"><div class="sk">'+nom+' — moy. '+dietePeriode+' j</div>'
+      +'<div class="sv">'+Math.round(v)+'<span style="font-size:13px;font-weight:600;color:var(--text-muted)"> '+u+'</span></div>'
+      +'<div class="sd '+cls+'">'+(remplis.length?(d>=0?'+':'')+Math.round(d)+'% vs cible ('+Math.round(t)+u+')':'aucune donnée')+'</div></div>';
+  }).join('');
+
+  const periodes=[7,14,30,90].map(n=>'<button class="bs '+(n===dietePeriode?'bs-p':'bs-o')+'" onclick="setDietePeriode('+n+')">'+n+' jours</button>').join('');
+
   const list=rows.slice().reverse().map(r=>{
-    const lbl=parseD(r.d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
-    if(!r.n)return '<div class="jrow" style="opacity:.5"><div class="jrd">'+lbl+'</div><div class="jrb"></div><div class="jrv" style="color:var(--text-dim)">non renseigné</div><div class="jre"></div></div>';
+    const dd=parseD(r.d);
+    const lbl=dd.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+    if(!r.n) return '<div class="jd"><div class="jd-h" style="opacity:.45"><div class="jd-date">'+lbl+'</div>'
+      +'<div class="jd-macros"><span style="color:var(--text-dim)">non renseigné</span></div></div></div>';
     const ratio=r.cib.kcal?r.tot.kcal/r.cib.kcal:0;
     const col=(ratio>=.9&&ratio<=1.1)?'var(--success)':(ratio>1.1?'var(--danger)':'var(--warn)');
-    return '<div class="jrow" style="cursor:pointer" onclick="openDay(\''+r.d+'\')"><div class="jrd">'+lbl+'</div>'
-      +'<div class="jrb"><i style="width:'+Math.min(ratio*100,100)+'%;background:'+col+'"></i></div>'
-      +'<div class="jrv">'+Math.round(r.tot.kcal)+' / '+r.cib.kcal+' kcal</div>'
-      +'<div class="jre" style="color:'+col+'">'+((ratio-1)*100>=0?'+':'')+Math.round((ratio-1)*100)+'%</div></div>';}).join('');
-  const adh=rows.filter(r=>r.n).length;
-  document.getElementById('cpane-journal').innerHTML='<div class="sg">'+stats+'</div>'
-    +'<div class="ccard"><div class="cct">14 derniers jours</div>'
-    +'<div class="ccs">'+adh+' jour(s) renseigné(s) sur 14 — les moyennes ignorent les jours vides. Clique sur une ligne pour le détail des repas.</div>'
-    +'<div class="rb" style="margin:0 0 14px"><button class="bs bs-o" onclick="exportCSV()">Exporter le journal (CSV)</button></div>'
+    const ecart=Math.round((ratio-1)*100);
+    const ents=entriesFor(r.d,cl), meals=mealsFor(r.d,cl);
+    const detail=meals.map(m=>{
+      const mine=ents.filter(e=>e.meal===m.idx);
+      if(!mine.length) return '';
+      const k=mine.reduce((s,e)=>s+(e.mac.kcal||0),0);
+      return '<div class="ddm"><div class="ddh">'+dtEsc(m.nom)+(m.libre?' <span style="font-weight:600;color:var(--text-muted)">(ajouté par la cliente)</span>':'')
+        +' — '+Math.round(k)+(m.kcal?' / '+m.kcal:'')+' kcal</div>'
+        +mine.map(e=>'<div class="dde"><span>'+dtEsc(e.nom)+' · '+e.q+' g</span>'
+          +'<span>'+Math.round(e.mac.kcal||0)+' kcal · P '+r1(e.mac.p||0)+' / G '+r1(e.mac.g||0)+' / L '+r1(e.mac.l||0)+'</span></div>').join('')
+        +'</div>';
+    }).join('');
+    return '<div class="jd" id="jd-'+r.d+'">'
+      +'<div class="jd-h" onclick="toggleJour(\''+r.d+'\')">'
+      +  '<div class="jd-date">'+lbl+'<span class="jd-n">'+r.n+' aliment'+(r.n>1?'s':'')+'</span></div>'
+      +  '<div class="jd-macros">'
+      +    '<b>'+Math.round(r.tot.kcal)+'</b> / '+r.cib.kcal+' kcal'
+      +    '<span>P '+Math.round(r.tot.p)+'/'+r.cib.p+'</span>'
+      +    '<span>G '+Math.round(r.tot.g)+'/'+r.cib.g+'</span>'
+      +    '<span>L '+Math.round(r.tot.l)+'/'+r.cib.l+'</span>'
+      +    '<span>F '+Math.round(r.tot.fib)+'/'+r.cib.f+'</span>'
+      +  '</div>'
+      +  '<div class="jd-bar"><i style="width:'+Math.min(ratio*100,100)+'%;background:'+col+'"></i></div>'
+      +  '<div class="jd-ec" style="color:'+col+'">'+(ecart>=0?'+':'')+ecart+'%</div>'
+      +  '<span class="jd-fl">›</span>'
+      +'</div>'
+      +'<div class="jd-b">'+(detail||'<div class="dde" style="color:var(--text-dim)"><span>Aucun aliment</span><span></span></div>')+'</div>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('cpane-journal').innerHTML=
+    '<div class="rb" style="margin:0 0 16px">'+periodes
+    +'<button class="bs bs-p" style="margin-left:auto" onclick="exportDieteComplet()">Exporter toute la diète (CSV)</button></div>'
+    +'<div class="sg">'+stats+'</div>'
+    +'<div class="ccard"><div class="cct">Journal — '+dietePeriode+' derniers jours</div>'
+    +'<div class="ccs">'+remplis.length+' jour(s) renseigné(s) sur '+dietePeriode+'. Les moyennes ignorent les jours vides. '
+    +'Clique sur une journée pour voir le détail de chaque repas et de chaque aliment.</div>'
     +list+'</div>';
 }function openDay(date){
   const cl=client(),cib=ciblesFor(date,cl),ents=entriesFor(date,cl),tot=totalsFor(date,cl),meals=mealsFor(date,cl);
@@ -6975,7 +7074,72 @@ async function ouvrirDieteGlobale(){
     +'<table class="micro-tbl">'+head+rows(NUT.filter(x=>x.grp==='min'))+'</table>'
     +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 8px">Vitamines</div>'
     +'<table class="micro-tbl">'+head+rows(NUT.filter(x=>x.grp==='vit'))+'</table></div>';
-}function dl(name,content){
+}// Export unique : tout ce que la cliente a enregistré sur la période choisie,
+// en quatre sections dans un seul fichier.
+function exportDieteComplet(){
+  const cl=client(), days=joursPeriode();
+  const L=[];
+  const ligne=(...c)=>L.push(c.map(csvEsc).join(';'));
+  const rows=days.map(d=>({d,tot:totalsFor(d,cl),cib:ciblesFor(d,cl),n:entriesFor(d,cl).length}));
+  const remplis=rows.filter(r=>r.n>0);
+
+  ligne('RECODE — Diète', cl.nom, 'Période : '+dietePeriode+' jours', 'Export du '+new Date().toLocaleDateString('fr-FR'));
+  L.push('');
+
+  // 1. synthèse jour par jour
+  ligne('SECTION','Synthèse par jour');
+  ligne('Date','Type de jour','Aliments','Calories','Cible kcal','Écart %','Protéines','Cible P','Glucides','Cible G','Lipides','Cible L','Fibres','Cible F');
+  rows.forEach(r=>{
+    if(!r.n){ ligne(r.d, jourTypeFor(r.d,cl), '0', 'non renseigné'); return; }
+    const ec=r.cib.kcal?Math.round((r.tot.kcal/r.cib.kcal-1)*100):'';
+    ligne(r.d, jourTypeFor(r.d,cl), r.n, Math.round(r.tot.kcal), r.cib.kcal, (ec>=0?'+':'')+ec+'%',
+          r1(r.tot.p), r.cib.p, r1(r.tot.g), r.cib.g, r1(r.tot.l), r.cib.l, r1(r.tot.fib), r.cib.f);
+  });
+  L.push('');
+
+  // 2. moyennes
+  const avg=(k)=>remplis.length?remplis.reduce((s,r)=>s+r.tot[k],0)/remplis.length:0;
+  const avgT=(k)=>remplis.length?remplis.reduce((s,r)=>s+r.cib[k],0)/remplis.length:0;
+  ligne('SECTION','Moyennes sur les '+remplis.length+' jours renseignés');
+  ligne('Nutriment','Unité','Moyenne par jour','Cible','Écart %');
+  [['Calories','kcal','kcal','kcal'],['Protéines','p','p','g'],['Glucides','g','g','g'],
+   ['Lipides','l','l','g'],['Fibres','fib','f','g']].forEach(([n,tk,ck,u])=>{
+    const v=avg(tk), t=avgT(ck), d=t?Math.round((v-t)/t*100):'';
+    ligne(n,u,r1(v),r1(t),(d>=0?'+':'')+d+'%');
+  });
+  L.push('');
+
+  // 3. micronutrition
+  ligne('SECTION','Micronutrition — moyenne par jour');
+  ligne('Nutriment','Unité','Moyenne','Cible','Pourcentage','Statut','Origine de la cible','Aliments sans donnée');
+  NUT.filter(x=>DEF_MICRO[x.k]).forEach(x=>{
+    let v=0,manq=0;
+    remplis.forEach(r=>{ v+=r.tot[x.k]||0; manq+=(r.tot._manquants&&r.tot._manquants[x.k])||0; });
+    v = remplis.length ? v/remplis.length : 0;
+    const st=nutStatus(x.k,v,cl);
+    ligne(x.n, x.u, r1(v), st.t||'', Math.round(st.pct)+'%', st.txt,
+          isOverridden(x.k,cl)?'personnalisée':'défaut', manq);
+  });
+  L.push('');
+
+  // 4. détail aliment par aliment
+  ligne('SECTION','Détail — chaque aliment enregistré');
+  ligne('Date','Repas','Aliment','Quantité (g)', ...NUT.map(n=>n.n+' ('+n.u+')'));
+  days.forEach(d=>{
+    const ents=entriesFor(d,cl); if(!ents.length) return;
+    const meals=mealsFor(d,cl);
+    ents.forEach(e=>{
+      const m=meals.find(x=>x.idx===e.meal), man=manualOf(e);
+      ligne(d, m?m.nom:'Repas', e.nom, e.q, ...NUT.map(n=>{
+        if(n.manuel) return man[n.k]==null?'non classé':LVL[man[n.k]].n;
+        return e.mac[n.k]==null?'non mesuré':r1(e.mac[n.k]);
+      }));
+    });
+  });
+
+  dl('recode_diete_'+norm(cl.nom).replace(/ /g,'_')+'_'+dietePeriode+'j.csv', L.join('\n'));
+}
+function dl(name,content){
   const b=new Blob(['﻿'+content],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(b),a=document.createElement('a');
   a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);dtToast('Export téléchargé');
 }function csvEsc(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}function exportCSV(){

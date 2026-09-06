@@ -574,7 +574,12 @@ async function switchViewClient(id){
   let mi0=0;
   document.getElementById('meals').innerHTML=meals.map(r=>{
     const mine=ents.filter(e=>e.meal===r.idx), k=mine.reduce((s,e)=>s+e.mac.kcal,0);
-    const pct=r.kcal?Math.min(k/r.kcal*100,100):(mine.length?100:0);
+    // Pas d'objectif calorique sur ce repas : on affiche ce qui a été mangé, sans jugement
+    const sansCible = r.libre || r.kcal==null;
+    const pct=(!sansCible && r.kcal)?Math.min(k/r.kcal*100,100):(mine.length?100:0);
+    // détail des macros prescrites, quand il y en a
+    const prescrit=[['P','p'],['G','g'],['L','l'],['F','f']]
+      .filter(([,k2])=>r[k2]!=null).map(([lbl,k2])=>lbl+' '+r[k2]+'g');
     const rows=mine.length?mine.map(e=>'<div class="entry"><div class="ei"><div class="en">'+dtEsc(e.nom)+'</div>'
       +'<div class="ed">'+e.q+' g · P '+r1(e.mac.p)+' / G '+r1(e.mac.g)+' / L '+r1(e.mac.l)+'</div></div>'
       +'<div class="ek">'+Math.round(e.mac.kcal)+'</div><button class="edel" onclick="delEntry(\''+e.id+'\')">×</button></div>').join('')
@@ -583,8 +588,9 @@ async function switchViewClient(id){
     return '<div class="meal" id="meal'+r.idx+'"><div class="mh" onclick="toggleMeal(\''+r.idx+'\')">'
       +'<div class="mi">'+ic+'</div>'
       +'<div class="minf"><div class="mnm">'+dtEsc(r.nom)+(r.libre?'<span class="tag-libre">libre</span>':'')+'</div>'
-      +'<div class="mkc">'+Math.round(k)+(r.kcal?' / '+r.kcal:'')+' kcal'+(r.libre?' · sans cible':'')+'</div></div>'
-      +'<div class="mring">'+ringSm(pct,r.libre)+'</div></div>'
+      +'<div class="mkc">'+Math.round(k)+(r.kcal!=null?' / '+r.kcal:'')+' kcal'
+      +(prescrit.length?' · objectif '+prescrit.join(' · '):(sansCible?' · pas d\'objectif sur ce repas':''))+'</div></div>'
+      +'<div class="mring">'+ringSm(pct,sansCible)+'</div></div>'
       +'<div class="mbody">'+rows
       +(mine.length?fodBlock(mine,cl,r.idx):'')
       +'<div class="madd-row"><button class="madd" onclick="openSearch(\''+r.idx+'\')">+ Ajouter un aliment</button>'

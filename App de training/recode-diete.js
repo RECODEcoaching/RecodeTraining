@@ -213,6 +213,18 @@ function attBlock(k){
 function defaultFodmapTargets(){const o={};Object.entries(DEF_FODMAP).forEach(([k,v])=>o[k]=v.v);return o;}
 function fodTarget(k,cl){cl=cl||client();return (cl.fodmapOverrides&&cl.fodmapOverrides[k]!==undefined)?cl.fodmapOverrides[k]:S.defaults.fodmap[k];}
 function isFodOverridden(k,cl){cl=cl||client();return cl.fodmapOverrides&&cl.fodmapOverrides[k]!==undefined;}
+// Une cible de repas peut être absente. « NA » signifie « pas de recommandation
+// particulière sur ce repas » — ce n'est pas zéro, qui voudrait dire « zéro gramme ».
+// On garde donc null partout plutôt que 0.
+function nOuNull(v){ return (v===null || v===undefined || v==='') ? null : +v; }
+function lireNA(v){
+  if(v===null || v===undefined) return null;
+  const t=String(v).trim().toLowerCase();
+  if(t==='' || t==='na' || t==='n/a' || t==='-' || t==='—') return null;
+  const n=parseFloat(t.replace(',','.'));
+  return isNaN(n) ? null : n;
+}
+function afficheNA(v){ return v==null ? 'NA' : v; }
 function repas4(kcal,p,g,l,f){
   return [['Petit-déjeuner',.25],['Déjeuner',.35],['Collation',.10],['Dîner',.30]].map(([nom,r])=>({
     nom,kcal:Math.round(kcal*r),p:Math.round(p*r),g:Math.round(g*r),l:Math.round(l*r),f:Math.round(f*r)}));
@@ -321,7 +333,8 @@ async function chargerCliente(id){
   (cib.data||[]).forEach(c => {
     cl.cibles[c.jour_type] = { _id:c.id, kcal:+c.kcal, p:+c.prot, g:+c.gluc, l:+c.lip, f:+c.fibres,
       repas:(c.diete_repas||[]).sort((a,b)=>a.ordre-b.ordre)
-        .map(r => ({ _id:r.id, nom:r.nom, kcal:+r.kcal, p:+r.prot, g:+r.gluc, l:+r.lip, f:+r.fibres })) };
+        .map(r => ({ _id:r.id, nom:r.nom, kcal:nOuNull(r.kcal), p:nOuNull(r.prot),
+                     g:nOuNull(r.gluc), l:nOuNull(r.lip), f:nOuNull(r.fibres) })) };
   });
   if(!cl.cibles.defaut) await creerCiblesDefaut(id);
 
@@ -415,7 +428,8 @@ async function dbCible(id, jourType){
   await sb.from('diete_repas').delete().eq('cible_id', c._id);
   if(c.repas.length){
     const { data:rr } = await sb.from('diete_repas').insert(
-      c.repas.map((r,i) => ({ cible_id:c._id, ordre:i, nom:r.nom, kcal:r.kcal, prot:r.p, gluc:r.g, lip:r.l, fibres:r.f }))
+      c.repas.map((r,i) => ({ cible_id:c._id, ordre:i, nom:r.nom,
+        kcal:nOuNull(r.kcal), prot:nOuNull(r.p), gluc:nOuNull(r.g), lip:nOuNull(r.l), fibres:nOuNull(r.f) }))
     ).select();
     (rr||[]).sort((a,b)=>a.ordre-b.ordre).forEach((r,i)=>{ if(c.repas[i]) c.repas[i]._id = r.id; });
   }
