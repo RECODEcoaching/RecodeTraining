@@ -535,7 +535,7 @@ button,input,select{font-family:inherit}
 
 <div class="toast" id="toast"></div>
 
-<script src="recode-diete.js?v=3"></script>
+<script src="recode-diete.js?v=4"></script>
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
@@ -574,13 +574,19 @@ async function switchViewClient(id){
   let mi0=0;
   document.getElementById('meals').innerHTML=meals.map(r=>{
     const mine=ents.filter(e=>e.meal===r.idx), k=mine.reduce((s,e)=>s+e.mac.kcal,0);
-    // Pas d'objectif calorique sur ce repas : on affiche ce qui a été mangé, sans jugement
-    const sansCible = r.libre || r.kcal==null;
-    const pct=(!sansCible && r.kcal)?Math.min(k/r.kcal*100,100):(mine.length?100:0);
+    // Deux lectures possibles de l'anneau :
+    //  - le repas a une cible calorique -> il montre où on en est de cette cible ;
+    //  - le repas est en NA -> il montre la part de la journée que ce repas représente.
+    const sansCible = r.libre || !aUneConsigne(r.kcalMin, r.kcal);
+    const refKcal = (r.kcal!=null) ? r.kcal : r.kcalMin;   // « 400+ » : on se repère sur le minimum
+    const kcalJour = ents.reduce((s,e)=>s+(e.mac.kcal||0),0);
+    const pct = sansCible
+      ? (kcalJour ? Math.min(k/kcalJour*100,100) : 0)
+      : (refKcal ? Math.min(k/refKcal*100,100) : 0);
     // détail des macros prescrites, avec leur fourchette quand il y en a une
     const MIN={p:'pMin',g:'gMin',l:'lMin',f:'fMin'};
     const prescrit=[['P','p'],['G','g'],['L','l'],['F','f']]
-      .filter(([,k2])=>r[k2]!=null)
+      .filter(([,k2])=>aUneConsigne(r[MIN[k2]],r[k2]))
       .map(([lbl,k2])=>lbl+' '+fmtPlage(r[MIN[k2]],r[k2])+'g');
     const rows=mine.length?mine.map(e=>'<div class="entry"><div class="ei"><div class="en">'+dtEsc(e.nom)+'</div>'
       +'<div class="ed">'+e.q+' g · P '+r1(e.mac.p)+' / G '+r1(e.mac.g)+' / L '+r1(e.mac.l)+'</div></div>'
@@ -590,8 +596,9 @@ async function switchViewClient(id){
     return '<div class="meal" id="meal'+r.idx+'"><div class="mh" onclick="toggleMeal(\''+r.idx+'\')">'
       +'<div class="mi">'+ic+'</div>'
       +'<div class="minf"><div class="mnm">'+dtEsc(r.nom)+(r.libre?'<span class="tag-libre">libre</span>':'')+'</div>'
-      +'<div class="mkc">'+Math.round(k)+(r.kcal!=null?' / '+fmtPlage(r.kcalMin,r.kcal):'')+' kcal'
-      +(prescrit.length?' · objectif '+prescrit.join(' · '):(sansCible?' · pas d\'objectif sur ce repas':''))+'</div></div>'
+      +'<div class="mkc">'+Math.round(k)+(aUneConsigne(r.kcalMin,r.kcal)?' / '+fmtPlage(r.kcalMin,r.kcal):'')+' kcal'
+      +(prescrit.length?' · objectif '+prescrit.join(' · ')
+        :(sansCible?(k?' · '+Math.round(pct)+' % de ta journée':' · pas d\'objectif sur ce repas'):''))+'</div></div>'
       +'<div class="mring">'+ringSm(pct,sansCible)+'</div></div>'
       +'<div class="mbody">'+rows
       +(mine.length?fodBlock(mine,cl,r.idx):'')
@@ -683,12 +690,14 @@ async function switchViewClient(id){
       +(x.manuel?(o.lv?LVL[o.lv].n:'non classé'):(o.v==null?'non mesuré':fmt(o.v)+' g'))+'</div></div></div>').join('')
       :'<div class="empty">Aucun aliment enregistré.</div>');
   document.getElementById('ov-nut').classList.add('on');
-}function ringSm(pct,libre){
+}// sansCible = true : l'anneau représente la part de la journée, pas un taux d'atteinte.
+// On le distingue par une couleur plus douce pour éviter toute confusion.
+function ringSm(pct,sansCible){
   const r=16,c=2*Math.PI*r,off=c-c*Math.min(pct/100,1);
-  const col=libre?'var(--text-dim)':(pct>=100?'var(--success)':'var(--accent)');
+  const col = sansCible ? 'var(--accent-soft)' : (pct>=100?'var(--success)':'var(--accent)');
   return '<svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="'+r+'" fill="none" stroke="var(--surface3)" stroke-width="3"/>'
    +'<circle cx="19" cy="19" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" stroke-linecap="round"/></svg>'
-   +'<span>'+(libre?'·':Math.round(pct))+'</span>';
+   +'<span'+(sansCible?' style="color:var(--text-muted)"':'')+'>'+Math.round(pct)+'</span>';
 }function toggleMeal(i){const e=document.getElementById('meal'+i);if(e)e.classList.toggle('open');}async function addClientMeal(){
   const n=prompt('Nom du repas (ex : Collation après-midi)');
   if(!n||!n.trim())return;

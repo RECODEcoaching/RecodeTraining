@@ -224,32 +224,57 @@ function lireNA(v){
   const n=parseFloat(t.replace(',','.'));
   return isNaN(n) ? null : n;
 }
-// Une case peut valoir : NA, une valeur unique (« 35 »), ou une fourchette (« 30-35 »).
-// On renvoie toujours {min, max} : min à null signifie « valeur unique ».
+// Cinq écritures possibles dans une case de répartition :
+//   NA / vide     -> aucune recommandation        {min:null, max:null}
+//   « 35 »        -> cible unique                 {min:null, max:35}
+//   « 30-35 »     -> fourchette                   {min:30,   max:35}
+//   « 40+ »       -> minimum, sans plafond        {min:40,   max:null}
+//   « ≤40 »       -> plafond, sans minimum        {min:0,    max:40}
+// Le plafond est encodé par min=0 : « de 0 à 40 » dit exactement « au plus 40 »,
+// ce qui évite une colonne supplémentaire en base.
 function lirePlage(v){
   if(v===null || v===undefined) return {min:null,max:null};
-  const t=String(v).trim().toLowerCase().replace(/\s/g,'').replace(/,/g,'.');
-  if(t==='' || t==='na' || t==='n/a' || t==='-' || t==='—') return {min:null,max:null};
-  const m=t.match(/^(\d+(?:\.\d+)?)[-–à](\d+(?:\.\d+)?)$/);
+  let t=String(v).trim().toLowerCase().replace(/\s/g,'').replace(/,/g,'.');
+  if(t==='' || t==='na' || t==='n/a' || t==='—') return {min:null,max:null};
+  // on ramène toutes les façons d'écrire un minimum à « + », et tous les plafonds à « M »
+  t=t.replace(/^mini?/,'+').replace(/^>=/,'+').replace(/^≥/,'+').replace(/^>/,'+')
+     .replace(/^max/,'M').replace(/^<=/,'M').replace(/^≤/,'M').replace(/^</,'M');
+
+  // minimum sans plafond : « 40+ », « +40 », « min 40 », « ≥40 »
+  let m=t.match(/^\+?(\d+(?:\.\d+)?)\+?$/);
+  if(m && (/\+/.test(t))) return {min:parseFloat(m[1]), max:null};
+  // plafond sans minimum : « M40 » (issu de max / ≤ / <)
+  m=t.match(/^M(\d+(?:\.\d+)?)$/);
+  if(m) return {min:0, max:parseFloat(m[1])};
+  // fourchette
+  m=t.match(/^(\d+(?:\.\d+)?)[-–à](\d+(?:\.\d+)?)$/);
   if(m){
     let a=parseFloat(m[1]), b=parseFloat(m[2]);
     if(a>b){ const tmp=a; a=b; b=tmp; }        // « 35-30 » vaut « 30-35 »
     return a===b ? {min:null,max:b} : {min:a,max:b};
   }
+  if(t==='-') return {min:null,max:null};
   const n=parseFloat(t);
   return isNaN(n) ? {min:null,max:null} : {min:null,max:n};
 }
 function fmtPlage(min,max){
-  if(max==null) return 'NA';
-  return (min==null) ? String(max) : (min+'-'+max);
+  if(max==null && min==null) return 'NA';
+  if(max==null) return min+'+';        // minimum sans plafond
+  if(min===0)   return '≤'+max;        // plafond sans minimum
+  if(min==null) return String(max);    // cible unique
+  return min+'-'+max;                  // fourchette
 }
 function afficheNA(v){ return v==null ? 'NA' : v; }
-// une valeur est-elle dans la cible d'un repas ? (tolérance de 10 % sur une valeur unique)
+// une valeur respecte-t-elle la consigne ? (tolérance de 10 % sur une cible unique)
 function dansPlage(v,min,max){
-  if(max==null) return null;
-  if(min!=null) return v>=min && v<=max;
-  return v>=max*0.9 && v<=max*1.1;
+  if(max==null && min==null) return null;
+  if(max==null) return v>=min;                 // minimum
+  if(min===0)   return v<=max;                 // plafond
+  if(min!=null) return v>=min && v<=max;       // fourchette
+  return v>=max*0.9 && v<=max*1.1;             // cible unique
 }
+// une case est-elle renseignée ?
+function aUneConsigne(min,max){ return !(min==null && max==null); }
 function repas4(kcal,p,g,l,f){
   return [['Petit-déjeuner',.25],['Déjeuner',.35],['Collation',.10],['Dîner',.30]].map(([nom,r])=>({
     nom,kcal:Math.round(kcal*r),p:Math.round(p*r),g:Math.round(g*r),l:Math.round(l*r),f:Math.round(f*r)}));

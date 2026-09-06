@@ -6662,7 +6662,7 @@ loadClients();
 loadNotionUrl();
 loadAppVideoUrl();
 </script>
-<script src="recode-diete.js?v=3"></script>
+<script src="recode-diete.js?v=4"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -6793,25 +6793,30 @@ async function ouvrirDieteGlobale(){
   // Les repas en NA sont exclus de la somme ; les fourchettes donnent un total lui-même
   // en fourchette (somme des bornes basses – somme des bornes hautes).
   const MK=[['kcal','kcalMin'],['p','pMin'],['g','gMin'],['l','lMin'],['f','fMin']];
-  const tot={}, totMin={}, naCount={}, aPlage={};
-  MK.forEach(([k,km])=>{ tot[k]=0; totMin[k]=0; naCount[k]=0; aPlage[k]=false;
+  const tot={}, totMin={}, naCount={}, aPlage={}, ouvert={};
+  MK.forEach(([k,km])=>{ tot[k]=0; totMin[k]=0; naCount[k]=0; aPlage[k]=false; ouvert[k]=false;
     c.repas.forEach(r=>{
-      if(r[k]==null){ naCount[k]++; return; }
+      if(!aUneConsigne(r[km],r[k])){ naCount[k]++; return; }
+      if(r[k]==null){                     // minimum sans plafond : la borne haute reste ouverte
+        totMin[k]+=+r[km]; ouvert[k]=true; aPlage[k]=true; return;
+      }
       tot[k]+=+r[k];
       totMin[k]+= (r[km]!=null ? +r[km] : +r[k]);
       if(r[km]!=null) aPlage[k]=true;
     });
   });
   const toutNA=k=>naCount[k]===c.repas.length;
-  const warn=(a,b,k)=>toutNA(k)?'':(Math.abs(a-b)>Math.max(b*.02,2)?' style="color:var(--danger)"':'');
+  const warn=(a,b,k)=>(toutNA(k)||ouvert[k])?'':(Math.abs(a-b)>Math.max(b*.02,2)?' style="color:var(--danger)"':'');
   const cell=(k,cible)=>{
     if(toutNA(k)) return '<td style="color:var(--text-dim)">NA</td>';
-    const txt = aPlage[k] ? Math.round(totMin[k])+'-'+Math.round(tot[k]) : String(Math.round(tot[k]));
+    const txt = ouvert[k] ? Math.round(totMin[k])+'+'
+              : aPlage[k] ? Math.round(totMin[k])+'-'+Math.round(tot[k])
+              : String(Math.round(tot[k]));
     return '<td'+warn(tot[k],cible,k)+'>'+txt
       +(naCount[k]?'<span style="font-size:10px;color:var(--text-dim)"> +'+naCount[k]+' NA</span>':'')+'</td>';
   };
   const rows=c.repas.map((r,i)=>'<tr><td><input class="nom-in" value="'+dtEsc(r.nom)+'" onchange="setRepas('+i+',\'nom\',this.value)"></td>'
-    +MK.map(([k,km])=>'<td><input type="text" class="'+(r[k]==null?'na-in':'')+'" value="'
+    +MK.map(([k,km])=>'<td><input type="text" class="'+(aUneConsigne(r[km],r[k])?'':'na-in')+'" value="'
       +fmtPlage(r[km],r[k])+'" onchange="setRepas('+i+',\''+k+'\',this.value)"></td>').join('')
     +'<td style="width:34px"><button class="tbl-del" onclick="delRepas('+i+')">×</button></td></tr>').join('');
   const nOver=cl.microOverrides?Object.keys(cl.microOverrides).length:0;
@@ -6830,7 +6835,7 @@ async function ouvrirDieteGlobale(){
 
     +'<div class="ccard"><div class="cct">Répartition par repas</div>'
     +'<div class="ccs">Ces repas sont exactement ceux que la cliente voit dans son application.<br><br>'
-    +'<b>Trois écritures possibles</b> dans chaque case : une valeur (<b>35</b>), une fourchette (<b>30-35</b>), ou <b>NA</b> quand tu n\'as pas de recommandation. '
+    +'<b>Cinq écritures possibles</b> dans chaque case :<br>'+'<b>35</b> une cible · <b>30-35</b> une fourchette · <b>40+</b> un minimum sans plafond · '+'<b>≤40</b> un plafond · <b>NA</b> aucune recommandation.<br>'+'« min 40 », « ≥40 », « max 40 » et « &lt;40 » sont aussi compris. Un champ vide vaut NA. '
     +'Un champ vide vaut NA. La ligne de total affiche elle aussi une fourchette dès qu\'il y en a une.<br><br>'
     +'<b>Écris « NA » quand tu n\'as pas de recommandation particulière</b> sur un repas et une macro. '
     +'La cliente voit alors ce qu\'elle a mangé, sans objectif imposé. Un champ vide vaut NA. '
