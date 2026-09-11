@@ -119,8 +119,8 @@ button,input,select{font-family:inherit}
 .mkc{font-size:11.5px;color:var(--text-muted);margin-top:1px}
 .mring{width:38px;height:38px;flex-shrink:0;position:relative}
 .mring svg{width:100%;height:100%;transform:rotate(-90deg)}
-.mring span{position:absolute;inset:0;display:flex;align-items:baseline;justify-content:center;font-size:9px;font-weight:800}
-.mring span i{font-style:normal;font-size:6.5px;font-weight:700;opacity:.65;margin-left:.5px}
+.mring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;line-height:1}
+.mring span i{font-style:normal;font-size:6.5px;font-weight:700;opacity:.65;margin-left:.5px;align-self:center}
 /* Bandeau « où j'en suis » sur chaque repas : kcal + 4 macros, visible carte fermée */
 .mg-row{display:flex;gap:5px;padding:0 14px 11px}
 .mg{flex:1;min-width:0}
@@ -594,7 +594,9 @@ async function switchViewClient(id){
    +'<div class="gc"><div class="gnum" style="font-size:'+fs+'px">'+label+'</div><div class="glbl">kcal</div>'+(sub?'<div class="gsub">'+sub+' de l\'objectif</div>':'')+'</div>';
 }function renderMeals(cl){
   const ents=entriesFor(curDate,cl), meals=mealsFor(curDate,cl);
-  const kcalJour = ents.reduce((s,e)=>s+(e.mac.kcal||0),0);
+  // Dénominateur de l'anneau : la CIBLE calorique du jour, pas ce qui a déjà été
+  // déclaré. Sinon le premier repas de la journée affiche toujours 100 %.
+  const cibleJour = ciblesFor(curDate,cl).kcal || 0;
   let mi0=0;
   document.getElementById('meals').innerHTML=meals.map(r=>{
     const mine=ents.filter(e=>e.meal===r.idx), k=mine.reduce((s,e)=>s+(e.mac.kcal||0),0);
@@ -605,9 +607,9 @@ async function switchViewClient(id){
     mine.forEach(e=>{ const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vusDup.has(c))nbDup++; else vusDup.add(c); });
     const alerteDup = nbDup ? '<div class="dup-warn">'+nbDup+' ligne'+(nbDup>1?'s':'')+' identique'+(nbDup>1?'s':'')
       +' dans ce repas.<button onclick="supprimerDoublons(\''+r.idx+'\')">Supprimer le'+(nbDup>1?'s':'')+' doublon'+(nbDup>1?'s':'')+'</button></div>' : '';
-    // L'anneau ne suit qu'une seule chose : la part des calories de la journée
-    // prise par ce repas. Un seul repère, quel que soit le repas.
-    const pct = kcalJour ? Math.min(k/kcalJour*100,100) : 0;
+    // L'anneau ne suit qu'une seule chose : la part de la cible calorique du jour
+    // couverte par ce repas. Un seul repère, quel que soit le repas.
+    const pct = cibleJour ? Math.min(k/cibleJour*100,100) : 0;
     const MIN={kcal:'kcalMin',p:'pMin',g:'gMin',l:'lMin',f:'fMin'};
     // Où en est ce repas, macro par macro : consommé face à la consigne s'il y en a une.
     // Un repas libre n'a jamais de consigne : ses champs sont à 0, pas à une cible.
@@ -649,7 +651,7 @@ async function switchViewClient(id){
     return '<div class="meal'+ouvert+'" id="meal'+r.idx+'"><div class="mh" onclick="toggleMeal(\''+r.idx+'\')">'
       +'<div class="mi">'+ic+'</div>'
       +'<div class="minf"><div class="mnm">'+dtEsc(r.nom)+(r.libre?'<span class="tag-libre">libre</span>':'')+'</div>'
-      +'<div class="mkc">'+Math.round(k)+' kcal'+(k?' · '+Math.round(pct)+' % de ta journée':'')+'</div></div>'
+      +'<div class="mkc">'+Math.round(k)+' kcal'+(k&&cibleJour?' · '+Math.round(pct)+' % de ta cible du jour':'')+'</div></div>'
       +'<div class="mring">'+ringSm(pct,true)+'</div></div>'
       +barreMacros
       +'<div class="mbody">'+alerteDup+rows
