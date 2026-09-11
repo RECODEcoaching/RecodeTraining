@@ -119,7 +119,17 @@ button,input,select{font-family:inherit}
 .mkc{font-size:11.5px;color:var(--text-muted);margin-top:1px}
 .mring{width:38px;height:38px;flex-shrink:0;position:relative}
 .mring svg{width:100%;height:100%;transform:rotate(-90deg)}
-.mring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
+.mring span{position:absolute;inset:0;display:flex;align-items:baseline;justify-content:center;font-size:9px;font-weight:800}
+.mring span i{font-style:normal;font-size:6.5px;font-weight:700;opacity:.65;margin-left:.5px}
+/* Bandeau « où j'en suis » sur chaque repas : kcal + 4 macros, visible carte fermée */
+.mg-row{display:flex;gap:5px;padding:0 14px 11px}
+.mg{flex:1;min-width:0}
+.mg-l{font-size:8.5px;font-weight:800;color:var(--text-dim);letter-spacing:.05em}
+.mg-v{font-size:11px;font-weight:800;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mg-v span{font-size:8.5px;font-weight:700;opacity:.6;margin-left:1px}
+.mg-v.mg-na{color:var(--text-muted)}
+.mg-b{height:3px;border-radius:2px;background:var(--surface3);margin-top:4px;overflow:hidden}
+.mg-b i{display:block;height:100%;border-radius:2px;transition:width .35s ease}
 .mbody{display:none;border-top:1px solid var(--border);padding:4px 14px 12px}
 .meal.open .mbody{display:block}
 .tag-libre{font-size:8.5px;font-weight:800;background:var(--surface3);color:var(--text-muted);padding:2px 6px;border-radius:5px;letter-spacing:.03em}
@@ -128,6 +138,8 @@ button,input,select{font-family:inherit}
 .ei{flex:1;min-width:0}
 .en{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ed{font-size:10.5px;color:var(--text-dim);margin-top:1px}
+.e-mod{font-size:9.5px;font-weight:700;color:var(--accent);background:var(--accent-bg-soft);padding:1px 5px;border-radius:4px;margin-left:4px}
+.ei:active .e-mod{opacity:.6}
 .ek{font-size:12.5px;font-weight:800;flex-shrink:0}
 .edel{width:26px;height:26px;border-radius:50%;border:none;background:var(--surface2);color:var(--text-dim);cursor:pointer;font-size:14px;flex-shrink:0;line-height:1}
 .edel:active{transform:scale(.9)}
@@ -233,6 +245,11 @@ button,input,select{font-family:inherit}
 .rinf{flex:1;min-width:0}
 .rn{font-size:13px;font-weight:600;line-height:1.3}
 .rm{font-size:10.5px;color:var(--text-dim);margin-top:2px}
+.ri-add{border-bottom:none;background:var(--accent-bg-soft);border:1px dashed var(--border-md);border-radius:10px;padding:11px;margin-top:8px}
+.ri-add .rn{color:var(--accent)}
+.ri-plus{width:28px;height:28px;border-radius:8px;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex-shrink:0}
+.dup-warn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;font-weight:600;color:#92400E;background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.25);border-radius:9px;padding:8px 10px;margin:8px 0 2px}
+.dup-warn button{margin-left:auto;border:none;background:var(--warn);color:#fff;font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer}
 .rk{font-size:13px;font-weight:800;color:var(--accent);flex-shrink:0}
 .bdg-att{font-size:8.5px;font-weight:800;background:var(--warn);color:#fff;padding:2px 5px;border-radius:4px;margin-left:5px;vertical-align:middle}
 .bdg-p{font-size:8.5px;font-weight:800;background:var(--accent-bg);color:var(--accent);padding:2px 5px;border-radius:4px;margin-left:5px;vertical-align:middle}
@@ -492,7 +509,7 @@ button,input,select{font-family:inherit}
       <div class="qfast" id="qty-fast"><button onclick="setQty(30)">30 g</button><button onclick="setQty(50)">50 g</button><button onclick="setQty(100)">100 g</button><button onclick="setQty(150)">150 g</button><button onclick="setQty(200)">200 g</button></div>
       <div class="prev" id="qty-prev"></div>
     </div>
-    <div class="sf"><button class="btn btn-s" onclick="closeQty()">Retour</button><button class="btn btn-p" onclick="confirmAdd()">Ajouter</button></div>
+    <div class="sf"><button class="btn btn-s" onclick="closeQty()">Retour</button><button class="btn btn-p" id="qty-ok" onclick="confirmAdd()">Ajouter</button></div>
   </div>
 </div>
 
@@ -535,10 +552,16 @@ button,input,select{font-family:inherit}
 
 <div class="toast" id="toast"></div>
 
-<script src="recode-diete.js?v=4"></script>
+<script src="recode-diete.js?v=6"></script>
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
+
+// Repas dépliés par la cliente. On les garde en mémoire pour qu'un ajout ou une
+// suppression, qui redessine toute la liste, ne referme pas la carte ouverte.
+let repasOuverts = new Set();
+// id de l'entrée en cours de modification, null quand on ajoute un aliment
+let editionId = null;
 
 async function switchViewClient(id){
   viewClient=id; await chargerCliente(id);
@@ -571,36 +594,65 @@ async function switchViewClient(id){
    +'<div class="gc"><div class="gnum" style="font-size:'+fs+'px">'+label+'</div><div class="glbl">kcal</div>'+(sub?'<div class="gsub">'+sub+' de l\'objectif</div>':'')+'</div>';
 }function renderMeals(cl){
   const ents=entriesFor(curDate,cl), meals=mealsFor(curDate,cl);
+  const kcalJour = ents.reduce((s,e)=>s+(e.mac.kcal||0),0);
   let mi0=0;
   document.getElementById('meals').innerHTML=meals.map(r=>{
-    const mine=ents.filter(e=>e.meal===r.idx), k=mine.reduce((s,e)=>s+e.mac.kcal,0);
-    // Deux lectures possibles de l'anneau :
-    //  - le repas a une cible calorique -> il montre où on en est de cette cible ;
-    //  - le repas est en NA -> il montre la part de la journée que ce repas représente.
-    const sansCible = r.libre || !aUneConsigne(r.kcalMin, r.kcal);
-    const refKcal = (r.kcal!=null) ? r.kcal : r.kcalMin;   // « 400+ » : on se repère sur le minimum
-    const kcalJour = ents.reduce((s,e)=>s+(e.mac.kcal||0),0);
-    const pct = sansCible
-      ? (kcalJour ? Math.min(k/kcalJour*100,100) : 0)
-      : (refKcal ? Math.min(k/refKcal*100,100) : 0);
-    // détail des macros prescrites, avec leur fourchette quand il y en a une
-    const MIN={p:'pMin',g:'gMin',l:'lMin',f:'fMin'};
-    const prescrit=[['P','p'],['G','g'],['L','l'],['F','f']]
-      .filter(([,k2])=>aUneConsigne(r[MIN[k2]],r[k2]))
-      .map(([lbl,k2])=>lbl+' '+fmtPlage(r[MIN[k2]],r[k2])+'g');
-    const rows=mine.length?mine.map(e=>'<div class="entry"><div class="ei"><div class="en">'+dtEsc(e.nom)+'</div>'
-      +'<div class="ed">'+e.q+' g · P '+r1(e.mac.p)+' / G '+r1(e.mac.g)+' / L '+r1(e.mac.l)+'</div></div>'
-      +'<div class="ek">'+Math.round(e.mac.kcal)+'</div><button class="edel" onclick="delEntry(\''+e.id+'\')">×</button></div>').join('')
+    const mine=ents.filter(e=>e.meal===r.idx), k=mine.reduce((s,e)=>s+(e.mac.kcal||0),0);
+    // Lignes strictement identiques (même aliment, même quantité) : très
+    // probablement un clic répété pendant la latence. On le signale sans
+    // rien supprimer d'office — deux fois le même aliment peut être réel.
+    const vusDup=new Set(); let nbDup=0;
+    mine.forEach(e=>{ const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vusDup.has(c))nbDup++; else vusDup.add(c); });
+    const alerteDup = nbDup ? '<div class="dup-warn">'+nbDup+' ligne'+(nbDup>1?'s':'')+' identique'+(nbDup>1?'s':'')
+      +' dans ce repas.<button onclick="supprimerDoublons(\''+r.idx+'\')">Supprimer le'+(nbDup>1?'s':'')+' doublon'+(nbDup>1?'s':'')+'</button></div>' : '';
+    // L'anneau ne suit qu'une seule chose : la part des calories de la journée
+    // prise par ce repas. Un seul repère, quel que soit le repas.
+    const pct = kcalJour ? Math.min(k/kcalJour*100,100) : 0;
+    const MIN={kcal:'kcalMin',p:'pMin',g:'gMin',l:'lMin',f:'fMin'};
+    // Où en est ce repas, macro par macro : consommé face à la consigne s'il y en a une.
+    // Un repas libre n'a jamais de consigne : ses champs sont à 0, pas à une cible.
+    const MACS=[['kcal','kcal',''],['P','p','g'],['G','g','g'],['L','l','g'],['F','f','g']];
+    let auMoinsUneConsigne=false;
+    const jauges=MACS.map(([lbl,cle,u])=>{
+      const kMac = cle==='kcal' ? 'kcal' : (cle==='f' ? 'fib' : cle);
+      let val=0, absents=0;
+      mine.forEach(e=>{ const v=e.mac[kMac]; if(v==null) absents++; else val+=v; });
+      const approx = absents ? '~' : '';
+      const mn = r.libre ? null : r[MIN[cle]];
+      const mx = r.libre ? null : r[cle];
+      if(!aUneConsigne(mn,mx))
+        return '<div class="mg"><div class="mg-l">'+lbl+'</div>'
+          +'<div class="mg-v mg-na">'+approx+Math.round(val)+'<span>'+u+'</span></div>'
+          +'<div class="mg-b"><i style="width:0%"></i></div></div>';
+      auMoinsUneConsigne=true;
+      const ref = (mx!=null) ? mx : mn;                 // « 40+ » : on se repère sur le minimum
+      const p = ref ? Math.min(val/ref*100,100) : 0;
+      const dedans = dansPlage(val,mn,mx);
+      const trop = (mx!=null) && val > mx*1.05;
+      const col = trop ? 'var(--danger)' : (dedans===true ? 'var(--success)' : 'var(--accent)');
+      return '<div class="mg"><div class="mg-l">'+lbl+'</div>'
+        +'<div class="mg-v" style="color:'+col+'">'+approx+Math.round(val)+'<span>/'+fmtPlage(mn,mx)+'</span></div>'
+        +'<div class="mg-b"><i style="width:'+p+'%;background:'+col+'"></i></div></div>';
+    }).join('');
+    // rien à montrer si le repas est vide et sans consigne
+    const barreMacros = (mine.length||auMoinsUneConsigne) ? '<div class="mg-row">'+jauges+'</div>' : '';
+    const rows=mine.length?mine.map(e=>'<div class="entry">'
+      +'<div class="ei" onclick="modifierEntree(\''+e.id+'\')" style="cursor:pointer">'
+      +  '<div class="en">'+dtEsc(e.nom)+'</div>'
+      +  '<div class="ed">'+e.q+' g · P '+r1(e.mac.p)+' / G '+r1(e.mac.g)+' / L '+r1(e.mac.l)
+      +    ' <span class="e-mod">modifier</span></div></div>'
+      +'<div class="ek">'+Math.round(e.mac.kcal)+'</div>'
+      +'<button class="edel" onclick="delEntry(\''+e.id+'\')">×</button></div>').join('')
       :'<div class="mempty">Rien d\'enregistré</div>';
     const ic=MEAL_ICONS[(mi0++)%MEAL_ICONS.length];
-    return '<div class="meal" id="meal'+r.idx+'"><div class="mh" onclick="toggleMeal(\''+r.idx+'\')">'
+    const ouvert = repasOuverts.has(r.idx) ? ' open' : '';
+    return '<div class="meal'+ouvert+'" id="meal'+r.idx+'"><div class="mh" onclick="toggleMeal(\''+r.idx+'\')">'
       +'<div class="mi">'+ic+'</div>'
       +'<div class="minf"><div class="mnm">'+dtEsc(r.nom)+(r.libre?'<span class="tag-libre">libre</span>':'')+'</div>'
-      +'<div class="mkc">'+Math.round(k)+(aUneConsigne(r.kcalMin,r.kcal)?' / '+fmtPlage(r.kcalMin,r.kcal):'')+' kcal'
-      +(prescrit.length?' · objectif '+prescrit.join(' · ')
-        :(sansCible?(k?' · '+Math.round(pct)+' % de ta journée':' · pas d\'objectif sur ce repas'):''))+'</div></div>'
-      +'<div class="mring">'+ringSm(pct,sansCible)+'</div></div>'
-      +'<div class="mbody">'+rows
+      +'<div class="mkc">'+Math.round(k)+' kcal'+(k?' · '+Math.round(pct)+' % de ta journée':'')+'</div></div>'
+      +'<div class="mring">'+ringSm(pct,true)+'</div></div>'
+      +barreMacros
+      +'<div class="mbody">'+alerteDup+rows
       +(mine.length?fodBlock(mine,cl,r.idx):'')
       +'<div class="madd-row"><button class="madd" onclick="openSearch(\''+r.idx+'\')">+ Ajouter un aliment</button>'
       +'<button class="madd madd-sec" onclick="openReprise(\''+r.idx+'\')">Reprendre…</button></div>'
@@ -634,7 +686,8 @@ async function switchViewClient(id){
     const c=(x.manuel?(n===0):(absent||n===0))?(x.manuel||absent?'var(--text-dim)':'var(--text)'):LVL[n].c;
     const val=x.manuel?(n===0?'?':LVL[n].n):(absent?'—':fmt(s.v)+' g');
     const sous=x.manuel?(s.inconnus?s.inconnus+' non classé'+(s.inconnus>1?'s':''):'niveau du repas')
-      :(absent?'donnée absente':(s.inconnus?s.inconnus+' aliment'+(s.inconnus>1?'s':'')+' sans donnée':(t?'seuil '+t+' g':'sur ce repas')));
+      :(absent?'donnée absente':(s.inconnus?s.inconnus+' aliment'+(s.inconnus>1?'s':'')+' sans donnée'
+        :(t?(DEF_FODMAP[x.k].orangeDAbord?'vigilance au-delà de '+t+' g':'seuil '+t+' g'):'sur ce repas')));
     return '<div class="fod-i" onclick="event.stopPropagation();openFod(\''+x.k+'\',\''+ids+'\')">'
       +'<div class="fod-n">'+x.n+((x.manuel?s.inconnus:s.inconnus)?'<span class="fod-q">?</span>':'')+'</div>'
       +'<div class="fod-v" style="color:'+c+'">'+val+'</div>'
@@ -647,7 +700,8 @@ async function switchViewClient(id){
     +'<span class="fodc-arrow">›</span></div>'
     +'<div class="fodc-b"><div class="fod-g">'+rows+'</div>'
     +'<div class="fod-note">Tout est calculé sur <b>l\'ensemble du repas</b>. Les grammages viennent de la table officielle et sont donnés tels quels, '
-    +'sans seuil : il n\'existe pas de valeur de référence fiable et universelle. Touche une case pour le détail.</div></div></div>';
+    +'presque toujours sans seuil : il n\'existe pas de valeur de référence fiable et universelle. '
+    +'Seuls les polyols ont un repère de vigilance posé par ton coach. Touche une case pour le détail.</div></div></div>';
 }function openFod(k,ids){
   const cl=cliClient();
   const ents=entriesFor(curDate,cl).filter(e=>ids.split(',').includes(e.id));
@@ -697,8 +751,13 @@ function ringSm(pct,sansCible){
   const col = sansCible ? 'var(--accent-soft)' : (pct>=100?'var(--success)':'var(--accent)');
   return '<svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="'+r+'" fill="none" stroke="var(--surface3)" stroke-width="3"/>'
    +'<circle cx="19" cy="19" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" stroke-linecap="round"/></svg>'
-   +'<span'+(sansCible?' style="color:var(--text-muted)"':'')+'>'+Math.round(pct)+'</span>';
-}function toggleMeal(i){const e=document.getElementById('meal'+i);if(e)e.classList.toggle('open');}async function addClientMeal(){
+   +'<span'+(sansCible?' style="color:var(--text-muted)"':'')+'>'+Math.round(pct)+'<i>%</i></span>';
+}function toggleMeal(i){
+  const e=document.getElementById('meal'+i); if(!e) return;
+  const ouvert=e.classList.toggle('open');
+  // on mémorise l'état pour survivre au prochain redessin de la liste
+  if(ouvert) repasOuverts.add(i); else repasOuverts.delete(i);
+}async function addClientMeal(){
   const n=prompt('Nom du repas (ex : Collation après-midi)');
   if(!n||!n.trim())return;
   const cl=cliClient(), key='_meals_'+curDate;
@@ -941,9 +1000,14 @@ function ringSm(pct,sansCible){
     hits.slice(0,60).forEach(i=>out.push({idx:i}));
   }
   const ms=(performance.now()-t0).toFixed(1);
+  // Proposition d'ajout, offerte directement dans la liste : introuvable ne doit
+  // pas être un cul-de-sac.
+  const ligneAjout = '<div class="ri ri-add" onclick="openProp()"><div class="ri-plus">+</div>'
+    +'<div class="rinf"><div class="rn">Ajouter « '+dtEsc(raw)+' »</div>'
+    +'<div class="rm">Tu l\'utilises tout de suite — ton coach le validera ensuite pour la base commune</div></div></div>';
   if(!out.length){
     if(q.length>=2){
-      box.innerHTML='<div class="empty">Aucun résultat pour « '+dtEsc(raw)+' »<br><br>Tu peux le proposer avec le bouton ci-dessous.</div>';
+      box.innerHTML='<div class="empty" style="padding:22px 10px 6px">Aucun résultat pour « '+dtEsc(raw)+' »</div>'+ligneAjout;
       return;
     }
     const fav=favorisDe(cliClient());
@@ -967,10 +1031,25 @@ function ringSm(pct,sansCible){
       +bdg+(sucresConnus(o.idx)?(estimeDepuis(o.idx)?'<span class="bdg-nd">sucres estimés</span>':'')
         :'<span class="bdg-nd" title="sucres non mesurés dans la table">sucres n.d.</span>')+'</div>'
       +'<div class="rm">P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])+' · Fibres '+(a[5]==null?'n.d.':r1(a[5]))+' (100 g)</div></div><div class="rk">'+Math.round(a[1])+'</div></div>';}).join('')
+    +(q.length>=2?ligneAjout:'')
     +'<div style="text-align:center;font-size:10px;color:var(--text-dim);padding:12px 0">'+out.length+' résultat(s) — '+ms+' ms</div>';
-}function pickFood(i,qDefaut){pendingFood={src:'base',ref:i,arr:ALIMENTS_BASE[i],q0:qDefaut};openQty();}function pickCustom(idx){pickFood(idx);}function openQty(){
+}function pickFood(i,qDefaut){pendingFood={src:'base',ref:i,arr:ALIMENTS_BASE[i],q0:qDefaut};editionId=null;openQty();}function pickCustom(idx){pickFood(idx);}
+// Rouvre une entrée déjà enregistrée pour en changer la quantité
+function modifierEntree(id){
+  const e=entriesFor(curDate,cliClient()).find(x=>x.id===id);
+  if(!e) return;
+  if(e.ref<0 || !ALIMENTS_BASE[e.ref]){
+    dtToast('Cet aliment n\'est plus dans la base — supprime la ligne et rentre-la à nouveau');
+    return;
+  }
+  pendingFood={src:'base',ref:e.ref,arr:ALIMENTS_BASE[e.ref],q0:e.q};
+  pendingMeal=e.meal;
+  editionId=id;
+  openQty();
+}
+function openQty(){
   const a=pendingFood.arr;
-  document.getElementById('qty-sub').textContent=mealName(pendingMeal);
+  document.getElementById('qty-sub').textContent=mealName(pendingMeal)+(editionId?' — modifier la quantité':'');
   document.getElementById('qty-nom').textContent=a[0];
   const est=pendingFood.src==='base'?estimeDepuis(pendingFood.ref):null;
   document.getElementById('qty-base').innerHTML='Pour 100 g : '+Math.round(a[1])+' kcal · P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])+' · Fibres '+(a[5]==null?'n.d.':r1(a[5]))
@@ -996,20 +1075,69 @@ function ringSm(pct,sansCible){
   const q=parseFloat(document.getElementById('qty-in').value)||0,m=macrosFor(pendingFood.arr,q);
   document.getElementById('qty-prev').innerHTML=[['kcal',Math.round(m.kcal)],['Prot',r1(m.p)],['Gluc',r1(m.g)],['Lip',r1(m.l)],['Fibr',r1(m.fib)]]
     .map(([k,v])=>'<div class="pv"><div class="pk">'+k+'</div><div class="pvv">'+v+'</div></div>').join('');
-}async function confirmAdd(){
+}
+// Verrou : l'enregistrement passe par le réseau, donc il y a un délai.
+// Sans ce verrou, un second clic pendant l'attente créait un doublon.
+let enregistrementEnCours=false;
+async function confirmAdd(){
+  if(enregistrementEnCours) return;
   const q=parseFloat(document.getElementById('qty-in').value);
   if(!q||q<=0){dtToast('Indique une quantité');return;}
+
+  enregistrementEnCours=true;
+  const btn=document.getElementById('qty-ok');
+  const libelleInitial=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Enregistrement…'; }
+
+  try{
+    const cl=cliClient();
+    if(!cl.journal[curDate])cl.journal[curDate]=[];
+    const mac=macrosFor(pendingFood.arr,q), nom=pendingFood.arr[0];
+
+    if(editionId){
+      const ok=await dbMajEntree(editionId,q,mac);
+      if(ok){
+        const e=entriesFor(curDate,cl).find(x=>x.id===editionId);
+        if(e){ e.q=q; e.mac=mac; }
+        dtToast('Quantité modifiée');
+      }
+    } else {
+      const id=await dbAddEntree(cl.id,curDate,pendingMeal,pendingFood.ref,q,mac,nom);
+      if(id){
+        cl.journal[curDate].push({id,meal:pendingMeal,src:'base',ref:pendingFood.ref,
+          alimentId:ALIM_IDS[pendingFood.ref],nom,q,mac});
+        dtToast('Ajouté à '+mealName(pendingMeal).toLowerCase());
+      }
+    }
+    repasOuverts.add(pendingMeal);      // le repas concerné reste déplié
+    editionId=null;
+    closeQty();closeSearch();renderCli();renderCoach();
+  } finally {
+    enregistrementEnCours=false;
+    if(btn){ btn.disabled=false; btn.textContent=libelleInitial||'Ajouter'; }
+  }
+}
+// Retire les lignes strictement identiques d'un repas, en gardant la première.
+async function supprimerDoublons(mealIdx){
   const cl=cliClient();
-  if(!cl.journal[curDate])cl.journal[curDate]=[];
-  const mac=macrosFor(pendingFood.arr,q), nom=pendingFood.arr[0];
-  const id=await dbAddEntree(cl.id,curDate,pendingMeal,pendingFood.ref,q,mac,nom);
-  if(!id)return;
-  cl.journal[curDate].push({id,meal:pendingMeal,src:'base',ref:pendingFood.ref,alimentId:ALIM_IDS[pendingFood.ref],nom,q,mac});
-  closeQty();closeSearch();renderCli();renderCoach();
-  const el=document.getElementById('meal'+pendingMeal);if(el)el.classList.add('open');
-  dtToast('Ajouté à '+mealName(pendingMeal).toLowerCase());
-}async function delEntry(id){const cl=cliClient();await dbDelEntree(id);
-  cl.journal[curDate]=entriesFor(curDate,cl).filter(e=>e.id!==id);renderCli();renderCoach();}function openProp(){
+  const mine=entriesFor(curDate,cl).filter(e=>e.meal===mealIdx);
+  const vus=new Set(), aSupp=[];
+  mine.forEach(e=>{ const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vus.has(c))aSupp.push(e.id); else vus.add(c); });
+  if(!aSupp.length){ dtToast('Aucun doublon'); return; }
+  for(const id of aSupp) await dbDelEntree(id);
+  cl.journal[curDate]=entriesFor(curDate,cl).filter(e=>!aSupp.includes(e.id));
+  repasOuverts.add(mealIdx);
+  dtToast(aSupp.length+' doublon'+(aSupp.length>1?'s':'')+' supprimé'+(aSupp.length>1?'s':''));
+  renderCli();renderCoach();
+}
+async function delEntry(id){
+  const cl=cliClient();
+  const e=entriesFor(curDate,cl).find(x=>x.id===id);
+  if(e) repasOuverts.add(e.meal);       // on garde le repas ouvert après suppression
+  await dbDelEntree(id);
+  cl.journal[curDate]=entriesFor(curDate,cl).filter(x=>x.id!==id);
+  renderCli();renderCoach();
+}function openProp(){
   ['p-nom','p-kcal','p-p','p-g','p-l','p-f'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('p-nom').value=document.getElementById('search-in').value;
   const c=document.getElementById('p-check');c.innerHTML='';delete c.dataset.ok;
@@ -1077,9 +1205,10 @@ function ringSm(pct,sansCible){
     cl.journal[curDate].push({id,meal:repriseMeal,src:'base',ref:e.ref,alimentId:e.alimentId,nom:e.nom,q:e.q,mac:e.mac});
     n++;
   }
+  repasOuverts.add(repriseMeal);        // le repas repris reste déplié
   closeDay();renderCli();renderCoach();
-  const el=document.getElementById('meal'+repriseMeal);if(el)el.classList.add('open');
   dtToast(n+' aliment'+(n>1?'s repris':' repris'));
+}function closeDay(){document.getElementById('ov-day').classList.remove('on');
 }function setPane(el,id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('pane-'+id).classList.add('on');}
 
 function renderAll(){ renderCli(); }

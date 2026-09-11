@@ -6662,7 +6662,7 @@ loadClients();
 loadNotionUrl();
 loadAppVideoUrl();
 </script>
-<script src="recode-diete.js?v=4"></script>
+<script src="recode-diete.js?v=6"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -6749,13 +6749,19 @@ async function ouvrirDieteGlobale(){
         +'<td style="width:52px;color:var(--text-dim);font-size:12px">'+(x.manuel?'niveau':x.u)+'</td>'
         +'<td style="width:210px">'+(x.manuel?'<span class="srcflag src-chk">classé par aliment</span>'
           :info?'<span class="inh">affiché sans jugement</span>'
-          :(v?'<span class="srcflag src-chk">seuil posé par toi</span>':'<span class="inh">aucun seuil — optionnel</span>'))
+          :(v
+             ? (!over && +v===DEF_FODMAP[x.k].v
+                 ? '<span class="srcflag src-chk">seuil de vigilance par défaut'+(DEF_FODMAP[x.k].orangeDAbord?' — orange au-delà':'')+'</span>'
+                 : '<span class="srcflag src-chk">seuil posé par toi</span>')
+             : '<span class="inh">aucun seuil — optionnel</span>'))
         +(showInherit&&!info&&!x.manuel&&over?' <button class="reset-i" onclick="resetFod(\''+x.k+'\')">rétablir</button>':'')+'</td></tr>';}).join('')
     +'</table>';
 }async function setDefaultFod(k,v){S.defaults.fodmap[k]=+v||0;await dbDefaults();renderCoach();renderCli();}async function setClientFod(k,v){
   const cl=client();if(!cl.fodmapOverrides)cl.fodmapOverrides={};
   const nv=+v||0;
-  if(nv===S.defaults.fodmap[k])delete cl.fodmapOverrides[k];else cl.fodmapOverrides[k]=nv;
+  // On compare au seuil réellement appliqué, pas à la valeur brute en base :
+  // sinon effacer le seuil des polyols le ferait retomber sur le défaut du code.
+  if(nv===seuilFodEffectif(k))delete cl.fodmapOverrides[k];else cl.fodmapOverrides[k]=nv;
   await dbClientConfig(cl.id);renderCoach();renderCli();
 }async function resetFod(k){const cl=client();if(cl.fodmapOverrides)delete cl.fodmapOverrides[k];await dbClientConfig(cl.id);renderCoach();renderCli();}function renderDefauts(){
   const d=S.defaults;
@@ -6777,7 +6783,7 @@ async function ouvrirDieteGlobale(){
     +'<div style="font-size:12.5px;font-weight:800;margin:22px 0 4px">Micronutriments — par jour</div>'
     +microRows(k=>S.defaults.micro[k],'setDefaultMicro',null,false)
     +'<div style="font-size:12.5px;font-weight:800;margin:26px 0 10px">Sucres fermentescibles — seuils par repas</div>'
-    +FOD_NOTE+fodRows(k=>S.defaults.fodmap[k],'setDefaultFod',null,false)+'</div>';
+    +FOD_NOTE+fodRows(k=>seuilFodEffectif(k),'setDefaultFod',null,false)+'</div>';
 }async function setDefaultMacro(k,v){S.defaults[k]=+v||0;await dbDefaults();renderCoach();renderCli();}async function setDefaultMicro(k,v){S.defaults.micro[k]=+v||0;await dbDefaults();renderCoach();renderCli();}async function setClientMicro(k,v){
   const cl=client();if(!cl.microOverrides)cl.microOverrides={};
   const nv=+v||0;
@@ -6833,6 +6839,12 @@ async function ouvrirDieteGlobale(){
     +'<button class="bs bs-o" onclick="applyDefaults()">Reprendre les cibles par défaut</button>'
     +'<button class="bs bs-o" onclick="openCopy()">Copier ces cibles vers…</button></div></div>'
 
+    +(FOURCHETTES_OK ? '' :
+      '<div class="warn-box" style="background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.3);color:#991B1B">'
+      +'<b>Les fourchettes ne sont pas enregistrées.</b> Ta base n\'a pas encore les colonnes nécessaires : '
+      +'« 30-35 » et « 40+ » sont acceptés à l\'écran mais perdus au rechargement.<br><br>'
+      +'Passe le fichier <b>_module_diete/diete-fourchettes.sql</b> dans Supabase (SQL Editor → coller → Run), '
+      +'puis recharge cette page. Les valeurs simples et les NA fonctionnent normalement en attendant.</div>')
     +'<div class="ccard"><div class="cct">Répartition par repas</div>'
     +'<div class="ccs">Ces repas sont exactement ceux que la cliente voit dans son application.<br><br>'
     +'<b>Cinq écritures possibles</b> dans chaque case :<br>'+'<b>35</b> une cible · <b>30-35</b> une fourchette · <b>40+</b> un minimum sans plafond · '+'<b>≤40</b> un plafond · <b>NA</b> aucune recommandation.<br>'+'« min 40 », « ≥40 », « max 40 » et « &lt;40 » sont aussi compris. Un champ vide vaut NA. '

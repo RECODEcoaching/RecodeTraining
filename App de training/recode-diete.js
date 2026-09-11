@@ -148,9 +148,15 @@ const DEF_MICRO = {
 // que je n'ai pas pu vérifier. Un chiffre inventé donnerait une fausse précision.
 // v = 0 signifie « pas de seuil » → la valeur est affichée en gramme, sans jugement.
 // Le coach peut poser un seuil sur le lactose ou les polyols s'il a une raison de le faire.
+// Exception : les polyols ont un seuil de vigilance par défaut à 1 g par repas
+// (décision coach). Franchir ce seuil met la carte en ORANGE, pas en rouge :
+// c'est un signal d'attention, pas un excès démontré. Le double (2 g) passe en rouge.
+// Un seuil posé explicitement par le coach sur une cliente reste prioritaire,
+// y compris 0, qui veut toujours dire « pas de seuil ».
 const DEF_FODMAP = {
   fru:{v:0, n:'Fructose', info:true},  glu:{v:0, n:'Glucose', info:true},
-  lac:{v:0, n:'Lactose', optionnel:true}, pol:{v:0, n:'Polyols', optionnel:true},
+  lac:{v:0, n:'Lactose', optionnel:true},
+  pol:{v:1, n:'Polyols', optionnel:true, orangeDAbord:true},
   fct:{v:0, n:'Fructanes', niveau:true},  gos:{v:0, n:'GOS', niveau:true}
 };
 // Seul indicateur réellement évalué côté sucres : le rapport fructose/glucose du repas.
@@ -211,7 +217,19 @@ function attBlock(k){
   return ATTENTION[k]?'<div class="att"><span class="att-i">!</span><div>'+ATTENTION[k]+'</div></div>':'';
 }
 function defaultFodmapTargets(){const o={};Object.entries(DEF_FODMAP).forEach(([k,v])=>o[k]=v.v);return o;}
-function fodTarget(k,cl){cl=cl||client();return (cl.fodmapOverrides&&cl.fodmapOverrides[k]!==undefined)?cl.fodmapOverrides[k]:S.defaults.fodmap[k];}
+// Seuil global appliqué pour un nutriment FODMAP. 0 ou absent en base = jamais
+// renseigné : on retombe sur le défaut du code, ce qui fait vivre le seuil de
+// vigilance des polyols sans migration SQL.
+function seuilFodEffectif(k){
+  const glob = S.defaults.fodmap[k];
+  return (glob===null || glob===undefined || +glob===0) ? DEF_FODMAP[k].v : +glob;
+}
+function fodTarget(k,cl){
+  cl=cl||client();
+  // un seuil posé sur la cliente gagne toujours, même s'il vaut 0 (= pas de seuil)
+  if(cl.fodmapOverrides && cl.fodmapOverrides[k]!==undefined) return cl.fodmapOverrides[k];
+  return seuilFodEffectif(k);
+}
 function isFodOverridden(k,cl){cl=cl||client();return cl.fodmapOverrides&&cl.fodmapOverrides[k]!==undefined;}
 // Une cible de repas peut être absente. « NA » signifie « pas de recommandation
 // particulière sur ce repas » — ce n'est pas zéro, qui voudrait dire « zéro gramme ».
@@ -265,6 +283,8 @@ function fmtPlage(min,max){
   return min+'-'+max;                  // fourchette
 }
 function afficheNA(v){ return v==null ? 'NA' : v; }
+// passe à false si la base n'a pas les colonnes de fourchette (diete-fourchettes.sql)
+let FOURCHETTES_OK = true;
 // une valeur respecte-t-elle la consigne ? (tolérance de 10 % sur une cible unique)
 function dansPlage(v,min,max){
   if(max==null && min==null) return null;
@@ -379,6 +399,11 @@ async function chargerCliente(id){
     sb.from('diete_entrees').select('*').eq('client_id', id).gte('date', depuis)
   ]);
 
+  // Détection au chargement : si la colonne n'existe pas en base, la propriété est
+  // absente de l'objet renvoyé (undefined), alors qu'une colonne vide renvoie null.
+  const premierRepas = (cib.data||[]).flatMap(c => c.diete_repas||[])[0];
+  if(premierRepas && premierRepas.kcal_min === undefined) FOURCHETTES_OK = false;
+
   cl.cibles = {};
   (cib.data||[]).forEach(c => {
     cl.cibles[c.jour_type] = { _id:c.id, kcal:+c.kcal, p:+c.prot, g:+c.gluc, l:+c.lip, f:+c.fibres,
@@ -486,12 +511,16 @@ async function dbCible(id, jourType){
       lip_min:nOuNull(r.lMin), fibres_min:nOuNull(r.fMin) }));
     let { data:rr, error } = await sb.from('diete_repas').insert(lignes).select();
     if(error){
-      // repli si les colonnes de fourchette n'existent pas encore en base
+      // Les colonnes de fourchette n'existent pas encore : on enregistre ce qu'on peut,
+      // mais on le dit — sinon « 40+ » et « 30-35 » disparaîtraient sans un mot.
+      FOURCHETTES_OK = false;
       const sansMin = lignes.map(({kcal_min,prot_min,gluc_min,lip_min,fibres_min,...reste}) => reste);
       ({ data:rr, error } = await sb.from('diete_repas').insert(sansMin).select());
-      if(!error) console.warn('Fourchettes ignorées : exécute diete-fourchettes.sql dans Supabase.');
-      else erreur(error, 'enregistrement des repas');
-    }
+      if(!error){
+        console.warn('Fourchettes non enregistrées : exécute diete-fourchettes.sql dans Supabase.');
+        dtToast('Fourchettes non enregistrées — SQL manquant');
+      } else erreur(error, 'enregistrement des repas');
+    } else FOURCHETTES_OK = true;
     (rr||[]).sort((a,b)=>a.ordre-b.ordre).forEach((r,i)=>{ if(c.repas[i]) c.repas[i]._id = r.id; });
   }
 }
@@ -514,6 +543,15 @@ async function dbAddEntree(id, date, repasRef, idx, q, mac, nom){
   }).select().single();
   if(error){ erreur(error, 'ajout de l\'aliment'); return null; }
   return data.id;
+}
+// Changer la quantité d'une entrée déjà enregistrée. Les macros sont recalculées
+// côté page et réécrites ici : on ne recalcule jamais à partir de la base, sinon
+// une correction de l'aliment réécrirait l'historique.
+async function dbMajEntree(entreeId, q, mac){
+  const { error } = await sb.from('diete_entrees')
+    .update({ quantite:q, macros:mac }).eq('id', entreeId);
+  if(error){ erreur(error, 'modification de la quantité'); return false; }
+  return true;
 }
 async function dbDelEntree(entreeId){
   const { error } = await sb.from('diete_entrees').delete().eq('id', entreeId);
@@ -620,6 +658,8 @@ function nivRepas(k,ents,cl){
   }
   const t=fodTarget(k,cl);
   if(!t||s.v===null)return 0;           // pas de seuil posé, ou aucune donnée → pas de jugement
+  // Polyols : le seuil est une ligne de vigilance (orange), pas une limite (rouge).
+  if(d.orangeDAbord) return s.v>t*2?3:(s.v>t?2:1);
   return s.v>t?3:(s.v>t/2?2:1);
 }
 // verdict du repas = le plus haut niveau atteint, rapport F/G inclus
@@ -747,9 +787,11 @@ function enAttente(i){const m=ALIM_META[i];return m&&m.statut==='en_attente';}
 
 
 
-const FOD_NOTE='<div class="warn-box"><b>Aucun seuil n\'est posé par défaut, et c\'est volontaire.</b> Les seuils FODMAP publiés viennent de bases sous licence commerciale que je n\'ai pas pu vérifier. '
+const FOD_NOTE='<div class="warn-box"><b>Presque aucun seuil n\'est posé par défaut, et c\'est volontaire.</b> Les seuils FODMAP publiés viennent de bases sous licence commerciale que je n\'ai pas pu vérifier. '
   +'Poser un chiffre non sourcé aurait donné une fausse impression de précision sur une question où la tolérance est de toute façon très individuelle. '
-  +'Fructose, glucose, lactose et polyols sont donc affichés en grammes bruts issus de la table officielle, sans jugement.<br><br>'
+  +'Fructose, glucose et lactose sont donc affichés en grammes bruts issus de la table officielle, sans jugement.<br><br>'
+  +'<b>Seule exception : les polyols, avec une ligne de vigilance à 1 g par repas</b> (ton choix). Au-delà, la carte FODMAP de la cliente passe en orange ; au-delà de 2 g, en rouge. '
+  +'Ce n\'est pas une limite sourcée dans une table, c\'est un repère de coach — tu peux le changer ou le retirer en mettant 0.<br><br>'
   +'<b>Le seul indicateur évalué est le rapport fructose/glucose du repas</b>, avec une cible à 1 ou moins. Celui-là repose sur un mécanisme physiologique clair : '
   +'le glucose facilite l\'absorption intestinale du fructose, et c\'est l\'excès de fructose sur le glucose qui fermente, pas le fructose en valeur absolue.<br><br>'
   +'<b>Fructanes et GOS sont classés, pas mesurés</b> — faible, moyen ou haut, par toi, avec une portion de référence. Le niveau du repas combine ces classements en tenant compte des quantités. '
