@@ -582,6 +582,40 @@ async function dbAlimentSupprime(alimId){
   const { error } = await sb.from('aliments').delete().eq('id', alimId);
   if(error) erreur(error, 'suppression de l\'aliment');
 }
+// Correction d'un aliment par le coach — macros, sucres fermentescibles, niveaux.
+// IMPORTANT : les entrées déjà enregistrées par les clientes ne bougent pas. Leurs
+// macros sont figées au moment de la saisie, une correction ne réécrit pas l'histoire.
+// Seules les saisies à venir utiliseront la valeur corrigée.
+async function dbMajAliment(idx, champs){
+  const patch = Object.assign({}, champs);
+  if(patch.nom) patch.nom_norm = norm(patch.nom);
+  // Un aliment CIQUAL corrigé à la main n'est plus la valeur officielle de la table.
+  // On le trace pour ne jamais le présenter comme une donnée ANSES.
+  if(ALIM_META[idx] && ALIM_META[idx].source === 'ciqual') patch.source = 'ciqual_coach';
+  // Si le coach saisit lui-même le fructose ou le glucose, la valeur n'est plus
+  // empruntée à une variante : la mention « sucres estimés » doit disparaître.
+  if(('fructose' in patch || 'glucose' in patch) && ALIM_META[idx] && ALIM_META[idx].estDe != null)
+    patch.sucres_estimes_de = null;
+  const { error } = await sb.from('aliments').update(patch).eq('id', ALIM_IDS[idx]);
+  if(error){ erreur(error, 'modification de l\'aliment'); return false; }
+  // report en mémoire, pour éviter de recharger les 1129 aliments après chaque correction
+  COLS_ALIM.forEach((c,i)=>{
+    if(!(c in patch)) return;
+    ALIMENTS_BASE[idx][i] = (i===0) ? patch[c] : (patch[c]==null ? null : +patch[c]);
+  });
+  const m = ALIM_META[idx];
+  if(m){
+    if('fructanes_niveau' in patch) m.fct = patch.fructanes_niveau;
+    if('gos_niveau' in patch)       m.gos = patch.gos_niveau;
+    if('fod_portion' in patch)      m.portion = +patch.fod_portion || 100;
+    if('sucres_estimes_de' in patch)m.estDe = patch.sucres_estimes_de;
+    if(patch.source)                m.source = patch.source;
+  }
+  if(patch.nom_norm){ const s = SEARCH_INDEX.find(x=>x.i===idx); if(s) s.n = patch.nom_norm; }
+  return true;
+}
+// Un aliment CIQUAL dont le coach a corrigé au moins une valeur
+function estCorrige(i){ const m=ALIM_META[i]; return !!(m && m.source==='ciqual_coach'); }
 async function dbFodmap(idx){
   const m = ALIM_META[idx];
   const { error } = await sb.from('aliments').update({

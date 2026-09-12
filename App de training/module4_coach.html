@@ -6662,7 +6662,7 @@ loadClients();
 loadNotionUrl();
 loadAppVideoUrl();
 </script>
-<script src="recode-diete.js?v=6"></script>
+<script src="recode-diete.js?v=7"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -7228,16 +7228,20 @@ function dl(name,content){
       +'<div class="pa">'+actions+'</div></div>';
   };
   const pendHtml=pend.length?pend.map(i=>carte(i,
-      '<button class="bs bs-g" onclick="validAlim('+i+')">Valider</button>'
+      '<button class="bs bs-o" onclick="openAlim('+i+')">Modifier</button>'
+     +'<button class="bs bs-g" onclick="validAlim('+i+')">Valider</button>'
      +'<button class="bs bs-r" onclick="refuseAlim('+i+')">Refuser</button>')).join('')
     :'<div class="empty">Aucun aliment en attente</div>';
   document.getElementById('cpane-alim').innerHTML=
     '<div class="sg"><div class="stat"><div class="sk">Base commune</div><div class="sv">'+ALIMENTS_BASE.length+'</div><div class="sd" style="color:var(--text-muted)">aliments CIQUAL / ANSES</div></div>'
     +'<div class="stat"><div class="sk">Ajouts validés</div><div class="sv">'+val.length+'</div><div class="sd" style="color:var(--text-muted)">visibles par toutes</div></div>'
     +'<div class="stat"><div class="sk">En attente</div><div class="sv" style="color:'+(pend.length?'var(--danger)':'var(--text)')+'">'+pend.length+'</div><div class="sd" style="color:var(--text-muted)">à valider</div></div></div>'
-    +'<div class="warn-box">Un aliment ajouté à la main ne porte que ses macros : ses micronutriments comptent pour zéro dans la micronutrition. '
-    +'Plus tes clientes utilisent des aliments hors base, plus les totaux en vitamines et minéraux sont sous-estimés. C\'est la limite structurelle du suivi micro.</div>'
-    +'<div class="ccard"><div class="cct">Fructanes et GOS — table à constituer</div>'
+    +'<div class="warn-box">Un aliment ajouté par une cliente n\'arrive qu\'avec ses macros : ses micronutriments comptent pour zéro dans la micronutrition. '
+    +'Plus tes clientes utilisent des aliments hors base, plus les totaux en vitamines et minéraux sont sous-estimés.<br><br>'
+    +'<b>Tu peux les renseigner toi-même</b> — bouton « Modifier » sur n\'importe quel aliment, section Minéraux et Vitamines. '
+    +'C\'est réservé à toi : la cliente ne voit jamais ces champs.</div>'
+    +'<div class="ccard"><div class="cct">Corriger un aliment · Fructanes et GOS</div>'
+    +'<div class="ccs">Cherche n\'importe quel aliment — base CIQUAL ou ajout d\'une cliente — pour corriger ses macros, ses sucres fermentescibles, ou le classer en fructanes / GOS.</div>'
     +'<div class="warn-box"><b>Ces deux données n\'existent pas dans CIQUAL.</b> La table de l\'ANSES ne mesure ni les fructanes ni les galacto-oligosaccharides — '
     +'ce n\'est pas un manque de ton fichier, aucune table publique française ne les fournit. Les valeurs de référence viennent essentiellement de Monash University, sous licence commerciale.<br><br>'
     +'Tu les classes donc toi-même en <b>faible / moyen / haut</b>, sur les aliments qui comptent pour tes clientes. '
@@ -7245,7 +7249,7 @@ function dl(name,content){
     +'Un aliment non classé est traité comme <b>inconnu</b>, jamais comme zéro : '
     +'la cliente voit un « ? » et le total de son repas est signalé comme incomplet. C\'est volontaire — afficher 0 sur un aliment non mesuré serait un faux négatif.<br><br>'
     +'<b>'+fodInscrits().length+' aliment(s) actuellement classé(s).</b> Cette table est la tienne : elle vit maintenant dans ta base, plus dans ton navigateur.</div>'
-    +'<input class="csel" style="width:100%;max-width:420px;margin-bottom:14px" id="fod-search" placeholder="Chercher un aliment à renseigner…" oninput="renderFodSearch()">'
+    +'<input class="csel" style="width:100%;max-width:420px;margin-bottom:14px" id="fod-search" placeholder="Chercher un aliment à corriger ou à classer…" oninput="renderFodSearch()">'
     +'<div id="fod-results"></div>'
     +'<div style="font-size:12.5px;font-weight:800;margin:22px 0 10px">Aliments renseignés ('+fodInscrits().length+')</div>'
     +renderFodTable()+'</div>'
@@ -7253,8 +7257,8 @@ function dl(name,content){
     +'<div class="ccard"><div class="cct">Ajouts validés</div><div class="ccs">Aliments hors CIQUAL.</div>'
     +(val.length?val.map(i=>carte(i,
         (ALIM_META[i].fct!=null||ALIM_META[i].gos!=null
-          ?'<span class="srcflag src-ok" style="align-self:center">fructanes / GOS classés</span>'
-          :'<button class="bs bs-o" onclick="addFod('+i+')">Classer fructanes / GOS</button>')
+          ?'<span class="srcflag src-ok" style="align-self:center">fructanes / GOS classés</span>':'')
+       +'<button class="bs bs-p" onclick="openAlim('+i+')">Modifier</button>'
        +'<button class="bs bs-r" onclick="refuseAlim('+i+')">Retirer</button>')).join('')
       :'<div class="empty">Aucun ajout validé</div>')+'</div>';
 }function fodLabel(idx){
@@ -7270,27 +7274,42 @@ function dl(name,content){
   const sel=(k,f,v)=>'<select class="lvl-sel'+(v?' lvl'+v:'')+'" onchange="setFod(\''+k+'\',\''+f+'\',this.value)">'
     +[[ '','? non classé'],['1','faible'],['2','moyen'],['3','haut']]
       .map(([val,lbl])=>'<option value="'+val+'"'+((v==null?'':String(v))===val?' selected':'')+'>'+lbl+'</option>').join('')+'</select>';
-  return '<table class="micro-tbl"><tr><th>Aliment</th><th>Fructanes</th><th>GOS</th><th>Pour une portion de</th><th></th></tr>'
+  return '<table class="micro-tbl"><tr><th>Aliment</th><th>Fructanes</th><th>GOS</th><th>Pour une portion de</th><th></th><th></th></tr>'
     +keys.map(k=>{const d={fct:ALIM_META[k].fct,gos:ALIM_META[k].gos,portion:ALIM_META[k].portion};
-      return '<tr><td style="font-weight:600">'+dtEsc(fodLabel(k))+'</td>'
+      return '<tr><td style="font-weight:600">'+dtEsc(fodLabel(k))+(estCorrige(k)?' <span class="srcflag src-chk">corrigé</span>':'')+'</td>'
         +'<td style="width:150px">'+sel(k,'fct',d.fct)+'</td>'
         +'<td style="width:150px">'+sel(k,'gos',d.gos)+'</td>'
         +'<td style="width:120px"><input type="number" step="any" value="'+(d.portion||100)+'" onchange="setFod(\''+k+'\',\'portion\',this.value)"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+        +'<td style="width:90px"><button class="bs bs-o" style="padding:5px 10px;font-size:11.5px" onclick="openAlim('+k+')">Modifier</button></td>'
         +'<td style="width:40px"><button class="tbl-del" onclick="delFod(\''+k+'\')">×</button></td></tr>';}).join('')+'</table>';
 }function renderFodSearch(){
   const el=document.getElementById('fod-search'); if(!el)return;
   const raw=el.value.trim(), q=norm(raw), box=document.getElementById('fod-results');
   if(q.length<2){box.innerHTML='';return;}
   const w=q.split(' ').filter(Boolean), hits=[];
+  // Tous les aliments sont proposés, classés ou non : le coach doit pouvoir
+  // corriger aussi bien un aliment CIQUAL qu'un ajout de cliente.
   for(let i=0;i<SEARCH_INDEX.length&&hits.length<25;i++){
     const n=SEARCH_INDEX[i].n; let ok=true;
     for(const x of w){if(!n.includes(x)){ok=false;break;}}
-    if(ok&&ALIM_META[SEARCH_INDEX[i].i]&&ALIM_META[SEARCH_INDEX[i].i].fct==null&&ALIM_META[SEARCH_INDEX[i].i].gos==null)hits.push(SEARCH_INDEX[i].i);
+    if(ok)hits.push(SEARCH_INDEX[i].i);
   }
-  box.innerHTML=hits.length?hits.map(i=>'<div class="pend" style="padding:10px 13px;margin-bottom:6px">'
-    +'<div class="pi"><div class="pn" style="font-size:13px">'+dtEsc(ALIMENTS_BASE[i][0])+'</div></div>'
-    +'<div class="pa"><button class="bs bs-o" onclick="addFod('+i+')">Renseigner</button></div></div>').join('')
-    :'<div class="empty" style="padding:14px">Aucun aliment non renseigné ne correspond.</div>';
+  box.innerHTML=hits.length?hits.map(i=>{
+    const a=ALIMENTS_BASE[i], m=ALIM_META[i]||{};
+    const etiquettes=[
+      estPerso(i)?'<span class="srcflag src-chk">perso</span>':'',
+      estCorrige(i)?'<span class="srcflag src-chk">corrigé par toi</span>':'',
+      (m.fct!=null||m.gos!=null)?'<span class="srcflag src-ok">fructanes / GOS classés</span>':'',
+      sucresConnus(i)?'':'<span class="srcflag" style="background:rgba(217,119,6,.1);color:#92400E">sucres non mesurés</span>'
+    ].filter(Boolean).join(' ');
+    return '<div class="pend" style="padding:10px 13px;margin-bottom:6px">'
+      +'<div class="pi"><div class="pn" style="font-size:13px">'+dtEsc(a[0])+'</div>'
+      +'<div class="pm">'+r1(a[1]||0)+' kcal · P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])
+      +' · Fructose '+(a[6]==null?'n.m.':r1(a[6]))+' · Polyols '+(a[9]==null?'n.m.':r1(a[9]))+'</div>'
+      +(etiquettes?'<div class="pby" style="margin-top:4px">'+etiquettes+'</div>':'')+'</div>'
+      +'<div class="pa"><button class="bs bs-p" onclick="openAlim('+i+')">Modifier</button></div></div>';
+  }).join('')
+    :'<div class="empty" style="padding:14px">Aucun aliment ne correspond.</div>';
 }async function addFod(idx){
   ALIM_META[idx].portion=ALIM_META[idx].portion||100;
   ALIM_META[idx]._inscrit=true;
@@ -7305,7 +7324,130 @@ function dl(name,content){
   if(f==='portion')renderAlim();
 }async function delFod(idx){
   const m=ALIM_META[idx]; m.fct=null; m.gos=null; m.portion=100; m._inscrit=false;
-  await dbFodmap(idx);renderAlim();renderCli();}async function validAlim(idx){
+  await dbFodmap(idx);renderAlim();renderCli();
+// ── Correction d'un aliment (macros + FODMAP) ────────────────────────────
+// Champs du formulaire : [clé colonne, libellé, unité, index dans ALIMENTS_BASE]
+}const AL_MACROS=[['kcal','Calories','kcal',1],['prot','Protéines','g',2],['gluc','Glucides','g',3],
+                  ['lip','Lipides','g',4],['fibres','Fibres','g',5]];
+const AL_SUCRES=[['fructose','Fructose','g',6],['glucose','Glucose','g',7],
+                 ['lactose','Lactose','g',8],['polyols','Polyols','g',9]];
+// Les 35 autres nutriments, construits depuis NUT pour rester alignés avec les
+// colonnes de la base. Réservés au coach : la cliente ne les saisit jamais.
+const alChamp=x=>[COLS_ALIM[x.i], x.n, x.u, x.i];
+const AL_LIPIDES  = NUT.filter(x=>x.i>=10 && x.i<=17).map(alChamp);
+const AL_MINERAUX = NUT.filter(x=>x.i>=18 && x.i<=29).map(alChamp);
+const AL_VITAMINES= NUT.filter(x=>x.i>=30).map(alChamp);
+const AL_TOUS = AL_MACROS.concat(AL_SUCRES, AL_LIPIDES, AL_MINERAUX, AL_VITAMINES);
+let alimEnCours=null;
+function openAlim(idx){
+  alimEnCours=idx;
+  const a=ALIMENTS_BASE[idx], m=ALIM_META[idx]||{};
+  const perso=estPerso(idx), att=enAttente(idx);
+  document.getElementById('al-sub').textContent=
+    (perso?(att?'Proposé par une cliente — en attente de validation':'Ajout perso validé')
+          :'Aliment de la base CIQUAL / ANSES')+' · valeurs pour 100 g';
+  const champ=([c,lbl,u,i])=>'<tr><td style="font-weight:600">'+lbl+'</td>'
+    +'<td style="width:120px"><input type="number" step="any" id="al-'+c+'" placeholder="non mesuré" '
+    +'value="'+(a[i]==null?'':a[i])+'"> <span style="font-size:11px;color:var(--text-dim)">'+u+'</span></td>'
+    +'<td style="font-size:11px;color:var(--text-dim)">'+(a[i]==null?'aucune valeur en base':'')+'</td></tr>';
+  // Les 35 nutriments secondaires : repliés, en deux colonnes, avec le compte de
+  // ce qui est déjà renseigné pour savoir d'un coup d'œil si ça vaut la peine d'ouvrir.
+  const bloc=(titre,champs,arr)=>{
+    const remplis=champs.filter(([,,,i])=>arr[i]!=null).length;
+    return '<details style="margin-top:14px;border:1px solid var(--border);border-radius:10px;padding:0 13px">'
+      +'<summary style="cursor:pointer;padding:11px 0;font-size:12.5px;font-weight:800;list-style:revert">'
+      +titre+' <span style="font-weight:600;color:'+(remplis?'var(--text-muted)':'var(--text-dim)')+'">— '
+      +(remplis?remplis+' / '+champs.length+' renseignés':'aucune valeur')+'</span></summary>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 18px;padding-bottom:12px">'
+      +champs.map(([c,lbl,u,i])=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px">'
+        +'<span style="flex:1;font-weight:600">'+lbl+'</span>'
+        +'<input type="number" step="any" id="al-'+c+'" placeholder="n.m." '
+        +'style="width:78px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12.5px;text-align:center;background:var(--surface)" '
+        +'value="'+(arr[i]==null?'':arr[i])+'">'
+        +'<span style="width:26px;font-size:11px;color:var(--text-dim)">'+u+'</span></label>').join('')
+      +'</div></details>';
+  };
+  const sel=(id,v)=>'<select class="lvl-sel'+(v?' lvl'+v:'')+'" id="'+id+'">'
+    +[['','? non classé'],['1','faible'],['2','moyen'],['3','haut']]
+      .map(([val,lbl])=>'<option value="'+val+'"'+((v==null?'':String(v))===val?' selected':'')+'>'+lbl+'</option>').join('')
+    +'</select>';
+  const est=estimeDepuis(idx);
+  document.getElementById('al-body').innerHTML=
+     '<div class="warn-box"><b>Une case vide veut dire « non mesuré », pas « zéro ».</b> '
+    +'Laisse vide ce que tu ne connais pas : la cliente verra « non mesuré » et son total sera signalé comme incomplet. '
+    +'Mettre 0 affirme que l\'aliment n\'en contient pas — c\'est une information différente.</div>'
+    +(est?'<div class="warn-box">Les sucres de cet aliment sont aujourd\'hui <b>empruntés à « '+dtEsc(est)+' »</b>. '
+        +'Si tu saisis toi-même le fructose ou le glucose, cet emprunt est abandonné et ta valeur fait foi.</div>':'')
+    +'<div style="font-size:12.5px;font-weight:800;margin:4px 0 8px">Nom</div>'
+    +'<input class="csel" style="width:100%" id="al-nom" value="'+dtEsc(a[0])+'">'
+    +'<div style="font-size:12.5px;font-weight:800;margin:18px 0 8px">Macronutriments</div>'
+    +'<table class="micro-tbl">'+AL_MACROS.map(champ).join('')+'</table>'
+    +'<div id="al-coherence" style="font-size:11.5px;margin-top:8px"></div>'
+    +'<div style="font-size:12.5px;font-weight:800;margin:18px 0 8px">Sucres fermentescibles — mesurés, en grammes</div>'
+    +'<table class="micro-tbl">'+AL_SUCRES.map(champ).join('')+'</table>'
+    +'<div class="warn-box" style="margin-top:18px;background:var(--accent-bg-soft);border-color:var(--border-md);color:var(--text-muted)">'
+    +'<b>Les 35 valeurs ci-dessous sont réservées au coach.</b> La cliente ne les saisit jamais : quand elle propose un aliment, elle ne renseigne que les macros. '
+    +(perso?'Cet ajout perso n\'a donc <b>aucun micronutriment</b> — tant qu\'ils restent vides, ils comptent comme absents dans la micronutrition de tes clientes. '
+           +'Renseigne ce que tu as, laisse vide le reste.'
+          :'Remplis-les seulement si tu as une donnée fiable : une valeur inventée pèse dans les totaux micro de toutes tes clientes.')+'</div>'
+    +bloc('Lipides détaillés',AL_LIPIDES,a)
+    +bloc('Minéraux',AL_MINERAUX,a)
+    +bloc('Vitamines',AL_VITAMINES,a)
+    +'<div style="font-size:12.5px;font-weight:800;margin:18px 0 8px">Fructanes et GOS — classés par toi</div>'
+    +'<table class="micro-tbl"><tr><td style="font-weight:600">Fructanes</td><td style="width:150px">'+sel('al-fct',m.fct)+'</td><td></td></tr>'
+    +'<tr><td style="font-weight:600">GOS</td><td>'+sel('al-gos',m.gos)+'</td><td></td></tr>'
+    +'<tr><td style="font-weight:600">Portion de référence</td>'
+    +'<td><input type="number" step="any" id="al-portion" value="'+(m.portion||100)+'"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+    +'<td style="font-size:11px;color:var(--text-dim)">le niveau ci-dessus vaut pour cette quantité</td></tr></table>'
+    +(perso?'':'<div class="warn-box" style="margin-top:16px">Cet aliment vient de la table officielle. '
+        +'Si tu le corriges, il sera marqué <b>« corrigé par toi »</b> et ne sera plus présenté comme une valeur ANSES.</div>')
+    +'<div class="warn-box" style="margin-top:16px;background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.25);color:#065F46">'
+    +'<b>Les journées déjà enregistrées ne changent pas.</b> Les macros sont figées au moment où la cliente saisit son aliment. '
+    +'Ta correction s\'appliquera aux saisies à venir, pas à l\'historique.</div>';
+  AL_MACROS.forEach(([c])=>{const el=document.getElementById('al-'+c);if(el)el.oninput=majCoherenceAlim;});
+  majCoherenceAlim();
+  document.getElementById('al-msg').textContent='';
+  document.getElementById('ov-alim').classList.add('on');
+}
+function closeAlim(){alimEnCours=null;document.getElementById('ov-alim').classList.remove('on');}
+// Contrôle de cohérence : les calories annoncées doivent coller aux macros saisies
+function majCoherenceAlim(){
+  const el=document.getElementById('al-coherence'); if(!el)return;
+  const n=c=>{const v=document.getElementById('al-'+c);return v&&v.value!==''?parseFloat(v.value):null;};
+  const kcal=n('kcal'), p=n('prot')||0, g=n('gluc')||0, l=n('lip')||0;
+  if(kcal==null||kcal<=20){el.innerHTML='';return;}
+  const calc=p*4+g*4+l*9, ecart=Math.abs(calc-kcal)/kcal;
+  el.innerHTML = ecart>.25
+    ? '<span style="color:var(--danger);font-weight:700">Incohérence : d\'après les macros, ce serait ~'+Math.round(calc)+' kcal.</span> '
+      +'<span style="color:var(--text-dim)">Normal si l\'aliment contient de l\'alcool ou des polyols, suspect sinon.</span>'
+    : '<span style="color:var(--text-dim)">Cohérent avec les macros (~'+Math.round(calc)+' kcal calculées).</span>';
+}
+async function saveAlim(){
+  if(alimEnCours==null)return;
+  const idx=alimEnCours;
+  const nom=document.getElementById('al-nom').value.trim();
+  if(!nom){document.getElementById('al-msg').textContent='Le nom ne peut pas être vide';return;}
+  // vide = null = « non mesuré ». On ne convertit jamais une case vide en zéro.
+  const lire=c=>{const el=document.getElementById('al-'+c); if(!el)return undefined;
+    const v=el.value.trim(); if(v==='')return null;
+    const n=parseFloat(v.replace(',','.')); return isNaN(n)?null:n;};
+  const patch={nom};
+  AL_TOUS.forEach(([c])=>{const v=lire(c); if(v!==undefined)patch[c]=v;});
+  const niv=id=>{const v=document.getElementById(id).value; return v===''?null:+v;};
+  patch.fructanes_niveau=niv('al-fct');
+  patch.gos_niveau=niv('al-gos');
+  patch.fod_portion=Math.max(parseFloat(document.getElementById('al-portion').value)||100,1);
+  const btn=document.getElementById('al-ok');
+  btn.disabled=true; btn.textContent='Enregistrement…';
+  const ok=await dbMajAliment(idx,patch);
+  btn.disabled=false; btn.textContent='Enregistrer';
+  if(!ok){document.getElementById('al-msg').textContent='Échec — rien n\'a été modifié';return;}
+  if(ALIM_META[idx]) ALIM_META[idx]._inscrit = (patch.fructanes_niveau!=null||patch.gos_niveau!=null);
+  closeAlim();
+  if(document.getElementById('cpane-alim')) renderAlim();
+  renderFodSearch(); renderCoach(); renderCli();
+  dtToast('« '+nom+' » mis à jour');
+}async function validAlim(idx){
   await dbAlimentStatut(ALIM_IDS[idx],'valide');
   ALIM_META[idx].statut='valide';
   renderCoach();dtToast('« '+ALIMENTS_BASE[idx][0]+' » ajouté à la base commune');}async function refuseAlim(idx){
@@ -7347,6 +7489,22 @@ async function ouvrirDiete(clientId){
   }
 }
 </script>
+
+<!-- Diète : correction d'un aliment (macros + FODMAP) -->
+<div class="dt-ov" id="ov-alim" onclick="if(event.target===this)closeAlim()">
+  <div class="dt-sheet">
+    <div class="dt-sh">
+      <div class="dt-st">Modifier l'aliment</div>
+      <div class="dt-ss" id="al-sub"></div>
+    </div>
+    <div class="dt-sb"><div id="al-body"></div></div>
+    <div class="dt-sf" style="justify-content:space-between">
+      <span id="al-msg" style="font-size:11.5px;color:var(--text-dim);align-self:center"></span>
+      <span><button class="bs bs-o" onclick="closeAlim()">Annuler</button>
+      <button class="bs bs-p" id="al-ok" style="margin-left:8px" onclick="saveAlim()">Enregistrer</button></span>
+    </div>
+  </div>
+</div>
 
 <!-- Diète : détail d'une journée (clic sur une ligne du journal) -->
 <div class="dt-ov" id="ov-day" onclick="if(event.target===this)closeDay()">
