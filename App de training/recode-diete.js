@@ -584,10 +584,10 @@ async function dbAlimentStatut(alimId, statut){
   const { error } = await sb.from('aliments').update({ statut }).eq('id', alimId);
   if(error) erreur(error, 'validation de l\'aliment');
 }
-async function dbAlimentSupprime(alimId){
-  const { error } = await sb.from('aliments').delete().eq('id', alimId);
-  if(error) erreur(error, 'suppression de l\'aliment');
-}
+// Pas de suppression définitive d'un aliment : un DELETE casserait le lien avec les
+// entrées déjà saisies par les clientes (aliment_id passe à NULL) et le geste serait
+// irréversible. Le retrait passe par dbAlimentStatut(id,'refuse'), qui le masque
+// partout via alimentVisible() tout en restant rétablissable.
 // Correction d'un aliment par le coach — macros, sucres fermentescibles, niveaux.
 // IMPORTANT : les entrées déjà enregistrées par les clientes ne bougent pas. Leurs
 // macros sont figées au moment de la saisie, une correction ne réécrit pas l'histoire.

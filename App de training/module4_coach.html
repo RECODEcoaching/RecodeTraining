@@ -6662,7 +6662,7 @@ loadClients();
 loadNotionUrl();
 loadAppVideoUrl();
 </script>
-<script src="recode-diete.js?v=8"></script>
+<script src="recode-diete.js?v=9"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -7217,6 +7217,10 @@ function dl(name,content){
   const persoIdx=[]; ALIM_META.forEach((m,i)=>{ if(m&&m.source==='perso'&&m.statut!=='refuse') persoIdx.push(i); });
   const pend=persoIdx.filter(i=>ALIM_META[i].statut==='en_attente');
   const val =persoIdx.filter(i=>ALIM_META[i].statut==='valide');
+  const retires=[]; ALIM_META.forEach((m,i)=>{ if(m&&m.statut==='refuse') retires.push(i); });
+  // Un aliment déjà présent dans la base commune sous le même nom
+  const jumeauDe=i=>{const n=norm(ALIMENTS_BASE[i][0]);
+    return SEARCH_INDEX.some(x=>x.i!==i && x.n===n && ALIM_META[x.i] && ALIM_META[x.i].statut==='valide');};
   const nomDe=id=>{const c=S.clients[id];return c?c.nom:'—';};
   const carte=(i,actions)=>{
     const a=ALIMENTS_BASE[i], kcal=a[1]||0, p=a[2]||0, g=a[3]||0, l=a[4]||0, f=a[5]||0;
@@ -7227,7 +7231,10 @@ function dl(name,content){
       +'<div class="pby">Proposé par '+dtEsc(nomDe(ALIM_META[i].propose_par))+'</div>'+flag+'</div>'
       +'<div class="pa">'+actions+'</div></div>';
   };
-  const pendHtml=pend.length?pend.map(i=>carte(i,
+  const pendHtml=pend.length?pend.map(i=>
+      (jumeauDe(i)?'<div class="warn-box" style="margin-bottom:-4px">« '+dtEsc(ALIMENTS_BASE[i][0])+' » existe déjà dans la base commune. '
+        +'Refuse celui-ci : la cliente utilisera l\'aliment déjà validé.</div>':'')
+     +carte(i,
       '<button class="bs bs-o" onclick="openAlim('+i+')">Modifier</button>'
      +'<button class="bs bs-g" onclick="validAlim('+i+')">Valider</button>'
      +'<button class="bs bs-r" onclick="refuseAlim('+i+')">Refuser</button>')).join('')
@@ -7260,13 +7267,20 @@ function dl(name,content){
           ?'<span class="srcflag src-ok" style="align-self:center">fructanes / GOS classés</span>':'')
        +'<button class="bs bs-p" onclick="openAlim('+i+')">Modifier</button>'
        +'<button class="bs bs-r" onclick="refuseAlim('+i+')">Retirer</button>')).join('')
-      :'<div class="empty">Aucun ajout validé</div>')+'</div>';
+      :'<div class="empty">Aucun ajout validé</div>')+'</div>'
+    +'<div class="ccard"><div class="cct">Aliments retirés ('+retires.length+')</div>'
+    +'<div class="ccs">Retirés des recherches, mais rien n\'est effacé. Les journées déjà enregistrées gardent leurs valeurs. Tu peux les rétablir à tout moment.</div>'
+    +(retires.length?retires.map(i=>carte(i,
+        '<button class="bs bs-o" onclick="openAlim('+i+')">Voir</button>'
+       +'<button class="bs bs-g" onclick="retablirAlim('+i+')">Rétablir</button>')).join('')
+      :'<div class="empty">Aucun aliment retiré</div>')+'</div>';
 }function fodLabel(idx){
   const a=ALIMENTS_BASE[idx];
   return a ? (a[0]+(estPerso(idx)?' (perso)':'')) : '(aliment supprimé)';
 }function fodInscrits(){
   const out=[];
-  ALIM_META.forEach((m,i)=>{ if(m && (m.fct!=null || m.gos!=null || m._inscrit)) out.push(i); });
+  // un aliment retiré ne figure plus dans la table : il vit dans « Aliments retirés »
+  ALIM_META.forEach((m,i)=>{ if(m && m.statut!=='refuse' && (m.fct!=null || m.gos!=null || m._inscrit)) out.push(i); });
   return out;
 }function renderFodTable(){
   const keys=fodInscrits().sort((a,b)=>fodLabel(a).localeCompare(fodLabel(b)));
@@ -7297,6 +7311,8 @@ function dl(name,content){
   box.innerHTML=hits.length?hits.map(i=>{
     const a=ALIMENTS_BASE[i], m=ALIM_META[i]||{};
     const etiquettes=[
+      m.statut==='refuse'?'<span class="srcflag" style="background:rgba(220,38,38,.1);color:var(--danger)">retiré</span>':'',
+      m.statut==='en_attente'?'<span class="srcflag" style="background:rgba(217,119,6,.1);color:#92400E">en attente</span>':'',
       estPerso(i)?'<span class="srcflag src-chk">perso</span>':'',
       estCorrige(i)?'<span class="srcflag src-chk">corrigé par toi</span>':'',
       (m.fct!=null||m.gos!=null)?'<span class="srcflag src-ok">fructanes / GOS classés</span>':'',
@@ -7307,7 +7323,9 @@ function dl(name,content){
       +'<div class="pm">'+r1(a[1]||0)+' kcal · P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])
       +' · Fructose '+(a[6]==null?'n.m.':r1(a[6]))+' · Polyols '+(a[9]==null?'n.m.':r1(a[9]))+'</div>'
       +(etiquettes?'<div class="pby" style="margin-top:4px">'+etiquettes+'</div>':'')+'</div>'
-      +'<div class="pa"><button class="bs bs-p" onclick="openAlim('+i+')">Modifier</button></div></div>';
+      +'<div class="pa">'
+      +(m.statut==='refuse'?'<button class="bs bs-g" onclick="retablirAlim('+i+')">Rétablir</button>':'')
+      +'<button class="bs bs-p" onclick="openAlim('+i+')">Modifier</button></div></div>';
   }).join('')
     :'<div class="empty" style="padding:14px">Aucun aliment ne correspond.</div>';
 }async function addFod(idx){
@@ -7448,13 +7466,48 @@ async function saveAlim(){
   renderFodSearch(); renderCoach(); renderCli();
   dtToast('« '+nom+' » mis à jour');
 }async function validAlim(idx){
+  // Doublon : la même cliente, ou une autre, a pu proposer un aliment déjà en base.
+  // On le signale AVANT de valider plutôt que de laisser deux lignes identiques.
+  const n=norm(ALIMENTS_BASE[idx][0]);
+  const jumeau=SEARCH_INDEX.find(x=>x.i!==idx && x.n===n
+    && ALIM_META[x.i] && ALIM_META[x.i].statut==='valide');
+  if(jumeau!=null && !confirm('« '+ALIMENTS_BASE[idx][0]+' » existe déjà dans la base commune.\n\n'
+      +'Valider quand même créerait un doublon. Mieux vaut refuser celui-ci : '
+      +'les clientes utiliseront l\'aliment déjà en base.\n\nValider quand même ?')) return;
   await dbAlimentStatut(ALIM_IDS[idx],'valide');
   ALIM_META[idx].statut='valide';
-  renderCoach();dtToast('« '+ALIMENTS_BASE[idx][0]+' » ajouté à la base commune');}async function refuseAlim(idx){
-  if(!confirm('Retirer cet aliment ?'))return;
-  await dbAlimentSupprime(ALIM_IDS[idx]);
+  // renderCoach() ne redessine PAS la liste des aliments. Sans cet appel, la carte
+  // restait affichée dans « À valider » après validation — et un clic sur « Refuser »
+  // supprimait l'aliment qu'on venait de valider.
+  renderAlim(); renderCoach(); renderCli();
+  dtToast('« '+ALIMENTS_BASE[idx][0]+' » ajouté à la base commune');}async function refuseAlim(idx){
+  const m=ALIM_META[idx]||{}, nom=ALIMENTS_BASE[idx][0];
+  const dejaValide=m.statut==='valide';
+  const renseigne=(m.fct!=null||m.gos!=null);
+  if(!confirm('Retirer « '+nom+' » ?'
+    +(dejaValide?'\n\nATTENTION : cet aliment est DÉJÀ VALIDÉ et disponible pour toutes tes clientes.':'')
+    +(renseigne?'\nIl est classé en fructanes / GOS — ce classement sera mis de côté avec lui.':'')
+    +'\n\nIl disparaîtra des recherches, mais rien n\'est effacé : tu pourras le rétablir '
+    +'depuis « Aliments retirés », et les journées déjà enregistrées ne bougent pas.'))return;
+  // Retrait réversible : on change le statut, on ne supprime plus la ligne.
+  // Un DELETE cassait le lien avec les entrées déjà saisies par les clientes.
+  // On garde en mémoire l'état d'avant pour rétablir à l'identique.
+  ALIM_META[idx].statutAvant = m.statut;
+  await dbAlimentStatut(ALIM_IDS[idx],'refuse');
   ALIM_META[idx].statut='refuse';
-  renderCoach();renderCli();}function setCPane(el,id){
+  renderAlim(); renderCoach(); renderCli();
+  dtToast('« '+nom+' » retiré — rétablissable');
+}async function retablirAlim(idx){
+  // On revient à l'état d'avant le retrait. Après un rechargement de page cette
+  // mémoire est perdue : on retombe alors sur « valide », puisque cliquer
+  // « Rétablir » est déjà un acte de validation de ta part.
+  const cible = ALIM_META[idx].statutAvant || 'valide';
+  await dbAlimentStatut(ALIM_IDS[idx], cible);
+  ALIM_META[idx].statut = cible;
+  delete ALIM_META[idx].statutAvant;
+  renderAlim(); renderCoach(); renderCli();
+  dtToast('« '+ALIMENTS_BASE[idx][0]+' » rétabli'+(cible==='en_attente'?' — il repasse à valider':''));
+}function setCPane(el,id){
   document.querySelectorAll('#ctab-diete .dt-tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');
