@@ -148,14 +148,20 @@ const DEF_MICRO = {
 // que je n'ai pas pu vérifier. Un chiffre inventé donnerait une fausse précision.
 // v = 0 signifie « pas de seuil » → la valeur est affichée en gramme, sans jugement.
 // Le coach peut poser un seuil sur le lactose ou les polyols s'il a une raison de le faire.
-// Exception : les polyols ont un seuil de vigilance par défaut à 1 g par repas
-// (décision coach). Franchir ce seuil met la carte en ORANGE, pas en rouge :
-// c'est un signal d'attention, pas un excès démontré. Le double (2 g) passe en rouge.
+// Deux exceptions, décidées par le coach : polyols et lactose ont un seuil de
+// vigilance par défaut. Le franchir met la carte en ORANGE, pas en rouge — c'est
+// un signal d'attention, pas un excès démontré. Le double passe en rouge.
+//   polyols  : 1 g par repas  (orange), 2 g (rouge)
+//   lactose  : 5 g par repas  (orange), 10 g (rouge)
+// Le seuil lactose est un repère de coach, pas une valeur réglementaire : l'EFSA
+// (2010) refuse tout seuil universel, note que la majorité des personnes en
+// maldigestion tolèrent 12 g en une prise, mais que certaines réagissent dès 6 g.
+// 5 g se place volontairement sous cette borne basse.
 // Un seuil posé explicitement par le coach sur une cliente reste prioritaire,
 // y compris 0, qui veut toujours dire « pas de seuil ».
 const DEF_FODMAP = {
   fru:{v:0, n:'Fructose', info:true},  glu:{v:0, n:'Glucose', info:true},
-  lac:{v:0, n:'Lactose', optionnel:true},
+  lac:{v:5, n:'Lactose', optionnel:true, orangeDAbord:true},
   pol:{v:1, n:'Polyols', optionnel:true, orangeDAbord:true},
   fct:{v:0, n:'Fructanes', niveau:true},  gos:{v:0, n:'GOS', niveau:true}
 };
@@ -823,9 +829,11 @@ function enAttente(i){const m=ALIM_META[i];return m&&m.statut==='en_attente';}
 
 const FOD_NOTE='<div class="warn-box"><b>Presque aucun seuil n\'est posé par défaut, et c\'est volontaire.</b> Les seuils FODMAP publiés viennent de bases sous licence commerciale que je n\'ai pas pu vérifier. '
   +'Poser un chiffre non sourcé aurait donné une fausse impression de précision sur une question où la tolérance est de toute façon très individuelle. '
-  +'Fructose, glucose et lactose sont donc affichés en grammes bruts issus de la table officielle, sans jugement.<br><br>'
-  +'<b>Seule exception : les polyols, avec une ligne de vigilance à 1 g par repas</b> (ton choix). Au-delà, la carte FODMAP de la cliente passe en orange ; au-delà de 2 g, en rouge. '
-  +'Ce n\'est pas une limite sourcée dans une table, c\'est un repère de coach — tu peux le changer ou le retirer en mettant 0.<br><br>'
+  +'Fructose et glucose sont donc affichés en grammes bruts issus de la table officielle, sans jugement.<br><br>'
+  +'<b>Deux exceptions, que tu as posées : les polyols à 1 g et le lactose à 5 g par repas.</b> Au-delà, la carte FODMAP de la cliente passe en orange ; au double, en rouge. '
+  +'Ce sont des repères de coach, pas des limites réglementaires — tu peux les changer, globalement ou cliente par cliente, ou les retirer en mettant 0.<br><br>'
+  +'Sur le lactose, l\'EFSA (2010) refuse explicitement de fixer un seuil universel : la majorité des personnes en maldigestion tolèrent 12 g en une prise, '
+  +'mais certaines réagissent dès 6 g. Les 5 g retenus ici se placent sous cette borne basse — c\'est un choix prudent, pas une valeur démontrée.<br><br>'
   +'<b>Le seul indicateur évalué est le rapport fructose/glucose du repas</b>, avec une cible à 1 ou moins. Celui-là repose sur un mécanisme physiologique clair : '
   +'le glucose facilite l\'absorption intestinale du fructose, et c\'est l\'excès de fructose sur le glucose qui fermente, pas le fructose en valeur absolue.<br><br>'
   +'<b>Fructanes et GOS sont classés, pas mesurés</b> — faible, moyen ou haut, par toi, avec une portion de référence. Le niveau du repas combine ces classements en tenant compte des quantités. '
