@@ -384,7 +384,7 @@ async function chargerClientes(){
   S.clients = {};
   (data||[]).filter(c => c.actif !== false).forEach(c => {
     S.clients[c.id] = { id:c.id, nom:c.prenom, cibles:{}, microOverrides:{}, fodmapOverrides:{},
-                        jours:{}, journal:{}, _charge:false };
+                        semaineType:{}, jours:{}, journal:{}, _charge:false };
   });
   const ids = Object.keys(S.clients);
   if(!curClient  || !S.clients[curClient])  curClient  = ids[0] || null;
@@ -424,6 +424,10 @@ async function chargerCliente(id){
 
   cl.microOverrides  = (cfg.data && cfg.data.micro_overrides)  || {};
   cl.fodmapOverrides = (cfg.data && cfg.data.fodmap_overrides) || {};
+  cl.semaineType     = (cfg.data && cfg.data.semaine_type)     || {};
+  // colonne absente = SQL pas encore passé : on le signale au coach plutôt que
+  // de laisser le rythme disparaître en silence à chaque enregistrement
+  if(cfg.data && cfg.data.semaine_type === undefined) SEMAINE_TYPE_OK = false;
   cl.jours = {}; (jrs.data||[]).forEach(j => cl.jours[j.date] = j.jour_type);
 
   cl.journal = {};
@@ -534,13 +538,47 @@ async function dbDelCible(id, jourType){
   const c = S.clients[id].cibles[jourType];
   if(c && c._id) await sb.from('diete_cibles').delete().eq('id', c._id);
 }
+// jourType = null  -> on efface l'exception : la date reprend le rythme hebdomadaire
+// jourType = 'defaut' -> exception explicite vers le jour standard, qui doit être
+//   stockée : sans elle, impossible de forcer un jour standard sur une date dont
+//   le rythme dit « entraînement ».
 async function dbJour(id, date, jourType){
-  if(!jourType || jourType === 'defaut'){
+  if(jourType === null || jourType === undefined){
     await sb.from('diete_jours').delete().eq('client_id', id).eq('date', date);
   } else {
     await sb.from('diete_jours').upsert({ client_id:id, date, jour_type:jourType }, { onConflict:'client_id,date' });
   }
 }
+// Échange les types de deux dates. Utilisé par la cliente quand elle inverse
+// deux journées au dernier moment : le plan de la semaine reste le même, seul
+// l'ordre change. On écrit deux exceptions explicites, y compris vers 'defaut'.
+async function dbEchangerJours(id, dateA, dateB){
+  const cl = S.clients[id];
+  const ta = jourTypeFor(dateA, cl), tb = jourTypeFor(dateB, cl);
+  if(ta === tb) return false;
+  cl.jours[dateA] = tb;
+  cl.jours[dateB] = ta;
+  await dbJour(id, dateA, tb);
+  await dbJour(id, dateB, ta);
+  return true;
+}
+// Rythme hebdomadaire : { lun:'entrainement', mar:'defaut', … }
+async function dbSemaineType(id){
+  const cl = S.clients[id];
+  const { error } = await sb.from('diete_client_config').upsert({
+    client_id:id, micro_overrides:cl.microOverrides, fodmap_overrides:cl.fodmapOverrides,
+    semaine_type:cl.semaineType || {}, updated_at:new Date().toISOString()
+  }, { onConflict:'client_id' });
+  if(error){
+    SEMAINE_TYPE_OK = false;
+    erreur(error, 'enregistrement du rythme hebdomadaire');
+    dtToast('Rythme non enregistré — SQL manquant (diete-semaine-type.sql)');
+    return false;
+  }
+  SEMAINE_TYPE_OK = true;
+  return true;
+}
+let SEMAINE_TYPE_OK = true;
 async function dbAddEntree(id, date, repasRef, idx, q, mac, nom){
   const { data, error } = await sb.from('diete_entrees').insert({
     client_id:id, date, repas_ref:repasRef,
@@ -719,7 +757,23 @@ function verdictRepas(ents,cl){
 }
 function customToArr(c){const a=new Array(40).fill(0);a[0]=c.nom;a[1]=c.kcal;a[2]=c.p;a[3]=c.g;a[4]=c.l;a[5]=c.f;return a;}
 function client(){return S.clients[curClient];}
-function jourTypeFor(d,cl){cl=cl||client();const j=cl.jours[d];return (j&&cl.cibles[j])?j:'defaut';}
+// Le type d'un jour se lit dans cet ordre :
+//   1. une exception posée sur cette date précise (diete_jours)
+//   2. le rythme hebdomadaire de la cliente (lundi → dimanche), qui se répète
+//      indéfiniment sans que le coach ait à repasser semaine après semaine
+//   3. « jour standard »
+const JOURS_SEM = ['dim','lun','mar','mer','jeu','ven','sam'];
+function jourSemaineDe(d){ return JOURS_SEM[parseD(d).getDay()]; }
+function jourTypeFor(d,cl){
+  cl=cl||client();
+  const ex=cl.jours[d];
+  if(ex && cl.cibles[ex]) return ex;
+  if(ex) return 'defaut';                       // exception vers le standard
+  const sem=(cl.semaineType||{})[jourSemaineDe(d)];
+  return (sem && cl.cibles[sem]) ? sem : 'defaut';
+}
+// Un jour suit-il le rythme, ou a-t-il été forcé sur cette date ?
+function estException(d,cl){ cl=cl||client(); return cl.jours[d]!==undefined; }
 // filet de sécurité : si les cibles d'une cliente ne sont pas encore créées ou
 // n'ont pas pu être chargées, on retombe sur les valeurs par défaut du coach
 // plutôt que de laisser l'écran planter.

@@ -851,7 +851,14 @@ async function hashPin(pin) {
 .bs-r{background:var(--surface);color:var(--danger);border:1.5px solid rgba(220,38,38,.3)}
 .bs:active{transform:scale(.97)}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-.cald{border:1.5px solid var(--border);border-radius:10px;padding:9px 6px;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface)}
+.cald{border:1.5px solid var(--border);border-radius:10px;padding:9px 6px;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface);position:relative}
+.cald-pose{border-color:var(--accent);background:var(--accent-bg-soft)}
+/* date forcée : elle ne suit plus le rythme de la semaine */
+.cald-forc{border-color:var(--accent);border-style:dashed;background:var(--accent-bg-soft)}
+.cald-auj{box-shadow:0 0 0 2px var(--accent-bg)}
+.cald-auj .caldd{color:var(--accent)}
+.cald-x{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text-dim);font-size:12px;line-height:1;cursor:pointer;padding:0}
+.cald-x:hover{color:var(--danger);border-color:var(--danger)}
 .cald:hover{border-color:var(--accent)}
 .caldn{font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase}
 .caldd{font-size:16px;font-weight:800;margin:2px 0 5px}
@@ -6772,7 +6779,7 @@ loadNotionUrl();
 loadAppVideoUrl();
 loadBilanQuestions();
 </script>
-<script src="recode-diete.js?v=9"></script>
+<script src="recode-diete.js?v=10"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -6983,25 +6990,69 @@ async function ouvrirDieteGlobale(){
     +' Ces valeurs s\'appliquent à <b>chaque repas</b>, pas à la journée. La cliente les voit directement sous chacun de ses repas.</div>'
     +FOD_NOTE+fodRows(k=>fodTarget(k,cl),'setClientFod',cl,true)+'</div>'
 
-    +'<div class="ccard"><div class="cct">Calendrier — type de jour</div>'
-    +'<div class="ccs">Clique sur un jour pour lui assigner un type. Utile pour le cyclage glucidique ou les jours d\'entraînement.</div>'
+    +'<div class="ccard"><div class="cct">Rythme de la semaine</div>'
+    +'<div class="ccs">Pose le type de chaque jour une seule fois : il se répète toutes les semaines, indéfiniment. '
+    +'Tu n\'as plus à revenir sur le calendrier chaque semaine.</div>'
+    +(SEMAINE_TYPE_OK?'':'<div class="warn-box" style="background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.3);color:var(--danger)">'
+      +'<b>Le rythme ne peut pas être enregistré.</b> La colonne n\'existe pas encore dans ta base : '
+      +'lance <code>_module_diete/diete-semaine-type.sql</code> dans Supabase &gt; SQL Editor.</div>')
+    +renderSemaine(cl)
+    +'<div class="cct" style="margin-top:24px">Exceptions sur une date</div>'
+    +'<div class="ccs">Une semaine particulière ? Clique sur une date pour forcer un type différent du rythme. '
+    +'Les dates forcées sont encadrées ; le bouton × les remet sur le rythme.</div>'
     +renderCal(cl)+'</div>';
 }async function applyDefaults(){
   if(!confirm('Remplacer les macros de ce type de jour par tes cibles par défaut ?'))return;
   const c=client().cibles[coachJT],d=S.defaults;
   ['kcal','p','g','l','f'].forEach(k=>c[k]=d[k]);
   await dbCible(curClient,coachJT);renderCoach();renderCli();dtToast('Cibles par défaut appliquées');
+}
+// Le rythme : 7 cases, lundi → dimanche, qui se répètent chaque semaine.
+function renderSemaine(cl){
+  const ordre=['lun','mar','mer','jeu','ven','sam','dim'];
+  const longs={lun:'Lundi',mar:'Mardi',mer:'Mercredi',jeu:'Jeudi',ven:'Vendredi',sam:'Samedi',dim:'Dimanche'};
+  const sem=cl.semaineType||{};
+  return '<div class="cal">'+ordre.map(j=>{
+    const t=sem[j];
+    const pose=!!(t&&cl.cibles[t]);
+    return '<div class="cald'+(pose?' cald-pose':'')+'" onclick="cycleSemaine(\''+j+'\')">'
+      +'<div class="caldn">'+longs[j].slice(0,3).toLowerCase()+'</div>'
+      +'<div class="caldd" style="font-size:13px">'+longs[j].slice(0,2)+'</div>'
+      +'<div class="caljt">'+(pose?cap(t):'standard')+'</div></div>';}).join('')+'</div>';
+}
+async function cycleSemaine(jour){
+  const cl=client(),jts=Object.keys(cl.cibles);
+  if(jts.length<2){dtToast('Crée d\'abord un autre type de jour');return;}
+  if(!cl.semaineType)cl.semaineType={};
+  const cur=cl.semaineType[jour]||'defaut';
+  const next=jts[(jts.indexOf(cur)+1)%jts.length];
+  if(next==='defaut')delete cl.semaineType[jour];else cl.semaineType[jour]=next;
+  await dbSemaineType(curClient);renderCibles();renderCli();
 }function renderCal(cl){
-  const days=[];for(let i=-3;i<=10;i++)days.push(addDays(todayStr(),i));
-  return '<div class="cal">'+days.map(d=>{const jt=cl.jours[d],dd=parseD(d);
-    return '<div class="cald" onclick="cycleJT(\''+d+'\')"><div class="caldn">'+['dim','lun','mar','mer','jeu','ven','sam'][dd.getDay()]+'</div>'
-      +'<div class="caldd">'+dd.getDate()+'</div><div class="caljt">'+(jt&&cl.cibles[jt]?cap(jt):'standard')+'</div></div>';}).join('')+'</div>';
+  const days=[];for(let i=-3;i<=13;i++)days.push(addDays(todayStr(),i));
+  const auj=todayStr();
+  return '<div class="cal">'+days.map(d=>{
+    const dd=parseD(d), jt=jourTypeFor(d,cl), forc=estException(d,cl);
+    return '<div class="cald'+(forc?' cald-forc':'')+(d===auj?' cald-auj':'')+'" onclick="cycleJT(\''+d+'\')">'
+      +'<div class="caldn">'+['dim','lun','mar','mer','jeu','ven','sam'][dd.getDay()]+'</div>'
+      +'<div class="caldd">'+dd.getDate()+'</div>'
+      +'<div class="caljt">'+(jt==='defaut'?'standard':cap(jt))+'</div>'
+      +(forc?'<button class="cald-x" title="Revenir au rythme" onclick="event.stopPropagation();libererJour(\''+d+'\')">×</button>':'')
+      +'</div>';}).join('')+'</div>';
 }async function cycleJT(date){
   const cl=client(),jts=Object.keys(cl.cibles);
   if(jts.length<2){dtToast('Crée d\'abord un autre type de jour');return;}
-  const cur=cl.jours[date]||'defaut',next=jts[(jts.indexOf(cur)+1)%jts.length];
-  if(next==='defaut')delete cl.jours[date];else cl.jours[date]=next;
+  // On tourne à partir du type effectif du jour, rythme compris.
+  const cur=jourTypeFor(date,cl), next=jts[(jts.indexOf(cur)+1)%jts.length];
+  // Même « defaut » est enregistré : sans ça, impossible de forcer un jour
+  // standard sur une date dont le rythme dit « entraînement ».
+  cl.jours[date]=next;
   await dbJour(curClient,date,next);renderCibles();renderCli();
+}async function libererJour(date){
+  const cl=client();
+  delete cl.jours[date];
+  await dbJour(curClient,date,null);
+  renderCibles();renderCli();dtToast('Ce jour reprend le rythme');
 }function pickJT(k){coachJT=k;renderCibles();}async function addJT(){
   const n=prompt('Nom du type de jour (ex : entrainement, off, refeed)');if(!n)return;
   const key=norm(n).replace(/ +/g,'_');

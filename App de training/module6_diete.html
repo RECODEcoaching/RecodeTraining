@@ -78,7 +78,10 @@ button,input,select{font-family:inherit}
 .daynav{display:flex;align-items:center;gap:7px}
 .daynav button{width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
 .daynav button:active{transform:scale(.88)}
-.daynav-label{font-size:12.5px;font-weight:700;min-width:92px;text-align:center}
+.daynav-label{font-size:12.5px;font-weight:700;min-width:104px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.15}
+.daynav-label b{font-size:12.5px;font-weight:800}
+.daynav-label em{font-style:normal;font-size:9.5px;font-weight:600;opacity:.72;text-transform:lowercase}
+.dn-futur{font-size:8.5px;font-weight:800;background:rgba(255,255,255,.22);padding:1px 6px;border-radius:20px;margin-top:2px;letter-spacing:.03em}
 
 .gz{display:flex;align-items:center;gap:18px}
 .gw{position:relative;width:140px;height:140px;flex-shrink:0}
@@ -95,6 +98,8 @@ button,input,select{font-family:inherit}
 .kl span:last-child{font-weight:700;font-size:13px}
 .jchip{display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.16);padding:5px 11px;border-radius:20px}
 .jchip i{width:5px;height:5px;border-radius:50%;background:var(--accent-soft);display:block}
+.jchip-act{font-size:9px;font-weight:800;background:rgba(255,255,255,.22);padding:2px 7px;border-radius:20px;margin-left:3px;letter-spacing:.03em}
+.jchip:active{transform:scale(.97)}
 
 .macros{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}
 .macro{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:10px 8px;backdrop-filter:blur(4px)}
@@ -542,6 +547,19 @@ button,input,select{font-family:inherit}
   </div>
 </div>
 
+<div class="ov" id="ov-ech" onclick="if(event.target===this)closeEchange()">
+  <div class="sheet">
+    <div class="sh"><div class="st">Inverser deux journées</div>
+      <div class="ss" id="ech-sub"></div></div>
+    <div class="sb">
+      <div class="note-box">Tes objectifs suivent le plan de ton coach. Ici tu ne changes
+        que <b>l'ordre</b> : les deux journées échangent leurs objectifs, ta semaine reste la même.</div>
+      <div id="ech-body"></div>
+    </div>
+    <div class="sf"><button class="btn btn-s" onclick="closeEchange()">Fermer</button></div>
+  </div>
+</div>
+
 <div class="ov" id="ov-nut" onclick="if(event.target===this)closeNut()">
   <div class="sheet">
     <div class="sh"><div class="st" id="nut-title"></div><div class="ss" id="nut-sub"></div></div>
@@ -552,7 +570,7 @@ button,input,select{font-family:inherit}
 
 <div class="toast" id="toast"></div>
 
-<script src="recode-diete.js?v=9"></script>
+<script src="recode-diete.js?v=10"></script>
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
@@ -569,9 +587,15 @@ async function switchViewClient(id){
 }function renderCli(){
   const cl=cliClient(), cib=ciblesFor(curDate,cl), tot=totalsFor(curDate,cl), jt=jourTypeFor(curDate,cl);
 
+  // La date réelle est toujours écrite : « Aujourd'hui » seul laissait un doute
+  // dès qu'on naviguait, et encore plus maintenant qu'on peut aller dans le futur.
   const dl=document.getElementById('day-lbl');
-  dl.textContent = curDate===todayStr()?"Aujourd'hui" : curDate===addDays(todayStr(),-1)?'Hier'
-    : parseD(curDate).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+  const ecart=Math.round((parseD(curDate)-parseD(todayStr()))/86400000);
+  const motCle = ecart===0?"Aujourd'hui" : ecart===-1?'Hier' : ecart===1?'Demain' : null;
+  const dateLongue=parseD(curDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  dl.innerHTML = (motCle?'<b>'+motCle+'</b>':'<b>'+dateLongue.charAt(0).toUpperCase()+dateLongue.slice(1)+'</b>')
+    + (motCle?'<em>'+dateLongue+'</em>':'')
+    + (ecart>0?'<span class="dn-futur">à venir</span>':'');
   const pct=cib.kcal?tot.kcal/cib.kcal:0;
   document.getElementById('gauge').innerHTML=arcGauge(pct,Math.round(tot.kcal),140,Math.round(pct*100)+'%');
   requestAnimationFrame(()=>requestAnimationFrame(()=>{const f=document.querySelector('#gauge .gauge-fill');if(f)f.style.strokeDashoffset=f.dataset.target;}));
@@ -579,7 +603,14 @@ async function switchViewClient(id){
   document.getElementById('k-tgt').textContent=cib.kcal+' kcal';
   const left=cib.kcal-tot.kcal;
   document.getElementById('k-left').textContent=(left>=0?Math.round(left):'+'+Math.round(-left))+' kcal';
-  document.getElementById('k-jt').innerHTML='<i></i><span>'+(jt==='defaut'?'Jour standard':cap(jt))+'</span>';
+  // Pastille du type de jour : cliquable pour inverser deux journées.
+  // On ne propose l'échange que si la cliente a plus d'un type de jour.
+  const plusieursTypes=Object.keys(cl.cibles||{}).length>1;
+  const chip=document.getElementById('k-jt');
+  chip.innerHTML='<i></i><span>'+(jt==='defaut'?'Jour standard':cap(jt))+'</span>'
+    +(plusieursTypes?'<b class="jchip-act">échanger</b>':'');
+  chip.onclick = plusieursTypes ? ()=>openEchange() : null;
+  chip.style.cursor = plusieursTypes ? 'pointer' : 'default';
   document.getElementById('macros').innerHTML=[['Protéines','p','var(--prot)'],['Glucides','g','var(--gluc)'],['Lipides','l','var(--lip)'],['Fibres','f','var(--fib)']]
     .map(([nom,k,col])=>{const kk=k==='f'?'fib':k, v=tot[kk], t=cib[k], p=t?Math.min(v/t*100,100):0;
       return '<div class="macro"><div class="mn">'+nom+'</div><div class="mv">'+Math.round(v)+'g</div><div class="mt">/ '+t+'g</div><div class="mb"><i style="width:'+p+'%;background:'+col+'"></i></div></div>';}).join('');
@@ -926,7 +957,48 @@ function ringSm(pct,sansCible){
       +'</div></div>').join('')
       :'<div class="empty">Aucun aliment enregistré.</div>');
   document.getElementById('ov-nut').classList.add('on');
-}function closeNut(){document.getElementById('ov-nut').classList.remove('on');}function renderWeek(cl){
+}
+// ── Inverser deux journées ───────────────────────────────────────────
+// La cliente ne choisit pas un type de jour : elle permute deux dates.
+// Le plan du coach reste intact, seul l'ordre change.
+function openEchange(){
+  const cl=cliClient(), jt=jourTypeFor(curDate,cl);
+  const nomJT=t=>t==='defaut'?'Jour standard':cap(t);
+  document.getElementById('ech-sub').textContent=
+    parseD(curDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' · '+nomJT(jt);
+  // fenêtre de 7 jours avant / 7 jours après, sans le jour courant
+  const cands=[];
+  for(let i=-7;i<=7;i++){
+    if(i===0)continue;
+    const d=addDays(curDate,i), t=jourTypeFor(d,cl);
+    if(t===jt)continue;                       // même type : rien à échanger
+    cands.push({d,t});
+  }
+  cands.sort((a,b)=>a.d.localeCompare(b.d));
+  document.getElementById('ech-body').innerHTML = cands.length
+    ? cands.map(c=>{
+        const passe=c.d<todayStr();
+        const lib=parseD(c.d).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+        return '<div class="rep-c" onclick="faireEchange(\''+c.d+'\')">'
+          +'<div class="rinf"><div class="rn">'+lib.charAt(0).toUpperCase()+lib.slice(1)
+          +(passe?'<span class="bdg-nd">passé</span>':'')+'</div>'
+          +'<div class="rm">'+nomJT(c.t)+'</div></div>'
+          +'<div class="rep-k" style="font-size:12px;font-weight:700;color:var(--accent)">échanger</div></div>';
+      }).join('')
+    : '<div class="empty">Aucune journée d\'un autre type dans les 7 jours autour.</div>';
+  document.getElementById('ov-ech').classList.add('on');
+}
+function closeEchange(){document.getElementById('ov-ech').classList.remove('on');}
+async function faireEchange(autreDate){
+  const cl=cliClient();
+  const a=jourTypeFor(curDate,cl), b=jourTypeFor(autreDate,cl);
+  const nomJT=t=>t==='defaut'?'Jour standard':cap(t);
+  const ok=await dbEchangerJours(cl.id,curDate,autreDate);
+  if(!ok){dtToast('Ces deux journées ont déjà le même objectif');return;}
+  closeEchange();renderCli();renderCoach();
+  dtToast('Inversé — ce jour passe en '+nomJT(b).toLowerCase());
+}
+function closeNut(){document.getElementById('ov-nut').classList.remove('on');}function renderWeek(cl){
   const days=[];for(let i=6;i>=0;i--)days.push(addDays(curDate,-i));
   const rows=days.map(d=>({d,tot:totalsFor(d,cl),cib:ciblesFor(d,cl),n:entriesFor(d,cl).length}));
   const filled=rows.filter(r=>r.n>0), maxK=Math.max(...rows.map(r=>Math.max(r.tot.kcal,r.cib.kcal)),1);
@@ -959,7 +1031,15 @@ function ringSm(pct,sansCible){
       +'<span>'+m.x.n+'</span><span style="color:'+m.st.col+';font-weight:800">'+Math.round(m.st.pct)+'%</span></div>'
       +'<div class="nut-b"><i style="width:'+Math.min(m.st.pct,100)+'%;background:'+m.st.col+'"></i></div></div>').join('')
       :'<div class="empty" style="padding:14px">Tout est au-dessus de 80% en moyenne cette semaine.</div>')+'</div>';
-}function shiftDay(n){const nd=addDays(curDate,n);if(parseD(nd)>new Date()){dtToast('Pas de saisie dans le futur');return;}curDate=nd;renderCli();}function favorisDe(cl){
+}function shiftDay(n){
+  const nd=addDays(curDate,n);
+  // La saisie à l'avance est permise : une cliente prépare sa journée, ou
+  // inverse deux jours au dernier moment. On borne juste à 30 jours pour
+  // éviter de se perdre à des mois de distance.
+  const ecart=Math.round((parseD(nd)-parseD(todayStr()))/86400000);
+  if(ecart>30){dtToast('Tu ne peux pas aller au-delà de 30 jours');return;}
+  curDate=nd;repasOuverts.clear();renderCli();
+}function favorisDe(cl){
   if(!cl) return [];
   const cpt={};
   Object.keys(cl.journal).forEach(k=>{
