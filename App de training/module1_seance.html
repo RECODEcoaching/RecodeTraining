@@ -261,6 +261,64 @@ function checkAccountActive(session){
   .bilan-card.no-click { cursor: default; }
   .bilan-card.no-click:active { transform: none; }
   .bilan-card .session-name { margin-bottom: 0; }
+  /* La carte s'ouvre sur place : les questions ne pèsent sur la vue semaine
+     que si la cliente les demande. */
+  .bilan-card.open:active { transform: none; }
+  .bilan-card.open { opacity: 1; }
+  .bilan-head { display: flex; align-items: center; gap: 10px; }
+  .bilan-head .session-name { flex: 1; }
+  .bilan-chevron {
+    font-size: 17px; color: var(--text-dim); line-height: 1;
+    transition: transform 0.22s ease; flex-shrink: 0;
+  }
+  .bilan-card.open .bilan-chevron { transform: rotate(90deg); }
+  .bilan-body { display: none; margin-top: 14px; }
+  .bilan-card.open .bilan-body { display: block; }
+  .bilan-intro {
+    background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.16);
+    border-radius: 10px; padding: 11px 13px; margin-bottom: 14px;
+    font-size: 12.5px; line-height: 1.55; color: var(--text-muted);
+  }
+  .bilan-intro b { color: var(--text); }
+  .bilan-sec {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    margin: 16px 0 7px; padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bilan-sec:first-child { margin-top: 0; }
+  .bilan-q {
+    display: flex; gap: 8px; font-size: 13.5px; line-height: 1.5;
+    color: var(--text); padding: 5px 0;
+  }
+  .bilan-q-n {
+    flex-shrink: 0; font-weight: 700; color: var(--text-dim);
+    font-size: 12px; min-width: 15px; padding-top: 2px;
+  }
+  .bilan-sub {
+    font-size: 12.5px; line-height: 1.5; color: var(--text-muted);
+    padding: 3px 0 3px 23px; position: relative;
+  }
+  .bilan-sub::before {
+    content: '·'; position: absolute; left: 13px; font-weight: 700;
+  }
+  .bilan-note {
+    margin-top: 16px; padding: 11px 13px; background: var(--surface2);
+    border-radius: 9px; font-size: 12px; line-height: 1.55; color: var(--text-muted);
+  }
+  .bilan-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .bilan-btn {
+    flex: 1; padding: 11px; border-radius: 10px; border: none;
+    font-size: 13.5px; font-weight: 600; cursor: pointer;
+    transition: var(--transition); font-family: inherit;
+  }
+  .bilan-btn:active { transform: scale(0.98); }
+  .bilan-btn-p { background: var(--accent); color: #fff; }
+  .bilan-btn-s {
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .bilan-btn-done { background: var(--success-bg); color: var(--success); }
 
   /* ── SÉANCE DETAIL ── */
   .session-top {
@@ -1031,13 +1089,84 @@ function checkAccountActive(session){
     list.innerHTML = items.map(i => i.html).join('');
   }
 
+  // ── QUESTIONS DU BILAN ───────────────────────────────────────────────
+  // Mêmes questions pour toutes les clientes. Le coach les modifie depuis son
+  // espace (table app_settings, clé bilan_questions) ; ce texte n'est que le
+  // repli si rien n'a encore été enregistré.
+  // Format : « # » ouvre une section, « - » une question, « . » une sous-question.
+  const BILAN_DEFAUT = `# Alimentation
+- Comment suis-tu tes macros ?
+. Tout pesé
+. Estimation visuelle
+. Les deux
+- Sur combien de jours as-tu respecté :
+. tes kcal ?
+. tes protéines ?
+. tes lipides ?
+. tes glucides ?
+. tes fibres et oméga-3 ?
+# Freemeal
+- Combien de freemeals as-tu fait cette semaine ?
+. Freemeal = tout ce que tu ne comptabilises pas dans ton alimentation.
+# Entraînement
+- Prends-tu des vidéos de toi-même pour évaluer ta technique ?
+- As-tu manqué des séances ? Si oui, combien ?
+- Combien de séances ont été réalisées avec plus de 2 heures de décalage par rapport à leur horaire habituel ?
+- As-tu progressé en charges ou en répétitions sur chaque exercice ?
+- As-tu fait des deloads cette semaine ? Si oui, sur quels exercices ?
+# Sommeil
+- Sur combien de jours cette semaine as-tu dormi profondément au moins 7,5 heures ?
+- Combien de fois tu te réveilles en moyenne la nuit :
+. Pour aller aux toilettes ?
+. Pour toute autre raison ?
+- Combien de fois cette semaine es-tu allée au lit avec plus d'une heure de décalage par rapport à ton horaire habituel ?
+# Autres
+- Y a-t-il d'autres points que tu souhaiterais partager, sur lesquels tu aimerais échanger ou sur lesquels je pourrai t'aider ?`;
+
+  let bilanQuestions = BILAN_DEFAUT;
+  const bilanOuverts = new Set();   // dates dépliées, pour survivre au redessin
+
+  async function chargerQuestionsBilan() {
+    try {
+      const { data } = await db.from('app_settings')
+        .select('value').eq('key', 'bilan_questions').maybeSingle();
+      if (data && data.value && data.value.trim()) bilanQuestions = data.value;
+    } catch (e) {}   // pas de réglage en base : on garde le texte par défaut
+  }
+
+  function escBilan(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function renderQuestionsBilan(txt) {
+    let html = '', n = 0;
+    txt.split('\n').forEach(ligne => {
+      const t = ligne.trim();
+      if (!t) return;
+      if (t.startsWith('#')) {                       // section
+        n = 0;
+        html += `<div class="bilan-sec">${escBilan(t.slice(1).trim())}</div>`;
+      } else if (t.startsWith('.')) {                // sous-question
+        html += `<div class="bilan-sub">${escBilan(t.slice(1).trim())}</div>`;
+      } else {                                       // question
+        n++;
+        const q = t.startsWith('-') ? t.slice(1).trim() : t;
+        html += `<div class="bilan-q"><span class="bilan-q-n">${n}.</span><span>${escBilan(q)}</span></div>`;
+      }
+    });
+    return html;
+  }
+
+  function toggleBilanCard(date) {
+    const el = document.getElementById('bilan-' + date);
+    if (!el) return;
+    const ouvert = el.classList.toggle('open');
+    if (ouvert) bilanOuverts.add(date); else bilanOuverts.delete(date);
+  }
+
   function renderBilanCard(date, done) {
     const dateObj    = new Date(date + 'T12:00:00');
     const today      = toLocalDateStr(new Date());
     const isToday    = date === today;
-    // Toujours cliquable : la cliente peut faire son bilan en avance
-    // (avant la date programmée) ou ré-invalider un bilan déjà fait.
-    const clickable  = true;
 
     const dateStr     = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
@@ -1045,15 +1174,46 @@ function checkAccountActive(session){
 
     const statusLabel = done ? '✓ Fait' : (date <= today ? 'À faire' : 'Programmé');
     const statusClass = done ? 'done' : '';
-    const cardClass   = 'session-card bilan-card' + (done ? ' done' : '') + (clickable ? '' : ' no-click');
-    const onClick     = clickable ? `onclick="toggleBilanDone('${date}', ${done})"` : '';
+    const ouvert      = bilanOuverts.has(date);
+    const cardClass   = 'session-card bilan-card' + (done ? ' done' : '') + (ouvert ? ' open' : '');
 
-    return `<div class="${cardClass}" ${onClick}>
-      <div class="session-meta">
-        <div class="session-day">${dayLabel}</div>
-        <div class="session-status ${statusClass}">${statusLabel}</div>
+    // Le Drive de la cliente : c'est là qu'elle dépose sa vidéo.
+    const drive = clientDriveUrl
+      ? `<a class="bilan-btn bilan-btn-s" href="${clientDriveUrl}" target="_blank" rel="noopener"
+           style="text-decoration:none;text-align:center;line-height:1.4"
+           onclick="event.stopPropagation()">Ouvrir mon Drive</a>`
+      : '';
+
+    return `<div class="${cardClass}" id="bilan-${date}">
+      <div onclick="toggleBilanCard('${date}')">
+        <div class="session-meta">
+          <div class="session-day">${dayLabel}</div>
+          <div class="session-status ${statusClass}">${statusLabel}</div>
+        </div>
+        <div class="bilan-head">
+          <div class="session-name">Bilan</div>
+          <div class="bilan-chevron">›</div>
+        </div>
       </div>
-      <div class="session-name">Bilan</div>
+      <div class="bilan-body">
+        <div class="bilan-intro">
+          <b>Tu réponds en vidéo.</b> Lis les questions ci-dessous, enregistre-toi
+          en y répondant, et dépose la vidéo dans ton Drive. Pas besoin d'écrire
+          quoi que ce soit ici.
+        </div>
+        ${renderQuestionsBilan(bilanQuestions)}
+        <div class="bilan-note">
+          Si j'ajoute des questions dans ton espace perso, ce sont celles-là qui
+          priment sur cette liste.
+        </div>
+        <div class="bilan-actions">
+          ${drive}
+          <button class="bilan-btn ${done ? 'bilan-btn-done' : 'bilan-btn-p'}"
+                  onclick="event.stopPropagation();toggleBilanDone('${date}', ${done})">
+            ${done ? '✓ Fait — annuler' : 'Marquer comme fait'}
+          </button>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -2436,7 +2596,11 @@ function checkAccountActive(session){
   updateWeekLabel();
   loadWeekSessions();
   loadNotifications();
-  loadClientDriveUrl();
+  // Questions du bilan et lien Drive : on ne retarde pas l'affichage de la semaine
+  // pour eux. S'ils arrivent après coup et qu'un bilan est à l'écran, on redessine.
+  Promise.all([chargerQuestionsBilan(), loadClientDriveUrl()]).then(() => {
+    if (document.querySelector('.bilan-card')) loadWeekSessions();
+  });
   loadDayScore();
   checkBirthday();
 

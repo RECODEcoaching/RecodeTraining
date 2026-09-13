@@ -1036,6 +1036,27 @@ async function hashPin(pin) {
           <button class="btn btn-accent btn-sm" onclick="saveAppVideoUrl()" style="white-space:nowrap;">Enregistrer</button>
         </div>
       </div>
+
+      <div style="margin-top:8px;padding-bottom:20px;border-top:1px solid var(--border);padding-top:20px;">
+        <div class="section-title" style="margin-bottom:6px;">Questions du bilan</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+          Mêmes questions pour toutes les clientes, visibles en dépliant la carte « Bilan » de leur semaine.
+          Elles y répondent en vidéo dans leur Drive — l'app n'enregistre aucune réponse.<br><br>
+          <b>Une ligne par élément.</b>
+          <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">#</code> ouvre une section ·
+          <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">-</code> une question (numérotée automatiquement) ·
+          <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">.</code> une sous-question ou une précision.
+        </div>
+        <textarea id="bilan-questions-input" class="form-input" rows="14"
+          style="width:100%;font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.6;resize:vertical"
+          placeholder="# Alimentation&#10;- Comment suis-tu tes macros ?&#10;. Tout pesé&#10;. Estimation visuelle"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <button class="btn btn-accent btn-sm" onclick="saveBilanQuestions()">Enregistrer</button>
+          <button class="btn btn-sm" onclick="previewBilanQuestions()">Aperçu cliente</button>
+          <span id="bilan-questions-info" style="font-size:11.5px;color:var(--muted);"></span>
+        </div>
+        <div id="bilan-questions-preview" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);"></div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════════════
@@ -5308,6 +5329,94 @@ async function saveAppVideoUrl() {
   } catch(e) { toast('Erreur : ' + e.message); }
 }
 
+// ─── QUESTIONS DU BILAN ──────────────────────────────────────
+// Mêmes questions pour toutes les clientes, stockées dans app_settings.
+// Elles sont affichées seules : l'app n'enregistre aucune réponse, la cliente
+// répond en vidéo dans son Drive.
+const BILAN_QUESTIONS_DEFAUT = `# Alimentation
+- Comment suis-tu tes macros ?
+. Tout pesé
+. Estimation visuelle
+. Les deux
+- Sur combien de jours as-tu respecté :
+. tes kcal ?
+. tes protéines ?
+. tes lipides ?
+. tes glucides ?
+. tes fibres et oméga-3 ?
+# Freemeal
+- Combien de freemeals as-tu fait cette semaine ?
+. Freemeal = tout ce que tu ne comptabilises pas dans ton alimentation.
+# Entraînement
+- Prends-tu des vidéos de toi-même pour évaluer ta technique ?
+- As-tu manqué des séances ? Si oui, combien ?
+- Combien de séances ont été réalisées avec plus de 2 heures de décalage par rapport à leur horaire habituel ?
+- As-tu progressé en charges ou en répétitions sur chaque exercice ?
+- As-tu fait des deloads cette semaine ? Si oui, sur quels exercices ?
+# Sommeil
+- Sur combien de jours cette semaine as-tu dormi profondément au moins 7,5 heures ?
+- Combien de fois tu te réveilles en moyenne la nuit :
+. Pour aller aux toilettes ?
+. Pour toute autre raison ?
+- Combien de fois cette semaine es-tu allée au lit avec plus d'une heure de décalage par rapport à ton horaire habituel ?
+# Autres
+- Y a-t-il d'autres points que tu souhaiterais partager, sur lesquels tu aimerais échanger ou sur lesquels je pourrai t'aider ?`;
+
+async function loadBilanQuestions() {
+  const el = document.getElementById('bilan-questions-input');
+  const info = document.getElementById('bilan-questions-info');
+  if (!el) return;
+  try {
+    const { data } = await db.from('app_settings')
+      .select('value').eq('key', 'bilan_questions').maybeSingle();
+    if (data && data.value && data.value.trim()) {
+      el.value = data.value;
+      if (info) info.textContent = '';
+    } else {
+      // jamais enregistré : on pré-remplit avec la liste de base, identique à
+      // celle que la cliente voit déjà tant que rien n'est en base
+      el.value = BILAN_QUESTIONS_DEFAUT;
+      if (info) info.textContent = 'Liste de base — enregistre pour la personnaliser';
+    }
+  } catch(e) { el.value = BILAN_QUESTIONS_DEFAUT; }
+}
+
+async function saveBilanQuestions() {
+  const txt = document.getElementById('bilan-questions-input').value;
+  if (!txt.trim()) { toast('Les questions ne peuvent pas être vides'); return; }
+  try {
+    const { error } = await db.from('app_settings').upsert({ key: 'bilan_questions', value: txt });
+    if (error) { toast('Erreur : ' + error.message); return; }
+    const info = document.getElementById('bilan-questions-info');
+    if (info) info.textContent = 'Enregistré — visible par toutes tes clientes';
+    toast('Questions du bilan enregistrées ✓');
+  } catch(e) { toast('Erreur : ' + e.message); }
+}
+
+// Aperçu : exactement le même rendu que côté cliente, pour vérifier avant d'envoyer
+function previewBilanQuestions() {
+  const box = document.getElementById('bilan-questions-preview');
+  if (!box) return;
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  const txt = document.getElementById('bilan-questions-input').value;
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html = '', n = 0;
+  txt.split('\n').forEach(ligne => {
+    const t = ligne.trim();
+    if (!t) return;
+    if (t.startsWith('#')) { n = 0;
+      html += '<div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 7px;padding-bottom:5px;border-bottom:1px solid var(--border)">'+esc(t.slice(1).trim())+'</div>';
+    } else if (t.startsWith('.')) {
+      html += '<div style="font-size:12.5px;line-height:1.5;color:var(--muted);padding:3px 0 3px 23px">· '+esc(t.slice(1).trim())+'</div>';
+    } else { n++;
+      const q = t.startsWith('-') ? t.slice(1).trim() : t;
+      html += '<div style="display:flex;gap:8px;font-size:13.5px;line-height:1.5;padding:5px 0"><span style="font-weight:700;color:var(--dim);font-size:12px;min-width:15px">'+n+'.</span><span>'+esc(q)+'</span></div>';
+    }
+  });
+  box.innerHTML = html || '<div style="font-size:12px;color:var(--muted)">Rien à afficher.</div>';
+  box.style.display = 'block';
+}
+
 // ─── VIDÉO PLAN PAR CLIENTE ──────────────────────────────────
 async function loadPlanVideoUrl() {
   if (!currentClientId) return;
@@ -6661,6 +6770,7 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
 loadClients();
 loadNotionUrl();
 loadAppVideoUrl();
+loadBilanQuestions();
 </script>
 <script src="recode-diete.js?v=9"></script>
 <script>
