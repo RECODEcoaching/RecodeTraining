@@ -764,13 +764,29 @@ function client(){return S.clients[curClient];}
 //   3. « jour standard »
 const JOURS_SEM = ['dim','lun','mar','mer','jeu','ven','sam'];
 function jourSemaineDe(d){ return JOURS_SEM[parseD(d).getDay()]; }
+// Type de repli d'une cliente. « defaut » (le jour standard) quand il existe,
+// sinon le premier type de son plan : certaines n'ont que des jours hauts et
+// des jours bas, et le coach peut alors supprimer le jour standard.
+function typeParDefaut(cl){
+  cl=cl||client();
+  if(!cl || !cl.cibles) return 'defaut';
+  if(cl.cibles.defaut) return 'defaut';
+  const k=Object.keys(cl.cibles);
+  return k.length ? k[0] : 'defaut';
+}
+// Nom lisible d'un type de jour
+function nomJourType(t,cl){
+  if(t==='defaut') return 'Jour standard';
+  return cap(t);
+}
 function jourTypeFor(d,cl){
   cl=cl||client();
+  const repli=typeParDefaut(cl);
   const ex=cl.jours[d];
   if(ex && cl.cibles[ex]) return ex;
-  if(ex) return 'defaut';                       // exception vers le standard
+  if(ex) return repli;                          // type supprimé entre-temps
   const sem=(cl.semaineType||{})[jourSemaineDe(d)];
-  return (sem && cl.cibles[sem]) ? sem : 'defaut';
+  return (sem && cl.cibles[sem]) ? sem : repli;
 }
 // Un jour suit-il le rythme, ou a-t-il été forcé sur cette date ?
 function estException(d,cl){ cl=cl||client(); return cl.jours[d]!==undefined; }
@@ -784,7 +800,7 @@ function ciblesVides(){
 function ciblesFor(d,cl){
   cl=cl||client();
   if(!cl) return ciblesVides();
-  return cl.cibles[jourTypeFor(d,cl)] || cl.cibles.defaut || ciblesVides();
+  return cl.cibles[jourTypeFor(d,cl)] || cl.cibles[typeParDefaut(cl)] || ciblesVides();
 }
 function microTarget(k,cl){cl=cl||client();return (cl.microOverrides&&cl.microOverrides[k]!==undefined)?cl.microOverrides[k]:S.defaults.micro[k];}
 function isOverridden(k,cl){cl=cl||client();return cl.microOverrides&&cl.microOverrides[k]!==undefined;}

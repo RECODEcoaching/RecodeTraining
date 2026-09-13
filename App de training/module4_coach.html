@@ -832,6 +832,9 @@ async function hashPin(pin) {
 .jtbar{display:flex;gap:7px;margin-bottom:17px;flex-wrap:wrap;align-items:center}
 .jt{padding:7px 14px;border:1.5px solid var(--border-md);background:var(--surface);border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;transition:var(--transition);color:var(--text-muted)}
 .jt.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* le type sur lequel retombent les jours non posés */
+.jt-repli{font-size:8.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:var(--surface3);color:var(--text-dim);padding:1px 5px;border-radius:5px;margin-left:6px}
+.jt.on .jt-repli{background:rgba(255,255,255,.24);color:#fff}
 .jt-add{padding:7px 13px;border:1.5px dashed var(--border-md);background:none;border-radius:20px;font-size:12.5px;font-weight:700;color:var(--accent);cursor:pointer}
 .jt-del{padding:7px 11px;border:none;background:none;color:var(--danger);font-size:12px;font-weight:600;cursor:pointer}
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
@@ -6779,7 +6782,7 @@ loadNotionUrl();
 loadAppVideoUrl();
 loadBilanQuestions();
 </script>
-<script src="recode-diete.js?v=10"></script>
+<script src="recode-diete.js?v=11"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -6908,11 +6911,15 @@ async function ouvrirDieteGlobale(){
   await dbClientConfig(cl.id);renderCoach();renderCli();
 }async function resetMicro(k){const cl=client();if(cl.microOverrides)delete cl.microOverrides[k];await dbClientConfig(cl.id);renderCoach();renderCli();}function renderCibles(){
   const cl=client();
-  if(!cl.cibles[coachJT])coachJT='defaut';
+  if(!cl.cibles[coachJT])coachJT=typeParDefaut(cl);
   const c=cl.cibles[coachJT], jts=Object.keys(cl.cibles);
-  const chips=jts.map(k=>'<button class="jt'+(k===coachJT?' on':'')+'" onclick="pickJT(\''+k+'\')">'+(k==='defaut'?'Jour standard':cap(k))+'</button>').join('')
+  // Tout type est supprimable, y compris le jour standard, tant qu'il en reste un.
+  // Une cliente qui n'alterne que jour haut / jour bas n'a pas besoin d'un standard.
+  const repli=typeParDefaut(cl);
+  const chips=jts.map(k=>'<button class="jt'+(k===coachJT?' on':'')+'" onclick="pickJT(\''+k+'\')">'
+      +nomJourType(k)+(k===repli&&jts.length>1?'<span class="jt-repli">repli</span>':'')+'</button>').join('')
     +'<button class="jt-add" onclick="addJT()">+ Type de jour</button>'
-    +(coachJT!=='defaut'?'<button class="jt-del" onclick="delJT()">Supprimer ce type</button>':'');
+    +(jts.length>1?'<button class="jt-del" onclick="delJT()">Supprimer ce type</button>':'');
   // Les repas en NA sont exclus de la somme ; les fourchettes donnent un total lui-même
   // en fourchette (somme des bornes basses – somme des bornes hautes).
   const MK=[['kcal','kcalMin'],['p','pMin'],['g','gMin'],['l','lMin'],['f','fMin']];
@@ -7018,15 +7025,15 @@ function renderSemaine(cl){
     return '<div class="cald'+(pose?' cald-pose':'')+'" onclick="cycleSemaine(\''+j+'\')">'
       +'<div class="caldn">'+longs[j].slice(0,3).toLowerCase()+'</div>'
       +'<div class="caldd" style="font-size:13px">'+longs[j].slice(0,2)+'</div>'
-      +'<div class="caljt">'+(pose?cap(t):'standard')+'</div></div>';}).join('')+'</div>';
+      +'<div class="caljt">'+(pose?nomJourType(t).replace('Jour standard','standard'):nomJourType(typeParDefaut(cl)).replace('Jour standard','standard'))+'</div></div>';}).join('')+'</div>';
 }
 async function cycleSemaine(jour){
   const cl=client(),jts=Object.keys(cl.cibles);
   if(jts.length<2){dtToast('Crée d\'abord un autre type de jour');return;}
   if(!cl.semaineType)cl.semaineType={};
-  const cur=cl.semaineType[jour]||'defaut';
+  const cur=cl.semaineType[jour]||typeParDefaut(cl);
   const next=jts[(jts.indexOf(cur)+1)%jts.length];
-  if(next==='defaut')delete cl.semaineType[jour];else cl.semaineType[jour]=next;
+  if(next===typeParDefaut(cl))delete cl.semaineType[jour];else cl.semaineType[jour]=next;
   await dbSemaineType(curClient);renderCibles();renderCli();
 }function renderCal(cl){
   const days=[];for(let i=-3;i<=13;i++)days.push(addDays(todayStr(),i));
@@ -7036,7 +7043,7 @@ async function cycleSemaine(jour){
     return '<div class="cald'+(forc?' cald-forc':'')+(d===auj?' cald-auj':'')+'" onclick="cycleJT(\''+d+'\')">'
       +'<div class="caldn">'+['dim','lun','mar','mer','jeu','ven','sam'][dd.getDay()]+'</div>'
       +'<div class="caldd">'+dd.getDate()+'</div>'
-      +'<div class="caljt">'+(jt==='defaut'?'standard':cap(jt))+'</div>'
+      +'<div class="caljt">'+nomJourType(jt).replace('Jour standard','standard')+'</div>'
       +(forc?'<button class="cald-x" title="Revenir au rythme" onclick="event.stopPropagation();libererJour(\''+d+'\')">×</button>':'')
       +'</div>';}).join('')+'</div>';
 }async function cycleJT(date){
@@ -7062,12 +7069,34 @@ async function cycleSemaine(jour){
   client().cibles[key]=copie;
   coachJT=key; await dbCible(curClient,key); renderCibles(); dtToast('Créé');
 }async function delJT(){
-  if(coachJT==='defaut')return;if(!confirm('Supprimer ce type de jour ?'))return;
-  const cl=client(), supprime=coachJT;
+  const cl=client(), supprime=coachJT, jts=Object.keys(cl.cibles);
+  if(jts.length<2){dtToast('Il faut au moins un type de jour');return;}
+  // Le type de repli après suppression : celui sur lequel retomberont tous les
+  // jours qui ne sont pas explicitement posés.
+  const restants=jts.filter(k=>k!==supprime);
+  const nouveauRepli = restants.includes('defaut') ? 'defaut' : restants[0];
+  // Qui est concerné ? On le dit avant, pas après.
+  const datesTouchees=Object.keys(cl.jours).filter(d=>cl.jours[d]===supprime).length;
+  const joursSem=Object.keys(cl.semaineType||{}).filter(j=>cl.semaineType[j]===supprime);
+  const perteRepli = (supprime===typeParDefaut(cl));
+  if(!confirm('Supprimer le type « '+nomJourType(supprime)+' » ?'
+    +(joursSem.length?'\n\n'+joursSem.length+' jour(s) de son rythme hebdomadaire ('+joursSem.join(', ')+') basculent sur « '+nomJourType(nouveauRepli)+' ».':'')
+    +(datesTouchees?'\n'+datesTouchees+' date(s) forcée(s) sur ce type basculent sur « '+nomJourType(nouveauRepli)+' ».':'')
+    +(perteRepli?'\n\nC\'est le type de repli actuel : tous les jours non posés passeront sur « '+nomJourType(nouveauRepli)+' ».':'')
+    +'\n\nLes journées déjà enregistrées gardent leurs valeurs.'))return;
   await dbDelCible(curClient,supprime);
   delete cl.cibles[supprime];
-  for(const d of Object.keys(cl.jours)){ if(cl.jours[d]===supprime){ delete cl.jours[d]; await dbJour(curClient,d,'defaut'); } }
-  coachJT='defaut';renderCibles();renderCli();
+  // On nettoie les dates forcées ET le rythme, sinon ils pointeraient dans le vide
+  for(const d of Object.keys(cl.jours)){
+    if(cl.jours[d]===supprime){ cl.jours[d]=nouveauRepli; await dbJour(curClient,d,nouveauRepli); }
+  }
+  if(cl.semaineType){
+    let bouge=false;
+    for(const j of joursSem){ delete cl.semaineType[j]; bouge=true; }
+    if(bouge) await dbSemaineType(curClient);
+  }
+  coachJT=typeParDefaut(cl);renderCibles();renderCli();
+  dtToast('« '+nomJourType(supprime)+' » supprimé');
 }async function setCible(k,v){client().cibles[coachJT][k]=+v||0;await dbCible(curClient,coachJT);renderCibles();renderCli();}async function setRepas(i,k,v){
   const r=client().cibles[coachJT].repas[i];
   if(k==='nom'){ r.nom=v; }
@@ -7101,10 +7130,10 @@ async function toutEnNA(){
   await dbCible(curClient,coachJT);renderCibles();renderCli();dtToast('Réparti sur '+n+' repas');
 }async function openCopy(){
   const cl=client(),opts=[];
-  Object.keys(cl.cibles).forEach(k=>{if(k!==coachJT)opts.push(['jt:'+k,'Type de jour « '+(k==='defaut'?'standard':cap(k))+' » (même cliente)']);});
+  Object.keys(cl.cibles).forEach(k=>{if(k!==coachJT)opts.push(['jt:'+k,'Type de jour « '+nomJourType(k)+' » (même cliente)']);});
   Object.entries(S.clients).forEach(([k,c])=>{if(k!==curClient)opts.push(['cl:'+k,'Cliente '+c.nom+' (jour standard)']);});
   if(!opts.length){dtToast('Aucune destination');return;}
-  const r=prompt('Copier les cibles de « '+(coachJT==='defaut'?'standard':cap(coachJT))+' » vers :\n\n'+opts.map((o,i)=>(i+1)+'. '+o[1]).join('\n')+'\n\nNuméro :');
+  const r=prompt('Copier les cibles de « '+nomJourType(coachJT)+' » vers :\n\n'+opts.map((o,i)=>(i+1)+'. '+o[1]).join('\n')+'\n\nNuméro :');
   const i=parseInt(r,10)-1;if(isNaN(i)||!opts[i])return;
   const src=JSON.parse(JSON.stringify(cl.cibles[coachJT]));
   delete src._id; src.repas.forEach(r=>delete r._id);
@@ -7115,8 +7144,11 @@ async function toutEnNA(){
   } else {
     const autre=opts[i][0].slice(3);
     await chargerCliente(autre);
-    if(S.clients[autre].cibles.defaut) src._id=S.clients[autre].cibles.defaut._id;
-    S.clients[autre].cibles.defaut=src; await dbCible(autre,'defaut');
+    // On écrase le type de repli de l'autre cliente, pas forcément « defaut » :
+    // elle a pu supprimer son jour standard.
+    const cible=typeParDefaut(S.clients[autre]);
+    if(S.clients[autre].cibles[cible]) src._id=S.clients[autre].cibles[cible]._id;
+    S.clients[autre].cibles[cible]=src; await dbCible(autre,cible);
   }
   renderCoach();renderCli();dtToast('Cibles copiées');
 }

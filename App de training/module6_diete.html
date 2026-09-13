@@ -570,7 +570,7 @@ button,input,select{font-family:inherit}
 
 <div class="toast" id="toast"></div>
 
-<script src="recode-diete.js?v=10"></script>
+<script src="recode-diete.js?v=11"></script>
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
@@ -607,7 +607,7 @@ async function switchViewClient(id){
   // On ne propose l'échange que si la cliente a plus d'un type de jour.
   const plusieursTypes=Object.keys(cl.cibles||{}).length>1;
   const chip=document.getElementById('k-jt');
-  chip.innerHTML='<i></i><span>'+(jt==='defaut'?'Jour standard':cap(jt))+'</span>'
+  chip.innerHTML='<i></i><span>'+nomJourType(jt)+'</span>'
     +(plusieursTypes?'<b class="jchip-act">échanger</b>':'');
   chip.onclick = plusieursTypes ? ()=>openEchange() : null;
   chip.style.cursor = plusieursTypes ? 'pointer' : 'default';
@@ -963,7 +963,7 @@ function ringSm(pct,sansCible){
 // Le plan du coach reste intact, seul l'ordre change.
 function openEchange(){
   const cl=cliClient(), jt=jourTypeFor(curDate,cl);
-  const nomJT=t=>t==='defaut'?'Jour standard':cap(t);
+  const nomJT=t=>nomJourType(t);
   document.getElementById('ech-sub').textContent=
     parseD(curDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' · '+nomJT(jt);
   // fenêtre de 7 jours avant / 7 jours après, sans le jour courant
@@ -992,7 +992,7 @@ function closeEchange(){document.getElementById('ov-ech').classList.remove('on')
 async function faireEchange(autreDate){
   const cl=cliClient();
   const a=jourTypeFor(curDate,cl), b=jourTypeFor(autreDate,cl);
-  const nomJT=t=>t==='defaut'?'Jour standard':cap(t);
+  const nomJT=t=>nomJourType(t);
   const ok=await dbEchangerJours(cl.id,curDate,autreDate);
   if(!ok){dtToast('Ces deux journées ont déjà le même objectif');return;}
   closeEchange();renderCli();renderCoach();
