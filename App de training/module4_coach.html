@@ -628,6 +628,13 @@ async function hashPin(pin) {
   .history-delta.up { color: var(--success); }
   .history-delta.down { color: var(--danger); }
   .history-delta.eq { color: var(--dim); }
+  /* correction d'une mesure saisie par la cliente */
+  .history-val:hover { text-decoration: underline dotted; }
+  .hist-del {
+    border: none; background: none; color: var(--dim); font-size: 16px;
+    line-height: 1; cursor: pointer; padding: 2px 4px; flex: 0 0 auto;
+  }
+  .hist-del:hover { color: var(--danger); }
 
   /* ─── PROGRAMMATION 4 SEMAINES ───────────────────────────── */
   .prog-topbar {
@@ -1663,7 +1670,8 @@ CREATE POLICY "Allow all anon on seance_echauffement"
   <div class="modal-box">
     <div class="modal-header">
       <div>
-        <div class="modal-header-title" id="psd-titre">—</div>
+        <div class="modal-header-title" id="psd-titre" onclick="renommerSeance()"
+             title="Cliquer pour renommer" style="cursor:text">—</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="psd-meta">—</div>
       </div>
       <button class="modal-close" onclick="document.getElementById('modal-prog-detail').classList.remove('open')">×</button>
@@ -4009,6 +4017,62 @@ async function loadClientPlanHtml() {
   document.getElementById('exo-mindset-preview-wrap').style.display = 'none';
 }
 
+// ─── CYCLE : corrections du coach ──────────────────────────────
+// Le J1 est la donnée dont tout dépend (phase, durée moyenne, lecture du cycle).
+// Une erreur de saisie de la cliente décale toute son analyse, d'où ces deux
+// correctifs directement dans l'historique.
+// Note : cycle_logs mélange J1 et FIN_REGLES sur la même table, via la colonne
+// notes. Un même jour peut porter « J1_FIN_REGLES » (cycle d'un seul jour) —
+// on ne touche donc jamais à la ligne en aveugle.
+async function corrigerJ1(dateIso) {
+  if (!currentClientId) return;
+  const saisie = prompt('Date de début de ce cycle (AAAA-MM-JJ) :', dateIso);
+  if (saisie === null) return;
+  const nouvelle = String(saisie).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nouvelle)) { toast('Format attendu : AAAA-MM-JJ'); return; }
+  if (nouvelle === dateIso) return;
+  const { data: existante } = await db.from('cycle_logs')
+    .select('date, notes').eq('client_id', currentClientId).eq('date', nouvelle).maybeSingle();
+  if (existante) { toast('Il y a déjà une entrée de cycle à cette date'); return; }
+  const { data: ligne } = await db.from('cycle_logs')
+    .select('notes').eq('client_id', currentClientId).eq('date', dateIso).maybeSingle();
+  if (!ligne) { toast('Entrée introuvable'); return; }
+  if (ligne.notes === 'J1_FIN_REGLES') {
+    // la ligne porte aussi une fin de règles : on ne déplace que le J1
+    await db.from('cycle_logs').update({ notes: 'FIN_REGLES' })
+      .eq('client_id', currentClientId).eq('date', dateIso);
+    await db.from('cycle_logs').insert({ client_id: currentClientId, date: nouvelle, notes: 'J1' });
+  } else {
+    const { error } = await db.from('cycle_logs').update({ date: nouvelle })
+      .eq('client_id', currentClientId).eq('date', dateIso);
+    if (error) { toast('Erreur : ' + error.message); return; }
+  }
+  toast('Début de cycle corrigé ✓');
+  await loadClientCycleData();
+}
+
+async function supprimerJ1(dateIso) {
+  if (!currentClientId) return;
+  const lisible = new Date(dateIso + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+  if (!confirm('Supprimer le début de cycle du ' + lisible + ' ?\n\n'
+    + 'Les durées moyennes et la phase actuelle seront recalculées. '
+    + 'Le journal quotidien (température, glaire…) n\'est pas touché.')) return;
+  const { data: ligne } = await db.from('cycle_logs')
+    .select('notes').eq('client_id', currentClientId).eq('date', dateIso).maybeSingle();
+  if (!ligne) { toast('Entrée introuvable'); return; }
+  if (ligne.notes === 'J1_FIN_REGLES') {
+    // on retire le J1 mais on garde la fin de règles déclarée ce jour-là
+    await db.from('cycle_logs').update({ notes: 'FIN_REGLES' })
+      .eq('client_id', currentClientId).eq('date', dateIso);
+  } else {
+    const { error } = await db.from('cycle_logs').delete()
+      .eq('client_id', currentClientId).eq('date', dateIso).eq('notes', 'J1');
+    if (error) { toast('Erreur : ' + error.message); return; }
+  }
+  toast('Début de cycle supprimé');
+  await loadClientCycleData();
+}
+
 // ─── CYCLE : vue coach ─────────────────────────────────────────
 async function loadClientCycleData() {
   if (!currentClientId) return;
@@ -4086,13 +4150,19 @@ async function loadClientCycleData() {
       const end   = cycles[i + 1] || null; // début du cycle suivant = fin de la fenêtre
       const len   = reglesLenFor(start, end);
       const startStr = start.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+      const iso = toLocalDateStr(start);
       const row = document.createElement('div');
       row.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+      // Le J1 est corrigeable : c'est la donnée la plus souvent mal saisie, et
+      // toute la lecture du cycle en dépend.
       row.innerHTML = `
-        <span style="font-size:12px;font-weight:700;">${startStr}</span>
+        <span style="font-size:12px;font-weight:700;cursor:pointer;" title="Corriger cette date"
+              onclick="corrigerJ1('${iso}')">${startStr}</span>
         <span style="font-size:11px;color:${len ? 'var(--cycle-menstrual)' : 'var(--muted)'};font-weight:600;">
           ${len ? '🩸 Règles : ' + len + ' jour' + (len > 1 ? 's' : '') : 'Fin des règles non déclarée'}
         </span>
+        <button class="hist-del" title="Supprimer ce début de cycle"
+                onclick="supprimerJ1('${iso}')">×</button>
       `;
       historyList.appendChild(row);
     }
@@ -5639,6 +5709,8 @@ async function showMetricHistory(metriqueId, nom, unit) {
   if (!valeurs || valeurs.length === 0) {
     list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée.</div>';
   } else {
+    const nEsc = (nom || '').replace(/'/g, "\\'");
+    const uEsc = (unit || '').replace(/'/g, "\\'");
     list.innerHTML = valeurs.map((v, i) => {
       const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
       let delta = '—', dir = 'eq';
@@ -5649,10 +5721,16 @@ async function showMetricHistory(metriqueId, nom, unit) {
           delta = (diff > 0 ? '▲ +' : '▼ ') + Math.abs(diff).toFixed(1);
         }
       }
+      // Chaque ligne est corrigeable : la cliente peut s'être trompée de chiffre
+      // ou avoir saisi une mesure un mauvais jour.
+      const args = `'${metriqueId}','${v.date}','${nEsc}','${uEsc}'`;
       return `<div class="history-row">
         <div class="history-date">${dateStr}</div>
-        <div class="history-val">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
+        <div class="history-val" onclick="editMetricValue(${args},${v.valeur})"
+             style="cursor:pointer" title="Corriger cette valeur">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
         <div class="history-delta ${dir}">${delta}</div>
+        <button class="hist-del" title="Supprimer cette mesure"
+                onclick="deleteMetricValue(${args})">×</button>
       </div>`;
     }).join('');
   }
@@ -5681,6 +5759,35 @@ async function showMetricHistory(metriqueId, nom, unit) {
         <button class="btn btn-accent btn-sm" onclick="addMetricHistoryValue('${metriqueId}','${nomEsc}','${unitEsc}')">Ajouter</button>
       </div>
     </div>`;
+}
+
+// Corriger une mesure déjà enregistrée, sans changer sa date.
+async function editMetricValue(metriqueId, date, nom, unit, actuelle) {
+  const dateStr = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+  const saisie = prompt('Valeur du ' + dateStr + (unit ? ' (' + unit + ')' : '') + ' :', actuelle);
+  if (saisie === null) return;
+  const v = parseFloat(String(saisie).replace(',', '.'));
+  if (isNaN(v)) { toast('Entre une valeur numérique'); return; }
+  const { error } = await db.from('metrique_valeurs').upsert(
+    { metrique_id: metriqueId, valeur: v, date },
+    { onConflict: 'metrique_id,date' }
+  );
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Mesure corrigée ✓');
+  await showMetricHistory(metriqueId, nom, unit);
+  if (currentClientId) loadClientMetrics(currentClientId);
+}
+
+// Supprimer une mesure : utile quand la cliente a saisi une valeur le mauvais jour.
+async function deleteMetricValue(metriqueId, date, nom, unit) {
+  const dateStr = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+  if (!confirm('Supprimer la mesure du ' + dateStr + ' ?\n\nCette ligne disparaîtra de l\'historique et des courbes.')) return;
+  const { error } = await db.from('metrique_valeurs').delete()
+    .eq('metrique_id', metriqueId).eq('date', date);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Mesure supprimée');
+  await showMetricHistory(metriqueId, nom, unit);
+  if (currentClientId) loadClientMetrics(currentClientId);
 }
 
 // Ajoute/écrase une valeur historique pour une métrique (upsert sur metrique_id+date) —
@@ -6163,6 +6270,24 @@ async function openProgSeanceDetail(seanceId, titre, date, statut) {
 
   document.getElementById('modal-prog-detail').classList.add('open');
   await loadProgDetailExos(seanceId);
+}
+
+// Renommer une séance déjà créée : un titre se corrige, y compris après coup
+// et même sur une séance déjà validée.
+async function renommerSeance() {
+  if (!progDetailSeanceId) return;
+  const actuel = document.getElementById('psd-titre').textContent;
+  const nouveau = prompt('Nom de la séance :', actuel);
+  if (nouveau === null) return;
+  const titre = nouveau.trim();
+  if (!titre) { toast('Le nom ne peut pas être vide'); return; }
+  if (titre === actuel) return;
+  const { error } = await db.from('seances').update({ titre }).eq('id', progDetailSeanceId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  document.getElementById('psd-titre').textContent = titre;
+  toast('Séance renommée ✓');
+  await loadProgSeances();
+  if (currentClientId) await loadSeances(currentClientId);
 }
 
 function updateProgDetailValidateBtn() {

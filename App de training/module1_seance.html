@@ -226,6 +226,7 @@ function checkAccountActive(session){
     background: var(--surface2); color: var(--text-muted); font-weight: 500;
   }
   .session-status.done { background: var(--success-bg); color: var(--success); font-weight: 600; }
+  .session-status.retard { background: rgba(217,119,6,0.1); color: #D97706; font-weight: 600; }
   .session-status.cardio { background: rgba(217,119,6,0.1); color: #D97706; font-weight: 600; }
   .session-card.cardio-card::before { background: #D97706; }
   .session-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
@@ -1043,7 +1044,12 @@ function checkAccountActive(session){
       const { data: bilanSchedule } = await db.from('bilan_schedule')
         .select('date').eq('client_id', SESSION.client_id)
         .gte('date', lundi).lte('date', dimanche);
-      visibleBilans = (bilanSchedule || []).map(b => b.date).filter(d => d >= today);
+      // Tous les bilans de la semaine affichée sont montrés, y compris passés.
+      // Avant, un .filter(d => d >= today) les faisait disparaître dès le
+      // lendemain : la cliente ne pouvait plus le faire en retard, ni même
+      // voir qu'elle l'avait manqué — alors qu'il restait compté comme non
+      // fait dans sa jauge de compliance.
+      visibleBilans = (bilanSchedule || []).map(b => b.date);
     } catch(e) {}
 
     let bilanDoneSet = new Set();
@@ -1172,8 +1178,11 @@ function checkAccountActive(session){
     const capitalDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
     const dayLabel    = capitalDate + (isToday ? ' · Aujourd\'hui' : '');
 
-    const statusLabel = done ? '✓ Fait' : (date <= today ? 'À faire' : 'Programmé');
-    const statusClass = done ? 'done' : '';
+    // Un bilan passé et non fait reste affiché : il est signalé « En retard »
+    // plutôt que de disparaître silencieusement.
+    const enRetard    = !done && date < today;
+    const statusLabel = done ? '✓ Fait' : (enRetard ? 'En retard' : (date === today ? 'À faire' : 'Programmé'));
+    const statusClass = done ? 'done' : (enRetard ? 'retard' : '');
     const ouvert      = bilanOuverts.has(date);
     const cardClass   = 'session-card bilan-card' + (done ? ' done' : '') + (ouvert ? ' open' : '');
 
@@ -1716,7 +1725,7 @@ function checkAccountActive(session){
     document.getElementById('exo-note-input').value = '';
     loadExoNotes(nomExo);
 
-    // Récupère les séances du client
+    // Récupère les séances du client, de la plus récente à la plus ancienne
     const { data: seances } = await db.from('seances').select('id, date, titre')
       .eq('client_id', SESSION.client_id).order('date', { ascending: false });
     if (!seances || !seances.length) {
@@ -1726,11 +1735,21 @@ function checkAccountActive(session){
     const seanceMap = {};
     seances.forEach(s => { seanceMap[s.id] = s; });
 
+    // On interroge uniquement les séances RÉCENTES.
+    // Avant, la requête portait sur toutes les séances avec un .limit(20) et
+    // AUCUN tri : la base renvoyait 20 lignes au hasard parmi toutes les
+    // occurrences de l'exercice — en pratique les plus anciennes. On triait
+    // ensuite ces 20 lignes par date, d'où des semaines entières absentes de
+    // l'historique alors que les données existaient bien.
+    // Une fenêtre de séances récentes garantit que les dernières séances sont
+    // dans le lot, et garde l'URL de la requête dans des limites raisonnables.
+    const FENETRE_SEANCES = 80;
+    const idsRecents = seances.slice(0, FENETRE_SEANCES).map(s => s.id);
+
     const { data: rowsRaw } = await db.from('seance_exercices')
       .select('seance_id, charge_reelle, reps_reelles, charge, charge_kg, series_data, notes_client')
       .eq('nom_exo', nomExo)
-      .in('seance_id', seances.map(s => s.id))
-      .limit(20);
+      .in('seance_id', idsRecents);
 
     const rows = (rowsRaw || []).sort((a, b) => {
       const da = seanceMap[a.seance_id]?.date || '';
