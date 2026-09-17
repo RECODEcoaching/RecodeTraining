@@ -2418,11 +2418,14 @@ async function loadClients() {
   const grid = document.getElementById('clients-grid');
   grid.innerHTML = '<div style="grid-column:1/-1;padding:30px 0" class="loading-text">Chargement…</div>';
 
-  const { data, error } = await db
-    .from('clients')
-    .select('id, email, prenom, created_at, is_first_login, drive_url, actif, date_naissance')
-    .order('prenom', { ascending: true });
-  const unreadClientIds = await getClientsWithUnreadComments();
+  // Les deux requêtes sont indépendantes : on les lance en parallèle plutôt
+  // que l'une après l'autre. Un aller-retour réseau économisé à chaque ouverture.
+  const [{ data, error }, unreadClientIds] = await Promise.all([
+    db.from('clients')
+      .select('id, email, prenom, created_at, is_first_login, drive_url, actif, date_naissance')
+      .order('prenom', { ascending: true }),
+    getClientsWithUnreadComments()
+  ]);
 
   if (error) {
     grid.innerHTML = `<div style="grid-column:1/-1;color:var(--danger);padding:16px;font-size:13px;">
@@ -5375,6 +5378,36 @@ function clearExoMindsetHtml() {
   saveExoMindsetHtml();
 }
 
+// ─── RÉGLAGES GLOBAUX ─────────────────────────────────────────
+// notion_collectif_url, app_intro_video_url et bilan_questions vivent tous
+// dans app_settings. Les charger séparément coûtait trois allers-retours
+// réseau au démarrage ; une seule requête suffit.
+async function loadReglagesGlobaux() {
+  let lignes = [];
+  try {
+    const { data } = await db.from('app_settings')
+      .select('key, value')
+      .in('key', ['notion_collectif_url', 'app_intro_video_url', 'bilan_questions']);
+    lignes = data || [];
+  } catch(e) { /* table absente — on retombe sur les valeurs par défaut */ }
+
+  const val = k => (lignes.find(r => r.key === k) || {}).value || '';
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+
+  set('notion-url-input',    val('notion_collectif_url'));
+  set('app-video-url-input', val('app_intro_video_url'));
+
+  const questions = val('bilan_questions');
+  const info = document.getElementById('bilan-questions-info');
+  if (questions.trim()) {
+    set('bilan-questions-input', questions);
+    if (info) info.textContent = '';
+  } else {
+    set('bilan-questions-input', BILAN_QUESTIONS_DEFAUT);
+    if (info) info.textContent = 'Liste de base — enregistre pour la personnaliser';
+  }
+}
+
 // ─── NOTION URL GLOBALE ───────────────────────────────────────
 async function loadNotionUrl() {
   try {
@@ -6903,9 +6936,9 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
 //  INIT
 // ═══════════════════════════════════════════════════════════
 loadClients();
-loadNotionUrl();
-loadAppVideoUrl();
-loadBilanQuestions();
+// Les trois réglages globaux vivent dans la même table : une seule requête
+// au lieu de trois allers-retours réseau à chaque ouverture.
+loadReglagesGlobaux();
 </script>
 <script src="recode-diete.js?v=11"></script>
 <script>

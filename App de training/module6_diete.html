@@ -229,9 +229,17 @@ button,input,select{font-family:inherit}
 .note-box{background:var(--accent-bg-soft);border:1px solid var(--accent-bg);border-radius:11px;padding:12px 13px;font-size:11px;color:var(--text-muted);line-height:1.55;margin-bottom:12px}
 .note-box b{color:var(--text);font-weight:700}
 
-.ov{position:fixed;inset:0;background:rgba(17,24,39,.5);backdrop-filter:blur(2px);z-index:200;display:none;align-items:flex-end;justify-content:center}
+/* --vvh / --vvtop suivent la zone RÉELLEMENT visible (visualViewport).
+   Sur iOS, le clavier ne réduit pas les unités vh : sans ça, le bas de la
+   feuille — donc les résultats de recherche — se retrouve sous le clavier. */
+.ov{position:fixed;left:0;right:0;top:var(--vvtop,0px);height:var(--vvh,100%);background:rgba(17,24,39,.5);backdrop-filter:blur(2px);z-index:200;display:none;align-items:flex-end;justify-content:center}
 .ov.on{display:flex}
-.sheet{background:var(--surface);width:100%;max-width:480px;max-height:90vh;border-radius:22px 22px 0 0;display:flex;flex-direction:column;animation:up .28s cubic-bezier(.34,1.1,.4,1)}
+.sheet{background:var(--surface);width:100%;max-width:480px;max-height:100%;border-radius:22px 22px 0 0;display:flex;flex-direction:column;animation:up .28s cubic-bezier(.34,1.1,.4,1)}
+/* la feuille de recherche prend toute la hauteur disponible : la liste a
+   ainsi le maximum de place, clavier ouvert comme fermé */
+.sheet-search{height:100%}
+.sheet-search .sb{flex:1;min-height:0}
+.sh .search-in{margin-top:11px}
 @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .sh{padding:16px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
 .st{font-size:16px;font-weight:800;letter-spacing:-.025em}
@@ -494,10 +502,13 @@ button,input,select{font-family:inherit}
 </div>
 
 <div class="ov" id="ov-search" onclick="if(event.target===this)closeSearch()">
-  <div class="sheet">
-    <div class="sh"><div class="st">Ajouter un aliment</div><div class="ss" id="search-sub"></div></div>
-    <div class="sb">
+  <div class="sheet sheet-search">
+    <!-- Le champ vit dans l'en-tête figé : quand le clavier s'ouvre, seule la
+         liste défile, et la recherche reste visible. -->
+    <div class="sh"><div class="st">Ajouter un aliment</div><div class="ss" id="search-sub"></div>
       <input class="search-in" id="search-in" placeholder="Rechercher… (ex : poulet, riz, banane)" oninput="runSearch()" autocomplete="off">
+    </div>
+    <div class="sb">
       <div id="search-res"></div>
     </div>
     <div class="sf"><button class="btn btn-s" onclick="closeSearch()">Fermer</button>
@@ -574,6 +585,25 @@ button,input,select{font-family:inherit}
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
+
+// ── Clavier mobile ───────────────────────────────────────────────────
+// Sur iOS, ouvrir le clavier ne change NI la hauteur de la fenêtre NI les
+// unités vh : le clavier se pose par-dessus la page. Une feuille ancrée en
+// bas passe donc sous le clavier, et la cliente ne voit plus les résultats
+// de sa recherche. visualViewport donne la zone réellement visible ; on la
+// reporte en variables CSS, que les overlays utilisent pour se dimensionner.
+(function suivreClavier(){
+  const vv = window.visualViewport;
+  if(!vv) return;                       // navigateur ancien : on garde le 100 %
+  const maj = () => {
+    const r = document.documentElement.style;
+    r.setProperty('--vvh',   vv.height + 'px');
+    r.setProperty('--vvtop', vv.offsetTop + 'px');
+  };
+  vv.addEventListener('resize', maj);
+  vv.addEventListener('scroll', maj);
+  maj();
+})();
 
 // Repas dépliés par la cliente. On les garde en mémoire pour qu'un ajout ou une
 // suppression, qui redessine toute la liste, ne referme pas la carte ouverte.
