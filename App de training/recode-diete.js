@@ -362,7 +362,8 @@ async function chargerAliments(){
   ALIMENTS_BASE = tout.map(r => COLS_ALIM.map((c,i) => i===0 ? r[c] : (r[c]==null ? null : +r[c])));
   ALIM_IDS  = tout.map(r => r.id);
   ALIM_META = tout.map(r => ({ source:r.source, statut:r.statut, propose_par:r.propose_par,
-    fct:r.fructanes_niveau, gos:r.gos_niveau, portion:+r.fod_portion || 100, estDe:r.sucres_estimes_de }));
+    fct:r.fructanes_niveau, gos:r.gos_niveau, portion:+r.fod_portion || 100, estDe:r.sucres_estimes_de,
+    motif:r.refus_motif || '', seuils:r.fod_seuils || null }));
   ID2IDX = {}; tout.forEach((r,i) => ID2IDX[r.id] = i);
   console.log('Aliments chargés depuis Supabase :', tout.length);
 }
@@ -397,12 +398,15 @@ async function chargerCliente(id){
   if(!cl || cl._charge) return;
   const depuis = addDays(todayStr(), -60);
 
-  const [cib, cfg, jrs, libres, ents] = await Promise.all([
+  const [cib, cfg, jrs, libres, ents, nt] = await Promise.all([
     sb.from('diete_cibles').select('*, diete_repas(*)').eq('client_id', id),
     sb.from('diete_client_config').select('*').eq('client_id', id).maybeSingle(),
     sb.from('diete_jours').select('*').eq('client_id', id),
     sb.from('diete_repas_libres').select('*').eq('client_id', id).gte('date', depuis),
-    sb.from('diete_entrees').select('*').eq('client_id', id).gte('date', depuis)
+    sb.from('diete_entrees').select('*').eq('client_id', id).gte('date', depuis),
+    // repas explicitement non trackés ; la table peut ne pas exister encore
+    sb.from('diete_repas_non_traques').select('*').eq('client_id', id).gte('date', depuis)
+      .then(r => r, () => ({ data:null, error:true }))
   ]);
 
   // Détection au chargement : si la colonne n'existe pas en base, la propriété est
@@ -429,6 +433,15 @@ async function chargerCliente(id){
   // de laisser le rythme disparaître en silence à chaque enregistrement
   if(cfg.data && cfg.data.semaine_type === undefined) SEMAINE_TYPE_OK = false;
   cl.jours = {}; (jrs.data||[]).forEach(j => cl.jours[j.date] = j.jour_type);
+
+  // Repas déclarés non trackés, indexés par « date|repas_ref ».
+  // Si la table n'existe pas encore, on le signale une fois au lieu de faire
+  // échouer silencieusement chaque enregistrement.
+  cl.nonTraques = {};
+  if(nt && nt.error){ NON_TRAQUES_OK = false; }
+  else (nt && nt.data || []).forEach(r => {
+    cl.nonTraques[r.date + '|' + r.repas_ref] = { note: r.note || '' };
+  });
 
   cl.journal = {};
   (libres.data||[]).forEach(m => {
@@ -618,9 +631,39 @@ async function dbAddAlimentPerso(nom, kcal, p, g, l, f, parId){
   if(error){ erreur(error, 'proposition de l\'aliment'); return null; }
   return data;
 }
-async function dbAlimentStatut(alimId, statut){
-  const { error } = await sb.from('aliments').update({ statut }).eq('id', alimId);
-  if(error) erreur(error, 'validation de l\'aliment');
+async function dbAlimentStatut(alimId, statut, motif){
+  const patch = { statut };
+  if(motif !== undefined) patch.refus_motif = motif || null;
+  let { error } = await sb.from('aliments').update(patch).eq('id', alimId);
+  // colonne refus_motif absente : on enregistre au moins le statut
+  if(error && motif !== undefined){
+    ({ error } = await sb.from('aliments').update({ statut }).eq('id', alimId));
+    if(!error) dtToast('Motif non enregistré — SQL manquant (diete-refus-aliment.sql)');
+  }
+  if(error) erreur(error, 'changement de statut de l\'aliment');
+}
+// Qui doit être prévenue du retrait d'un aliment ? Celle qui l'a proposé, et
+// toutes celles qui l'ont réellement utilisé — sinon l'aliment disparaît de
+// leur recherche sans explication.
+async function dbClientesConcernees(alimId, proposePar){
+  const ids = new Set();
+  if(proposePar) ids.add(proposePar);
+  const { data } = await sb.from('diete_entrees').select('client_id').eq('aliment_id', alimId);
+  (data||[]).forEach(e => { if(e.client_id) ids.add(e.client_id); });
+  return [...ids];
+}
+// Notification côté cliente. `message` porte le texte précis (nom de l'aliment
+// et motif) ; sans la colonne, on retombe sur le libellé générique du type.
+async function dbNotifier(clientIds, type, message){
+  if(!clientIds || !clientIds.length) return;
+  const lignes = clientIds.map(id => ({ client_id:id, type, lu:false, message:message||null }));
+  let { error } = await sb.from('notifications').insert(lignes);
+  if(error){
+    const sansMessage = clientIds.map(id => ({ client_id:id, type, lu:false }));
+    ({ error } = await sb.from('notifications').insert(sansMessage));
+    if(!error) dtToast('Notification envoyée sans détail — SQL manquant');
+  }
+  if(error) erreur(error, 'envoi de la notification');
 }
 // Pas de suppression définitive d'un aliment : un DELETE casserait le lien avec les
 // entrées déjà saisies par les clientes (aliment_id passe à NULL) et le geste serait
@@ -640,7 +683,13 @@ async function dbMajAliment(idx, champs){
   // empruntée à une variante : la mention « sucres estimés » doit disparaître.
   if(('fructose' in patch || 'glucose' in patch) && ALIM_META[idx] && ALIM_META[idx].estDe != null)
     patch.sucres_estimes_de = null;
-  const { error } = await sb.from('aliments').update(patch).eq('id', ALIM_IDS[idx]);
+  let { error } = await sb.from('aliments').update(patch).eq('id', ALIM_IDS[idx]);
+  if(error && 'fod_seuils' in patch){
+    // colonne fod_seuils absente : on enregistre tout le reste
+    const { fod_seuils, ...sansSeuils } = patch;
+    ({ error } = await sb.from('aliments').update(sansSeuils).eq('id', ALIM_IDS[idx]));
+    if(!error) dtToast('Seuils non enregistrés — SQL manquant (diete-fodmap-seuils.sql)');
+  }
   if(error){ erreur(error, 'modification de l\'aliment'); return false; }
   // report en mémoire, pour éviter de recharger les 1129 aliments après chaque correction
   COLS_ALIM.forEach((c,i)=>{
@@ -652,6 +701,7 @@ async function dbMajAliment(idx, champs){
     if('fructanes_niveau' in patch) m.fct = patch.fructanes_niveau;
     if('gos_niveau' in patch)       m.gos = patch.gos_niveau;
     if('fod_portion' in patch)      m.portion = +patch.fod_portion || 100;
+    if('fod_seuils' in patch)       m.seuils = patch.fod_seuils;
     if('sucres_estimes_de' in patch)m.estDe = patch.sucres_estimes_de;
     if(patch.source)                m.source = patch.source;
   }
@@ -660,11 +710,61 @@ async function dbMajAliment(idx, champs){
 }
 // Un aliment CIQUAL dont le coach a corrigé au moins une valeur
 function estCorrige(i){ const m=ALIM_META[i]; return !!(m && m.source==='ciqual_coach'); }
+
+// ── Repas non trackés ────────────────────────────────────────────────
+// Un repas vide est ambigu : rien mangé, ou pas pu noter ? La cliente le dit
+// explicitement, et la moyenne est ensuite lue pour ce qu'elle vaut.
+let NON_TRAQUES_OK = true;
+function estNonTraque(date, repasRef, cl){
+  cl = cl || client();
+  return !!(cl && cl.nonTraques && cl.nonTraques[date + '|' + repasRef]);
+}
+function noteNonTraque(date, repasRef, cl){
+  cl = cl || client();
+  const o = cl && cl.nonTraques && cl.nonTraques[date + '|' + repasRef];
+  return o ? o.note : '';
+}
+// Nombre de repas non trackés sur une période, pour qualifier une moyenne
+function nbNonTraques(dates, cl){
+  cl = cl || client();
+  if(!cl || !cl.nonTraques) return 0;
+  const set = new Set(dates);
+  return Object.keys(cl.nonTraques).filter(k => set.has(k.split('|')[0])).length;
+}
+async function dbNonTraque(id, date, repasRef, actif, note){
+  const cl = S.clients[id];
+  const cle = date + '|' + repasRef;
+  if(actif){
+    const { error } = await sb.from('diete_repas_non_traques').upsert(
+      { client_id:id, date, repas_ref:repasRef, note: note || null },
+      { onConflict:'client_id,date,repas_ref' });
+    if(error){
+      NON_TRAQUES_OK = false;
+      erreur(error, 'enregistrement du repas non tracké');
+      dtToast('Non enregistré — SQL manquant (diete-repas-non-traques.sql)');
+      return false;
+    }
+    cl.nonTraques[cle] = { note: note || '' };
+  } else {
+    const { error } = await sb.from('diete_repas_non_traques').delete()
+      .eq('client_id', id).eq('date', date).eq('repas_ref', repasRef);
+    if(error){ erreur(error, 'suppression du repas non tracké'); return false; }
+    delete cl.nonTraques[cle];
+  }
+  return true;
+}
 async function dbFodmap(idx){
   const m = ALIM_META[idx];
-  const { error } = await sb.from('aliments').update({
-    fructanes_niveau:m.fct, gos_niveau:m.gos, fod_portion:m.portion
-  }).eq('id', ALIM_IDS[idx]);
+  const patch = { fructanes_niveau:m.fct, gos_niveau:m.gos, fod_portion:m.portion,
+                  fod_seuils: m.seuils || null };
+  let { error } = await sb.from('aliments').update(patch).eq('id', ALIM_IDS[idx]);
+  if(error){
+    // colonne fod_seuils absente : on enregistre au moins les niveaux
+    ({ error } = await sb.from('aliments').update({
+      fructanes_niveau:m.fct, gos_niveau:m.gos, fod_portion:m.portion
+    }).eq('id', ALIM_IDS[idx]));
+    if(!error) dtToast('Seuils non enregistrés — SQL manquant (diete-fodmap-seuils.sql)');
+  }
   if(error) erreur(error, 'enregistrement fructanes / GOS');
 }
 
@@ -684,8 +784,35 @@ function foodKey(src,ref){return (src==='base'?'b':'c')+ref;}
 // niveau (1/2/3) attribué par le coach à cet aliment, ou null si non renseigné
 function manualOf(e){
   const m = e.ref>=0 ? ALIM_META[e.ref] : null;
-  if(!m) return {fct:null,gos:null,portion:100};
-  return {fct:m.fct==null?null:m.fct, gos:m.gos==null?null:m.gos, portion:m.portion||100};
+  if(!m) return {fct:null,gos:null,portion:100,seuils:null};
+  return {fct:m.fct==null?null:m.fct, gos:m.gos==null?null:m.gos,
+          portion:m.portion||100, seuils:m.seuils||null};
+}
+// ── Deux façons de classer un aliment ────────────────────────────────
+// 1. SEUILS EN GRAMMES (à privilégier) : « moyen à partir de 8 g, haut à
+//    partir de 20 g ». C'est la forme sous laquelle les données FODMAP sont
+//    publiées, et elle colle à la réalité : un aliment est toléré jusqu'à un
+//    certain poids, puis ne l'est plus.
+// 2. NIVEAU + PORTION DE RÉFÉRENCE (historique) : le niveau est extrapolé
+//    proportionnellement à la quantité. Conservé pour tout ce qui est déjà
+//    classé, et comme repli tant que les seuils ne sont pas posés.
+function seuilsDe(m,k){
+  const s = m && m.seuils && m.seuils[k];
+  if(!s) return null;
+  const moy = (s.moy==null||s.moy==='') ? null : +s.moy;
+  const haut= (s.haut==null||s.haut==='')? null : +s.haut;
+  if(moy==null && haut==null) return null;
+  return {moy, haut};
+}
+// Niveau d'UN aliment pour la quantité réellement mangée
+function niveauPourQuantite(m,k,q){
+  const s = seuilsDe(m,k);
+  if(s){
+    if(s.haut!=null && q >= s.haut) return 3;
+    if(s.moy !=null && q >= s.moy)  return 2;
+    return 1;                                   // en dessous du premier seuil
+  }
+  return m[k];                                  // ancien modèle : niveau brut
 }
 // somme d'un nutriment sur une liste d'entrées.
 // fct/gos : pas de grammes, on cumule un score pondéré par la quantité consommée.
@@ -698,11 +825,22 @@ function sumNut(ents,k){
   }
   let score=0,inc=0,pires=[];
   ents.forEach(e=>{
-    const m=manualOf(e), lv=m[k];
-    if(lv==null){inc++;return;}
-    // le niveau est donné pour une portion de référence : l'ail se classe sur 5 g, pas sur 100 g
-    score+=LVL[lv].poids*(e.q/(m.portion||100));
-    pires.push({e,lv});
+    const m=manualOf(e);
+    const aSeuils=!!seuilsDe(m,k);
+    if(m[k]==null && !aSeuils){inc++;return;}    // aliment non classé
+    if(aSeuils){
+      // Seuils en grammes : le niveau de l'aliment découle directement de la
+      // quantité mangée, sans extrapolation.
+      const lv=niveauPourQuantite(m,k,e.q);
+      score+=LVL[lv].poids;
+      pires.push({e,lv});
+    } else {
+      // Ancien modèle : le niveau vaut pour une portion de référence, on met
+      // à l'échelle — l'ail se classe sur 5 g, pas sur 100 g.
+      const lv=m[k];
+      score+=LVL[lv].poids*(e.q/(m.portion||100));
+      pires.push({e,lv});
+    }
   });
   return {v:null,score,inconnus:inc,total:ents.length,pires};
 }

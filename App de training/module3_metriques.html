@@ -207,7 +207,22 @@ function checkAccountActive(session){
     display: flex; flex-direction: column;
   }
   .modal-detail-header-top {
-    display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2px;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 2px; gap: 6px;
+  }
+  /* Navigation d'une métrique à l'autre depuis la fiche */
+  .detail-nav-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--surface2); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; color: var(--text-muted); line-height: 1;
+    flex-shrink: 0; margin-top: -4px; transition: var(--transition);
+  }
+  .detail-nav-btn:active { transform: scale(0.9); }
+  .detail-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .detail-pos {
+    font-size: 10px; color: var(--text-dim); font-weight: 600;
+    letter-spacing: .04em; margin-top: 3px;
   }
   .modal-detail-body {
     overflow-y: auto; flex: 1; padding: 0 24px 8px;
@@ -1008,10 +1023,16 @@ function checkAccountActive(session){
     <div class="modal-detail-header">
       <div class="modal-handle"></div>
       <div class="modal-detail-header-top">
-        <div>
+        <!-- Flèches : passer d'une métrique à l'autre sans refermer la fiche -->
+        <button class="detail-nav-btn" id="detail-prev" onclick="metriqueVoisine(-1)"
+                aria-label="Métrique précédente" title="Métrique précédente">‹</button>
+        <div style="flex:1;min-width:0;text-align:center">
           <div class="detail-name" id="detail-name">—</div>
           <div class="modal-sub" id="detail-sub">—</div>
+          <div class="detail-pos" id="detail-pos"></div>
         </div>
+        <button class="detail-nav-btn" id="detail-next" onclick="metriqueVoisine(1)"
+                aria-label="Métrique suivante" title="Métrique suivante">›</button>
         <button class="modal-close-btn" onclick="closeMetricDetail()" aria-label="Fermer">×</button>
       </div>
     </div>
@@ -1124,6 +1145,7 @@ let initialNoteForLog  = '';   // note déjà existante au moment de l'ouverture
 
 // ─── Données métriques en mémoire (pour la vue détail) ────
 let metricsStore = {};
+let metriquesOrdre = [];   // ids dans l'ordre affiché, pour naviguer au clavier/flèches
 let currentDetailId = null;
 let _logFromDetail  = false;  // flag : ouverture depuis détail → rouvrir après save
 const openGroupIds  = new Set(); // groupes métriques ouverts (persistés entre reloads)
@@ -1194,6 +1216,11 @@ async function loadMetrics() {
   // Les métriques sans groupe sont affichées EN PREMIER, à plat (sans en-tête
   // ni section repliable — comme avant l'introduction des groupes). Les
   // groupes nommés viennent ensuite, chacun en section repliable.
+  // Ordre d'affichage des métriques, reconstruit à chaque rendu. Sert aux
+  // flèches « précédente / suivante » de la fiche détail, pour passer d'une
+  // métrique à l'autre sans revenir à la liste.
+  metriquesOrdre = [];
+
   const groupOrder = [];
   const groupBuckets = {};
   const ungrouped = [];
@@ -1222,6 +1249,7 @@ async function loadMetrics() {
       }
 
       metricsStore[m.id] = { m, valeurs: valeurs || [] };
+      metriquesOrdre.push(m.id);
       target.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
     }
   }
@@ -2705,6 +2733,7 @@ function openMetricDetail(id) {
     }).join('');
   }
 
+  majFlechesMetrique();
   document.getElementById('modal-metric-detail').classList.add('open');
   requestAnimationFrame(() => {
     const c = chartWrap.querySelector('canvas');
@@ -2717,6 +2746,36 @@ function closeMetricDetail() {
   document.getElementById('modal-metric-detail').classList.remove('open');
   currentDetailId = null;
 }
+
+// ── Navigation d'une métrique à l'autre, sans sortir de la fiche ──────
+// L'ordre suit exactement celui des cartes à l'écran (groupes compris).
+function metriqueVoisine(sens) {
+  const i = metriquesOrdre.indexOf(currentDetailId);
+  if (i === -1) return;
+  const j = i + sens;
+  if (j < 0 || j >= metriquesOrdre.length) return;   // on ne boucle pas : les bords sont désactivés
+  openMetricDetail(metriquesOrdre[j]);
+}
+
+function majFlechesMetrique() {
+  const i = metriquesOrdre.indexOf(currentDetailId);
+  const prev = document.getElementById('detail-prev');
+  const next = document.getElementById('detail-next');
+  const pos  = document.getElementById('detail-pos');
+  const seul = i === -1 || metriquesOrdre.length < 2;
+  if (prev) { prev.disabled = seul || i === 0; prev.style.visibility = seul ? 'hidden' : 'visible'; }
+  if (next) { next.disabled = seul || i === metriquesOrdre.length - 1; next.style.visibility = seul ? 'hidden' : 'visible'; }
+  if (pos)  { pos.textContent = seul ? '' : (i + 1) + ' / ' + metriquesOrdre.length; }
+}
+
+// Flèches du clavier quand la fiche est ouverte (utile sur iPad et en test desktop)
+document.addEventListener('keydown', e => {
+  const ouvert = document.getElementById('modal-metric-detail');
+  if (!ouvert || !ouvert.classList.contains('open')) return;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); metriqueVoisine(-1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); metriqueVoisine(1); }
+  if (e.key === 'Escape')     { closeMetricDetail(); }
+});
 
 function openLogFromDetail() {
   const entry = metricsStore[currentDetailId];

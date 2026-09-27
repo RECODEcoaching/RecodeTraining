@@ -869,6 +869,8 @@ async function hashPin(pin) {
 .cald-auj .caldd{color:var(--accent)}
 .cald-x{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text-dim);font-size:12px;line-height:1;cursor:pointer;padding:0}
 .cald-x:hover{color:var(--danger);border-color:var(--danger)}
+/* repas que la cliente n'a pas pu tracker */
+.ddm-nt{border-left:2px dashed rgba(217,119,6,.5);padding-left:9px}
 .cald:hover{border-color:var(--accent)}
 .caldn{font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase}
 .caldd{font-size:16px;font-weight:800;margin:2px 0 5px}
@@ -6940,7 +6942,7 @@ loadClients();
 // au lieu de trois allers-retours réseau à chaque ouverture.
 loadReglagesGlobaux();
 </script>
-<script src="recode-diete.js?v=11"></script>
+<script src="recode-diete.js?v=13"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -7337,19 +7339,44 @@ function renderJournal(){
       +'<div class="sd '+cls+'">'+(remplis.length?(d>=0?'+':'')+Math.round(d)+'% vs cible ('+Math.round(t)+u+')':'aucune donnée')+'</div></div>';
   }).join('');
 
+  // Les moyennes ne portent que sur ce qui a été saisi. Le nombre de repas
+  // déclarés non trackés est affiché à côté : sans lui, une moyenne basse se
+  // lit comme un déficit alors que c'est peut-être un resto non compté.
+  const nbNT=nbNonTraques(days,cl);
+  const bandeauNT = nbNT
+    ? '<div class="warn-box" style="margin:0 0 16px"><b>'+nbNT+' repas non tracké'+(nbNT>1?'s':'')
+      +'</b> sur la période. Ces repas ne sont pas dans les moyennes ci-dessus : elles sous-estiment '
+      +'donc la consommation réelle. Le détail est visible jour par jour ci-dessous.</div>'
+    : '';
+
   const periodes=[7,14,30,90].map(n=>'<button class="bs '+(n===dietePeriode?'bs-p':'bs-o')+'" onclick="setDietePeriode('+n+')">'+n+' jours</button>').join('');
 
   const list=rows.slice().reverse().map(r=>{
     const dd=parseD(r.d);
     const lbl=dd.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
-    if(!r.n) return '<div class="jd"><div class="jd-h" style="opacity:.45"><div class="jd-date">'+lbl+'</div>'
-      +'<div class="jd-macros"><span style="color:var(--text-dim)">non renseigné</span></div></div></div>';
+    // Une journée sans aliment peut quand même porter des repas déclarés non
+    // trackés : c'est une information, pas un vide.
+    const ntJour=mealsFor(r.d,cl).filter(m=>estNonTraque(r.d,m.idx,cl));
+    if(!r.n) return '<div class="jd"><div class="jd-h" style="opacity:'+(ntJour.length?'1':'.45')+'"><div class="jd-date">'+lbl+'</div>'
+      +'<div class="jd-macros">'+(ntJour.length
+        ? '<span style="color:#92400E;font-weight:600">'+ntJour.length+' repas non tracké'+(ntJour.length>1?'s':'')+'</span>'
+          +(ntJour[0]&&noteNonTraque(r.d,ntJour[0].idx,cl)?'<span style="color:var(--text-muted)">« '+dtEsc(noteNonTraque(r.d,ntJour[0].idx,cl))+' »</span>':'')
+        : '<span style="color:var(--text-dim)">non renseigné</span>')+'</div></div></div>';
     const ratio=r.cib.kcal?r.tot.kcal/r.cib.kcal:0;
     const col=(ratio>=.9&&ratio<=1.1)?'var(--success)':(ratio>1.1?'var(--danger)':'var(--warn)');
     const ecart=Math.round((ratio-1)*100);
     const ents=entriesFor(r.d,cl), meals=mealsFor(r.d,cl);
     const detail=meals.map(m=>{
       const mine=ents.filter(e=>e.meal===m.idx);
+      // Repas que la cliente a déclaré ne pas avoir pu noter : on l'affiche,
+      // justement parce qu'il est vide. Un repas vide sans marqueur ne dit rien.
+      if(estNonTraque(r.d,m.idx,cl)){
+        const note=noteNonTraque(r.d,m.idx,cl);
+        return '<div class="ddm ddm-nt"><div class="ddh">'+dtEsc(m.nom)
+          +' — <span style="color:#92400E">non tracké par la cliente</span></div>'
+          +'<div class="dde" style="color:#92400E"><span>'+(note?'« '+dtEsc(note)+' »':'Aucune précision donnée')+'</span>'
+          +'<span>hors moyennes</span></div></div>';
+      }
       if(!mine.length) return '';
       const k=mine.reduce((s,e)=>s+(e.mac.kcal||0),0);
       return '<div class="ddm"><div class="ddh">'+dtEsc(m.nom)+(m.libre?' <span style="font-weight:600;color:var(--text-muted)">(ajouté par la cliente)</span>':'')
@@ -7360,7 +7387,8 @@ function renderJournal(){
     }).join('');
     return '<div class="jd" id="jd-'+r.d+'">'
       +'<div class="jd-h" onclick="toggleJour(\''+r.d+'\')">'
-      +  '<div class="jd-date">'+lbl+'<span class="jd-n">'+r.n+' aliment'+(r.n>1?'s':'')+'</span></div>'
+      +  '<div class="jd-date">'+lbl+'<span class="jd-n">'+r.n+' aliment'+(r.n>1?'s':'')+'</span>'
+      +  (ntJour.length?'<span class="jd-n" style="background:rgba(217,119,6,.12);color:#92400E">'+ntJour.length+' non tracké'+(ntJour.length>1?'s':'')+'</span>':'')+'</div>'
       +  '<div class="jd-macros">'
       +    '<b>'+Math.round(r.tot.kcal)+'</b> / '+r.cib.kcal+' kcal'
       +    '<span>P '+Math.round(r.tot.p)+'/'+r.cib.p+'</span>'
@@ -7380,6 +7408,7 @@ function renderJournal(){
     '<div class="rb" style="margin:0 0 16px">'+periodes
     +'<button class="bs bs-p" style="margin-left:auto" onclick="exportDieteComplet()">Exporter toute la diète (CSV)</button></div>'
     +'<div class="sg">'+stats+'</div>'
+    +bandeauNT
     +'<div class="ccard"><div class="cct">Journal — '+dietePeriode+' derniers jours</div>'
     +'<div class="ccs">'+remplis.length+' jour(s) renseigné(s) sur '+dietePeriode+'. Les moyennes ignorent les jours vides. '
     +'Clique sur une journée pour voir le détail de chaque repas et de chaque aliment.</div>'
@@ -7621,7 +7650,9 @@ function dl(name,content){
       :'<div class="empty">Aucun ajout validé</div>')+'</div>'
     +'<div class="ccard"><div class="cct">Aliments retirés ('+retires.length+')</div>'
     +'<div class="ccs">Retirés des recherches, mais rien n\'est effacé. Les journées déjà enregistrées gardent leurs valeurs. Tu peux les rétablir à tout moment.</div>'
-    +(retires.length?retires.map(i=>carte(i,
+    +(retires.length?retires.map(i=>
+        (ALIM_META[i].motif?'<div class="ccs" style="margin:0 0 -4px 2px">Motif : « '+dtEsc(ALIM_META[i].motif)+' »</div>':'')
+       +carte(i,
         '<button class="bs bs-o" onclick="openAlim('+i+')">Voir</button>'
        +'<button class="bs bs-g" onclick="retablirAlim('+i+')">Rétablir</button>')).join('')
       :'<div class="empty">Aucun aliment retiré</div>')+'</div>';
@@ -7631,7 +7662,7 @@ function dl(name,content){
 }function fodInscrits(){
   const out=[];
   // un aliment retiré ne figure plus dans la table : il vit dans « Aliments retirés »
-  ALIM_META.forEach((m,i)=>{ if(m && m.statut!=='refuse' && (m.fct!=null || m.gos!=null || m._inscrit)) out.push(i); });
+  ALIM_META.forEach((m,i)=>{ if(m && m.statut!=='refuse' && (m.fct!=null || m.gos!=null || m.seuils || m._inscrit)) out.push(i); });
   return out;
 }function renderFodTable(){
   const keys=fodInscrits().sort((a,b)=>fodLabel(a).localeCompare(fodLabel(b)));
@@ -7639,12 +7670,25 @@ function dl(name,content){
   const sel=(k,f,v)=>'<select class="lvl-sel'+(v?' lvl'+v:'')+'" onchange="setFod(\''+k+'\',\''+f+'\',this.value)">'
     +[[ '','? non classé'],['1','faible'],['2','moyen'],['3','haut']]
       .map(([val,lbl])=>'<option value="'+val+'"'+((v==null?'':String(v))===val?' selected':'')+'>'+lbl+'</option>').join('')+'</select>';
+  // Un aliment réglé par seuils n'a plus de niveau fixe : on affiche les bascules
+  // en grammes au lieu d'un menu qui ne servirait plus à rien.
+  const cell=(k,nk)=>{
+    const s=ALIM_META[k].seuils && ALIM_META[k].seuils[nk];
+    if(s && (s.moy!=null || s.haut!=null))
+      return '<td style="width:150px;font-size:11.5px;font-weight:600;color:var(--accent)">'
+        +(s.moy!=null?'moyen ≥ '+s.moy+' g':'')+(s.moy!=null&&s.haut!=null?'<br>':'')
+        +(s.haut!=null?'haut ≥ '+s.haut+' g':'')+'</td>';
+    return '<td style="width:150px">'+sel(k,nk,ALIM_META[k][nk])+'</td>';
+  };
   return '<table class="micro-tbl"><tr><th>Aliment</th><th>Fructanes</th><th>GOS</th><th>Pour une portion de</th><th></th><th></th></tr>'
-    +keys.map(k=>{const d={fct:ALIM_META[k].fct,gos:ALIM_META[k].gos,portion:ALIM_META[k].portion};
+    +keys.map(k=>{const d={portion:ALIM_META[k].portion};
+      const parSeuils=!!ALIM_META[k].seuils;
       return '<tr><td style="font-weight:600">'+dtEsc(fodLabel(k))+(estCorrige(k)?' <span class="srcflag src-chk">corrigé</span>':'')+'</td>'
-        +'<td style="width:150px">'+sel(k,'fct',d.fct)+'</td>'
-        +'<td style="width:150px">'+sel(k,'gos',d.gos)+'</td>'
-        +'<td style="width:120px"><input type="number" step="any" value="'+(d.portion||100)+'" onchange="setFod(\''+k+'\',\'portion\',this.value)"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+        +cell(k,'fct')
+        +cell(k,'gos')
+        +'<td style="width:120px">'+(parSeuils
+          ?'<span style="font-size:11px;color:var(--text-dim)">non utilisée</span>'
+          :'<input type="number" step="any" value="'+(d.portion||100)+'" onchange="setFod(\''+k+'\',\'portion\',this.value)"> <span style="font-size:11px;color:var(--text-dim)">g</span>')+'</td>'
         +'<td style="width:90px"><button class="bs bs-o" style="padding:5px 10px;font-size:11.5px" onclick="openAlim('+k+')">Modifier</button></td>'
         +'<td style="width:40px"><button class="tbl-del" onclick="delFod(\''+k+'\')">×</button></td></tr>';}).join('')+'</table>';
 }function renderFodSearch(){
@@ -7692,7 +7736,7 @@ function dl(name,content){
   renderCli();renderCoachMicro();
   if(f==='portion')renderAlim();
 }async function delFod(idx){
-  const m=ALIM_META[idx]; m.fct=null; m.gos=null; m.portion=100; m._inscrit=false;
+  const m=ALIM_META[idx]; m.fct=null; m.gos=null; m.portion=100; m.seuils=null; m._inscrit=false;
   await dbFodmap(idx);renderAlim();renderCli();
 // ── Correction d'un aliment (macros + FODMAP) ────────────────────────────
 // Champs du formulaire : [clé colonne, libellé, unité, index dans ALIMENTS_BASE]
@@ -7708,6 +7752,18 @@ const AL_MINERAUX = NUT.filter(x=>x.i>=18 && x.i<=29).map(alChamp);
 const AL_VITAMINES= NUT.filter(x=>x.i>=30).map(alChamp);
 const AL_TOUS = AL_MACROS.concat(AL_SUCRES, AL_LIPIDES, AL_MINERAUX, AL_VITAMINES);
 let alimEnCours=null;
+// Seuils équivalents au classement « niveau + portion » déjà saisi, proposés en
+// gris dans le formulaire. On résout la formule de l'ancien modèle :
+//   score = poids × (q / portion),  moyen au-delà de 1,2 · haut au-delà de 4
+// ce qui donne les quantités auxquelles l'aliment bascule aujourd'hui.
+function suggestionSeuils(m,k){
+  const lv=m&&m[k];
+  if(lv==null) return null;
+  const poids=LVL[lv].poids, portion=m.portion||100;
+  const arrondi=x=>x>=10?Math.round(x):Math.round(x*10)/10;
+  return { moy: arrondi(LVL_SEUIL_MOYEN*portion/poids),
+           haut:arrondi(LVL_SEUIL_HAUT *portion/poids) };
+}
 function openAlim(idx){
   alimEnCours=idx;
   const a=ALIMENTS_BASE[idx], m=ALIM_META[idx]||{};
@@ -7763,11 +7819,27 @@ function openAlim(idx){
     +bloc('Minéraux',AL_MINERAUX,a)
     +bloc('Vitamines',AL_VITAMINES,a)
     +'<div style="font-size:12.5px;font-weight:800;margin:18px 0 8px">Fructanes et GOS — classés par toi</div>'
-    +'<table class="micro-tbl"><tr><td style="font-weight:600">Fructanes</td><td style="width:150px">'+sel('al-fct',m.fct)+'</td><td></td></tr>'
-    +'<tr><td style="font-weight:600">GOS</td><td>'+sel('al-gos',m.gos)+'</td><td></td></tr>'
+    +'<div class="warn-box">Deux façons de classer, au choix.<br><br>'
+    +'<b>Par seuils, en grammes</b> — « moyen à partir de 8 g, haut à partir de 20 g ». '
+    +'C\'est la forme la plus juste : un aliment est toléré jusqu\'à un poids, puis ne l\'est plus. '
+    +'Dès qu\'un seuil est rempli, c\'est lui qui décide, et la portion de référence n\'est plus utilisée.<br><br>'
+    +'<b>Par niveau + portion</b> — l\'ancienne façon, gardée pour tout ce qui est déjà classé. '
+    +'Le niveau est alors étiré proportionnellement à la quantité mangée.</div>'
+    +'<table class="micro-tbl"><tr><th>Nutriment</th><th>Moyen à partir de</th><th>Haut à partir de</th><th>Niveau (repli)</th></tr>'
+    +[['fct','Fructanes'],['gos','GOS']].map(([k,lbl])=>{
+        const s=(m.seuils&&m.seuils[k])||{};
+        // Repères calculés depuis le classement actuel, pour ne pas partir de zéro
+        const sug=suggestionSeuils(m,k);
+        return '<tr><td style="font-weight:600">'+lbl+'</td>'
+          +'<td><input type="number" step="any" id="al-s-'+k+'-moy" placeholder="'+(sug?sug.moy:'—')+'" value="'+(s.moy==null?'':s.moy)+'"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+          +'<td><input type="number" step="any" id="al-s-'+k+'-haut" placeholder="'+(sug?sug.haut:'—')+'" value="'+(s.haut==null?'':s.haut)+'"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+          +'<td style="width:150px">'+sel('al-'+k,m[k])+'</td></tr>';
+      }).join('')
     +'<tr><td style="font-weight:600">Portion de référence</td>'
-    +'<td><input type="number" step="any" id="al-portion" value="'+(m.portion||100)+'"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
-    +'<td style="font-size:11px;color:var(--text-dim)">le niveau ci-dessus vaut pour cette quantité</td></tr></table>'
+    +'<td colspan="2"><input type="number" step="any" id="al-portion" value="'+(m.portion||100)+'"> <span style="font-size:11px;color:var(--text-dim)">g</span></td>'
+    +'<td style="font-size:11px;color:var(--text-dim)">utilisée seulement sans seuils</td></tr></table>'
+    +'<div style="font-size:11px;color:var(--text-dim);margin-top:6px">'
+    +'Les valeurs grisées sont les seuils équivalents à ton classement actuel — tu peux les reprendre telles quelles ou les corriger.</div>'
     +(perso?'':'<div class="warn-box" style="margin-top:16px">Cet aliment vient de la table officielle. '
         +'Si tu le corriges, il sera marqué <b>« corrigé par toi »</b> et ne sera plus présenté comme une valeur ANSES.</div>')
     +'<div class="warn-box" style="margin-top:16px;background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.25);color:#065F46">'
@@ -7806,12 +7878,25 @@ async function saveAlim(){
   patch.fructanes_niveau=niv('al-fct');
   patch.gos_niveau=niv('al-gos');
   patch.fod_portion=Math.max(parseFloat(document.getElementById('al-portion').value)||100,1);
+  // Seuils en grammes. Un seuil « haut » inférieur au « moyen » n'a pas de sens :
+  // on les remet dans l'ordre plutôt que d'enregistrer une règle incohérente.
+  const seuils={};
+  [['fct','Fructanes'],['gos','GOS']].forEach(([k])=>{
+    const g=id=>{const el=document.getElementById(id); if(!el)return null;
+      const v=el.value.trim(); if(v==='')return null;
+      const n=parseFloat(v.replace(',','.')); return isNaN(n)||n<=0?null:n;};
+    let moy=g('al-s-'+k+'-moy'), haut=g('al-s-'+k+'-haut');
+    if(moy!=null && haut!=null && haut<moy){ const t=moy; moy=haut; haut=t; }
+    if(moy!=null || haut!=null) seuils[k]={moy,haut};
+  });
+  patch.fod_seuils = Object.keys(seuils).length ? seuils : null;
   const btn=document.getElementById('al-ok');
   btn.disabled=true; btn.textContent='Enregistrement…';
   const ok=await dbMajAliment(idx,patch);
   btn.disabled=false; btn.textContent='Enregistrer';
   if(!ok){document.getElementById('al-msg').textContent='Échec — rien n\'a été modifié';return;}
-  if(ALIM_META[idx]) ALIM_META[idx]._inscrit = (patch.fructanes_niveau!=null||patch.gos_niveau!=null);
+  if(ALIM_META[idx]) ALIM_META[idx]._inscrit =
+    (patch.fructanes_niveau!=null || patch.gos_niveau!=null || patch.fod_seuils!=null);
   closeAlim();
   if(document.getElementById('cpane-alim')) renderAlim();
   renderFodSearch(); renderCoach(); renderCli();
@@ -7840,14 +7925,28 @@ async function saveAlim(){
     +(renseigne?'\nIl est classé en fructanes / GOS — ce classement sera mis de côté avec lui.':'')
     +'\n\nIl disparaîtra des recherches, mais rien n\'est effacé : tu pourras le rétablir '
     +'depuis « Aliments retirés », et les journées déjà enregistrées ne bougent pas.'))return;
+  // Motif facultatif : il est conservé avec l'aliment ET transmis à la cliente.
+  const motif=prompt('Pourquoi tu le retires ? (facultatif)\n\n'
+    +'Ce texte sera envoyé à la ou les clientes concernées.\n'
+    +'Ex : « doublon avec le Skyr déjà en base », « valeurs de l\'étiquette incorrectes »','');
+  if(motif===null) return;                       // annulé
   // Retrait réversible : on change le statut, on ne supprime plus la ligne.
   // Un DELETE cassait le lien avec les entrées déjà saisies par les clientes.
   // On garde en mémoire l'état d'avant pour rétablir à l'identique.
   ALIM_META[idx].statutAvant = m.statut;
-  await dbAlimentStatut(ALIM_IDS[idx],'refuse');
+  await dbAlimentStatut(ALIM_IDS[idx],'refuse',motif.trim());
   ALIM_META[idx].statut='refuse';
+  ALIM_META[idx].motif=motif.trim();
+  // Prévenir celles qui l'ont proposé ou utilisé — sinon il disparaît sans mot dire.
+  const concernees=await dbClientesConcernees(ALIM_IDS[idx], m.propose_par);
+  if(concernees.length){
+    await dbNotifier(concernees,'aliment_refuse',
+      '« '+nom+' » a été retiré de la base'
+      +(motif.trim()?' — '+motif.trim():'')
+      +'. Tes journées déjà enregistrées ne changent pas.');
+  }
   renderAlim(); renderCoach(); renderCli();
-  dtToast('« '+nom+' » retiré — rétablissable');
+  dtToast('« '+nom+' » retiré'+(concernees.length?' — '+concernees.length+' cliente(s) prévenue(s)':''));
 }async function retablirAlim(idx){
   // On revient à l'état d'avant le retrait. Après un rechargement de page cette
   // mémoire est perdue : on retombe alors sur « valide », puisque cliquer

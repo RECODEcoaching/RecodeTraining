@@ -191,13 +191,16 @@ function checkAccountActive(session){
   .notif-card-icon { flex-shrink: 0; }
   .notif-card-text { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.35; }
   .notif-card-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+  /* Croix de fermeture : plus direct qu'un bouton « Lu », et le geste est
+     celui qu'on attend pour faire disparaître une notification. */
   .notif-lu-btn {
-    flex-shrink: 0; padding: 5px 11px; border-radius: 20px;
-    border: 1px solid var(--border); background: transparent;
-    color: var(--text-muted); font-size: 11px; font-weight: 600;
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    border: none; background: var(--surface2);
+    color: var(--text-muted); font-size: 15px; line-height: 1;
     cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .notif-lu-btn:active { background: var(--surface2); }
+  .notif-lu-btn:active { transform: scale(0.9); color: var(--text); }
 
   /* ── SESSION CARDS ── */
   .sessions-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
@@ -2558,44 +2561,60 @@ function checkAccountActive(session){
     drive_correction: 'Réponse au bilan dans le drive',
     video_correction: 'Correction vidéo dans le drive',
     reponse_metrique: 'Réponse dans Métriques',
-    reponse_training: 'Réponse dans l\'entraînement'
+    reponse_training: 'Réponse dans l\'entraînement',
+    aliment_refuse:   'Un aliment a été retiré de ta liste'
   };
   const NOTIF_SUBS = {
     bilan_reponse:    'Ton coach t\'a envoyé une mise à jour',
     drive_correction: 'Va voir ton Drive pour la réponse à ton bilan',
     video_correction: 'Va voir ton Drive pour la correction de ta vidéo',
     reponse_metrique: 'Ton coach a répondu → va dans Métriques',
-    reponse_training: 'Ton coach a répondu → voir ci-dessous dans tes séances'
+    reponse_training: 'Ton coach a répondu → voir ci-dessous dans tes séances',
+    aliment_refuse:   'Ton coach l\'a retiré de la base d\'aliments'
   };
   const NOTIF_ICONS = {
     bilan_reponse:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
     drive_correction: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
     video_correction: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
     reponse_metrique: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`,
-    reponse_training: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`
+    reponse_training: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`,
+    aliment_refuse:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>`
   };
   const NOTIF_IS_REPLY = (t) => t === 'reponse_metrique' || t === 'reponse_training';
 
   async function loadNotifications() {
     const banner = document.getElementById('notif-banner');
     if (!banner || !SESSION) return;
-    const { data: notifs, error } = await db.from('notifications')
-      .select('id, type, created_at')
+    // `message` porte un texte propre à la notification (refus d'un aliment et
+    // sa raison, par exemple). Repli sur l'ancien format si la colonne n'existe
+    // pas encore en base.
+    let notifs, error;
+    ({ data: notifs, error } = await db.from('notifications')
+      .select('id, type, message, created_at')
       .eq('client_id', SESSION.client_id)
       .eq('lu', false)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }));
+    if (error) {
+      ({ data: notifs, error } = await db.from('notifications')
+        .select('id, type, created_at')
+        .eq('client_id', SESSION.client_id)
+        .eq('lu', false)
+        .order('created_at', { ascending: false }));
+    }
     if (error || !notifs || notifs.length === 0) { banner.style.display = 'none'; return; }
     banner.style.display = 'flex';
     const fallbackIcon = NOTIF_ICONS.reponse_training;
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     banner.innerHTML = notifs.map(n => {
       const isReply = NOTIF_IS_REPLY(n.type);
       const label   = NOTIF_LABELS[n.type] || n.type;
-      const sub     = NOTIF_SUBS[n.type]   || 'Ton coach t\'a envoyé une mise à jour';
+      const sub     = n.message ? esc(n.message)
+                    : (NOTIF_SUBS[n.type] || 'Ton coach t\'a envoyé une mise à jour');
       const icon    = NOTIF_ICONS[n.type]  || fallbackIcon;
       return `<div class="notif-card${isReply ? ' notif-reply' : ''}">
         <div class="notif-card-icon">${icon}</div>
         <div class="notif-card-text">${label}<div class="notif-card-sub">${sub}</div></div>
-        <button class="notif-lu-btn" onclick="markNotifRead('${n.id}')">Lu</button>
+        <button class="notif-lu-btn" aria-label="Fermer" title="Fermer" onclick="markNotifRead('${n.id}')">×</button>
       </div>`;
     }).join('');
   }
