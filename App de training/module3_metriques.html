@@ -1172,6 +1172,23 @@ function formatValDisplay(val, type) {
 }
 
 // ─── CHARGEMENT MÉTRIQUES SUPABASE ────────────────────────
+// Supabase plafonne chaque réponse à 1000 lignes. Sans pagination, un long
+// historique (import TrueCoach : près de 1000 pesées pour certaines) perdrait
+// silencieusement ses valeurs les plus récentes.
+async function chargerValeursMetrique(metriqueId, cols) {
+  const PAGE = 1000;
+  let out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db.from('metrique_valeurs').select(cols)
+      .eq('metrique_id', metriqueId)
+      .order('date', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    out = out.concat(data || []);
+    if (!data || data.length < PAGE) return { data: out, error: null };
+  }
+}
+
 async function loadMetrics() {
   if (!SESSION) return;
   let { data: metriques, error } = await db
@@ -1231,23 +1248,20 @@ async function loadMetrics() {
     groupBuckets[gid].push(m);
   });
 
+  // Toutes les métriques sont chargées en parallèle (et non plus l'une après
+  // l'autre) : avec l'historique importé, le temps d'attente s'additionnait.
+  // Colonnes étendues (note client + réponse coach) — fallback si la
+  // migration SQL (section 27) n'a pas encore été exécutée.
+  const valeursParMetrique = {};
+  await Promise.all(metriques.map(async m => {
+    let { data, error } = await chargerValeursMetrique(m.id, 'valeur, date, commentaire, reponse_coach, reponse_lue');
+    if (error) ({ data } = await chargerValeursMetrique(m.id, 'valeur, date'));
+    valeursParMetrique[m.id] = data || [];
+  }));
+
   async function renderMetricsInto(target, list) {
     for (const m of list) {
-      // Colonnes étendues (note client + réponse coach) — fallback si la
-      // migration SQL (section 27) n'a pas encore été exécutée.
-      let { data: valeurs, error: valErr } = await db
-        .from('metrique_valeurs')
-        .select('valeur, date, commentaire, reponse_coach, reponse_lue')
-        .eq('metrique_id', m.id)
-        .order('date', { ascending: true });
-      if (valErr) {
-        ({ data: valeurs } = await db
-          .from('metrique_valeurs')
-          .select('valeur, date')
-          .eq('metrique_id', m.id)
-          .order('date', { ascending: true }));
-      }
-
+      const valeurs = valeursParMetrique[m.id];
       metricsStore[m.id] = { m, valeurs: valeurs || [] };
       metriquesOrdre.push(m.id);
       target.insertAdjacentHTML('beforeend', renderMetricCard(m, valeurs || []));
@@ -1401,8 +1415,31 @@ function drawMetricChart(canvas) {
   const maxD = max + range * 0.1;
   const rangeD = maxD - minD;
 
-  function xp(i) { return pad.left + (i / (vals.length - 1)) * cW; }
+  // Axe horizontal en temps réel quand les dates ISO sont fournies : un trou
+  // de plusieurs mois se voit comme un vide, pas comme un simple pas entre
+  // deux points. Sans dates ISO, on garde l'espacement régulier d'avant.
+  const iso = (canvas.dataset.iso || '').split(',').filter(Boolean);
+  const tps = iso.length === vals.length ? iso.map(d => Date.parse(d + 'T12:00:00')) : null;
+  const t0 = tps ? tps[0] : 0, t1 = tps ? tps[tps.length - 1] : 0;
+  function xp(i) {
+    if (tps && t1 > t0) return pad.left + ((tps[i] - t0) / (t1 - t0)) * cW;
+    return pad.left + (i / (vals.length - 1)) * cW;
+  }
   function yp(v) { return pad.top + cH - ((v - minD) / rangeD) * cH; }
+
+  // Absence de mesure = écart supérieur à 3× l'intervalle habituel (21 j
+  // minimum) : la courbe s'interrompt et le trou est tracé en pointillés.
+  const JOUR = 864e5;
+  let seuilTrou = Infinity;
+  if (tps && tps.length > 2) {
+    const ecarts = tps.slice(1).map((t, i) => t - tps[i]).sort((a, b) => a - b);
+    seuilTrou = Math.max(21 * JOUR, 3 * ecarts[Math.floor(ecarts.length / 2)]);
+  }
+  const estTrou = i => tps && (tps[i] - tps[i - 1]) > seuilTrou;
+  const runs = [];  // séries de points consécutifs sans trou
+  let debut = 0;
+  for (let i = 1; i < vals.length; i++) if (estTrou(i)) { runs.push([debut, i - 1]); debut = i; }
+  runs.push([debut, vals.length - 1]);
 
   ctx.fillStyle = '#AEAEB2';
   ctx.font = `${10 * Math.min(1, W/300)}px -apple-system, sans-serif`;
@@ -1420,39 +1457,61 @@ function drawMetricChart(canvas) {
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
   grad.addColorStop(0, color + '30');
   grad.addColorStop(1, color + '00');
-  ctx.beginPath();
-  ctx.moveTo(xp(0), yp(vals[0]));
-  for (let i = 1; i < vals.length; i++) ctx.lineTo(xp(i), yp(vals[i]));
-  ctx.lineTo(xp(vals.length - 1), pad.top + cH);
-  ctx.lineTo(xp(0), pad.top + cH);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.moveTo(xp(0), yp(vals[0]));
-  for (let i = 1; i < vals.length; i++) ctx.lineTo(xp(i), yp(vals[i]));
-  ctx.stroke();
-
-  ctx.font = `${9.5 * Math.min(1, W/300)}px -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  vals.forEach((v, i) => {
-    const x = xp(i), y = yp(v);
+  runs.forEach(([a, b]) => {
+    if (b === a) return;
     ctx.beginPath();
-    ctx.arc(x, y, i === vals.length - 1 ? 4.5 : 3.5, 0, Math.PI * 2);
+    ctx.moveTo(xp(a), yp(vals[a]));
+    for (let i = a + 1; i <= b; i++) ctx.lineTo(xp(i), yp(vals[i]));
+    ctx.lineTo(xp(b), pad.top + cH);
+    ctx.lineTo(xp(a), pad.top + cH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  });
+
+  ctx.lineJoin = 'round';
+  for (let i = 1; i < vals.length; i++) {
+    ctx.beginPath();
+    if (estTrou(i)) {
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = color + '55'; ctx.lineWidth = 1.5;
+    } else {
+      ctx.setLineDash([]); ctx.strokeStyle = color; ctx.lineWidth = 2;
+    }
+    ctx.moveTo(xp(i - 1), yp(vals[i - 1]));
+    ctx.lineTo(xp(i), yp(vals[i]));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Au-delà de ~40 points (historique importé de TrueCoach), les ronds se
+  // chevauchent et masquent la courbe : on ne garde que le dernier point,
+  // plus les points isolés (entourés de trous) qui sinon seraient invisibles.
+  const showDots = vals.length <= 40;
+  const isole = i => runs.some(([a, b]) => a === i && b === i);
+  vals.forEach((v, i) => {
+    if (!(showDots || i === vals.length - 1 || isole(i))) return;
+    ctx.beginPath();
+    ctx.arc(xp(i), yp(v), i === vals.length - 1 ? 4.5 : 3.5, 0, Math.PI * 2);
     ctx.fillStyle = i === vals.length - 1 ? color : '#FFFFFF';
     ctx.fill();
-    if (i !== vals.length - 1) {
-      ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
-    }
-    const showDate = (i === 0 || i === vals.length - 1 || i === Math.floor(vals.length / 2));
-    if (showDate && dates[i]) {
-      ctx.fillStyle = i === vals.length - 1 ? color : '#AEAEB2';
-      ctx.fillText(dates[i], x, H - 6);
-    }
+    if (i !== vals.length - 1) { ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke(); }
+  });
+
+  // Dates : première, dernière, et celle du point le plus proche du milieu
+  // de l'axe (en temps), si elle ne chevauche pas les deux autres.
+  ctx.font = `${9.5 * Math.min(1, W/300)}px -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  const last = vals.length - 1;
+  const xMid = pad.left + cW / 2;
+  let mid = 0;
+  vals.forEach((v, i) => { if (Math.abs(xp(i) - xMid) < Math.abs(xp(mid) - xMid)) mid = i; });
+  const labels = [0, last];
+  if (mid !== 0 && mid !== last && xp(mid) - xp(0) > 45 && xp(last) - xp(mid) > 45) labels.push(mid);
+  labels.forEach(i => {
+    if (!dates[i]) return;
+    ctx.fillStyle = i === last ? color : '#AEAEB2';
+    ctx.textAlign = i === 0 ? 'left' : (i === last ? 'right' : 'center');
+    ctx.fillText(dates[i], i === 0 ? Math.max(xp(i) - 10, 0) : (i === last ? Math.min(xp(i) + 10, W) : xp(i)), H - 6);
   });
 }
 
@@ -2655,51 +2714,9 @@ function openMetricDetail(id) {
   }
   document.getElementById('detail-hero').innerHTML = heroHtml;
 
-  // Graphique agrandi
+  // Graphique agrandi + stats : 90 derniers jours par défaut, tout en un clic
   const chartWrap = document.getElementById('detail-chart-wrap');
-  if (valeurs.length >= 2) {
-    const vals  = valeurs.map(v => v.valeur).join(',');
-    const dates = valeurs.map(v => {
-      const d = new Date(v.date + 'T12:00:00');
-      return ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2);
-    }).join(',');
-    chartWrap.innerHTML = `<canvas class="metric-chart-canvas detail-chart-canvas" height="140" data-values="${vals}" data-dates="${dates}" data-color="#6D28D9"></canvas>`;
-  } else {
-    chartWrap.innerHTML = `<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:20px 0;">Pas encore assez de données pour afficher une évolution</div>`;
-  }
-
-  // Stats min / moyenne / max sur l'historique chargé + moy. 7 derniers jours
-  const statsRow = document.getElementById('detail-stats-row');
-  if (valeurs.length >= 2) {
-    const nums = valeurs.map(v => v.valeur);
-    const min = Math.min(...nums), max = Math.max(...nums);
-    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    const fmt = type === 'temps'
-      ? n => minsToHHMM(n)
-      : n => Math.abs(n) < 10 ? n.toFixed(1) : Math.round(n);
-    const u = type === 'temps' ? '' : (m.unite || '');
-
-    // Moyenne 7 derniers jours
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0,0,0,0);
-    const recent = valeurs.filter(v => new Date(v.date + 'T12:00:00') >= cutoff);
-    const avg7Html = recent.length
-      ? `<div class="detail-stat" style="border:1px solid var(--accent);background:var(--accent-bg);">
-           <div class="detail-stat-label" style="color:var(--accent);">Moy. 7j</div>
-           <div class="detail-stat-value" style="color:var(--accent);">${fmt(recent.reduce((a,b)=>a+b.valeur,0)/recent.length)} ${u}</div>
-         </div>`
-      : '';
-
-    statsRow.innerHTML = `
-      <div class="detail-stat"><div class="detail-stat-label">Min</div><div class="detail-stat-value">${fmt(min)} ${u}</div></div>
-      <div class="detail-stat"><div class="detail-stat-label">Moy.</div><div class="detail-stat-value">${fmt(avg)} ${u}</div></div>
-      <div class="detail-stat"><div class="detail-stat-label">Max</div><div class="detail-stat-value">${fmt(max)} ${u}</div></div>
-      ${avg7Html}
-    `;
-    statsRow.style.display = 'flex';
-  } else {
-    statsRow.innerHTML = '';
-    statsRow.style.display = 'none';
-  }
+  renderDetailGraph();
 
   // Historique des saisies (les plus récentes en premier), modifiables/supprimables
   const historyList = document.getElementById('detail-history-list');
@@ -2708,7 +2725,7 @@ function openMetricDetail(id) {
   } else {
     const safeNom = (m.nom || '').replace(/'/g, "\\'");
     const safeUnit = (m.unite || '').replace(/'/g, "\\'");
-    historyList.innerHTML = valeurs.slice().reverse().map(v => {
+    const lignes = valeurs.slice().reverse().map(v => {
       const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
       const hasUnreadReply = v.reponse_coach && v.reponse_lue === false;
       const noteLine = v.commentaire
@@ -2730,7 +2747,17 @@ function openMetricDetail(id) {
           </button>
         </div>
       </div>`;
-    }).join('');
+    });
+    // Avec un historique importé (jusqu'à ~1000 saisies), tout insérer d'un coup
+    // alourdit la fiche sur téléphone : 30 lignes d'abord, le reste à la demande.
+    const VISIBLES = 30;
+    historyList.innerHTML = lignes.slice(0, VISIBLES).join('');
+    if (lignes.length > VISIBLES) {
+      historiqueReste = lignes.slice(VISIBLES).join('');
+      historyList.insertAdjacentHTML('beforeend', `<button id="detail-history-more" onclick="afficherToutHistorique()"
+        style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;">
+        Voir les ${lignes.length - VISIBLES} saisies plus anciennes</button>`);
+    }
   }
 
   majFlechesMetrique();
@@ -2740,6 +2767,102 @@ function openMetricDetail(id) {
     if (c && c.offsetWidth > 0) drawMetricChart(c);
     animateGaugeFill(document.getElementById('detail-hero'));
   });
+}
+
+// Graphique + stats de la fiche détail. Par défaut, 90 derniers jours : sur
+// plusieurs années avec des interruptions, la courbe complète devient
+// illisible. Le choix « Tout » est conservé en passant d'une métrique à l'autre.
+let detailVueComplete = false;
+function basculerVueDetail(complete) {
+  detailVueComplete = complete;
+  renderDetailGraph();
+}
+function renderDetailGraph() {
+  const entry = metricsStore[currentDetailId];
+  if (!entry) return;
+  const { m, valeurs: toutes } = entry;
+  const type = m.type || 'mesure';
+  const chartWrap = document.getElementById('detail-chart-wrap');
+  const statsRow  = document.getElementById('detail-stats-row');
+
+  const limite = new Date(); limite.setDate(limite.getDate() - 90);
+  const limiteIso = limite.getFullYear() + '-' + ('0'+(limite.getMonth()+1)).slice(-2) + '-' + ('0'+limite.getDate()).slice(-2);
+  const recentes = toutes.filter(v => v.date >= limiteIso);
+  const valeurs = detailVueComplete ? toutes : recentes;
+
+  // Sélecteur 90 j / Tout, seulement s'il existe des mesures plus anciennes
+  const btn = (actif, label, complete) => `<button onclick="basculerVueDetail(${complete})"
+    style="border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;
+    background:${actif ? 'var(--accent)' : 'transparent'};color:${actif ? '#fff' : 'var(--text-muted)'};">${label}</button>`;
+  const selecteur = recentes.length < toutes.length
+    ? `<div style="display:flex;justify-content:center;margin-bottom:6px;"><div style="display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:var(--surface2);">
+        ${btn(!detailVueComplete, '90 jours', false)}${btn(detailVueComplete, 'Tout (' + toutes.length + ')', true)}
+      </div></div>`
+    : '';
+
+  if (valeurs.length >= 2) {
+    const vals  = valeurs.map(v => v.valeur).join(',');
+    // Format français jj/mm ; l'année s'ajoute dès que la période affichée
+    // couvre plusieurs années, sinon « 08/01 » ne dit pas de quelle année il s'agit.
+    const multiAns = valeurs[0].date.slice(0, 4) !== valeurs[valeurs.length - 1].date.slice(0, 4);
+    const dates = valeurs.map(v => {
+      const d = new Date(v.date + 'T12:00:00');
+      const jm = ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2);
+      return multiAns ? jm + '/' + String(d.getFullYear()).slice(-2) : jm;
+    }).join(',');
+    const iso   = valeurs.map(v => v.date).join(',');
+    chartWrap.innerHTML = selecteur + `<canvas class="metric-chart-canvas detail-chart-canvas" height="140" data-values="${vals}" data-dates="${dates}" data-iso="${iso}" data-color="#6D28D9"></canvas>`;
+  } else {
+    const msg = !detailVueComplete && toutes.length >= 2
+      ? (recentes.length ? 'Une seule mesure ces 90 derniers jours' : 'Aucune mesure ces 90 derniers jours')
+      : 'Pas encore assez de données pour afficher une évolution';
+    chartWrap.innerHTML = selecteur + `<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:20px 0;">${msg}</div>`;
+  }
+
+  // Stats min / moyenne / max sur la période affichée + moy. 7 derniers jours
+  if (valeurs.length >= 2) {
+    const nums = valeurs.map(v => v.valeur);
+    const min = Math.min(...nums), max = Math.max(...nums);
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    const fmt = type === 'temps'
+      ? n => minsToHHMM(n)
+      : n => Math.abs(n) < 10 ? n.toFixed(1) : Math.round(n);
+    const u = type === 'temps' ? '' : (m.unite || '');
+
+    // Moyenne 7 derniers jours
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0,0,0,0);
+    const recent = toutes.filter(v => new Date(v.date + 'T12:00:00') >= cutoff);
+    const avg7Html = recent.length
+      ? `<div class="detail-stat" style="border:1px solid var(--accent);background:var(--accent-bg);">
+           <div class="detail-stat-label" style="color:var(--accent);">Moy. 7j</div>
+           <div class="detail-stat-value" style="color:var(--accent);">${fmt(recent.reduce((a,b)=>a+b.valeur,0)/recent.length)} ${u}</div>
+         </div>`
+      : '';
+
+    statsRow.innerHTML = `
+      <div class="detail-stat"><div class="detail-stat-label">Min</div><div class="detail-stat-value">${fmt(min)} ${u}</div></div>
+      <div class="detail-stat"><div class="detail-stat-label">Moy.</div><div class="detail-stat-value">${fmt(avg)} ${u}</div></div>
+      <div class="detail-stat"><div class="detail-stat-label">Max</div><div class="detail-stat-value">${fmt(max)} ${u}</div></div>
+      ${avg7Html}
+    `;
+    statsRow.style.display = 'flex';
+  } else {
+    statsRow.innerHTML = '';
+    statsRow.style.display = 'none';
+  }
+
+  requestAnimationFrame(() => {
+    const c = chartWrap.querySelector('canvas');
+    if (c && c.offsetWidth > 0) drawMetricChart(c);
+  });
+}
+
+let historiqueReste = '';
+function afficherToutHistorique() {
+  const btn = document.getElementById('detail-history-more');
+  if (btn) btn.remove();
+  document.getElementById('detail-history-list').insertAdjacentHTML('beforeend', historiqueReste);
+  historiqueReste = '';
 }
 
 function closeMetricDetail() {

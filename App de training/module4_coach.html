@@ -2274,10 +2274,19 @@ async function exportClientCSV() {
 
   if (metriques?.length) {
     const metMap = Object.fromEntries(metriques.map(m => [m.id, m]));
-    const { data: valeurs } = await db.from('metrique_valeurs')
-      .select('metrique_id, date, valeur, commentaire')
-      .in('metrique_id', metriques.map(m => m.id))
-      .order('date', { ascending: true });
+    // Lecture par pages : Supabase plafonne chaque réponse à 1000 lignes, et
+    // une cliente avec historique importé en dépasse largement.
+    const valeurs = [];
+    for (let from = 0; ; from += 1000) {
+      const { data: page } = await db.from('metrique_valeurs')
+        .select('metrique_id, date, valeur, commentaire')
+        .in('metrique_id', metriques.map(m => m.id))
+        .order('date', { ascending: true })
+        .order('metrique_id', { ascending: true })
+        .range(from, from + 999);
+      valeurs.push(...(page || []));
+      if (!page || page.length < 1000) break;
+    }
     (valeurs || []).forEach(v => {
       const m = metMap[v.metrique_id]; if (!m) return;
       csv += row(v.date, m.nom, m.type || '', v.valeur, m.unite || '', v.commentaire || '');
@@ -2615,9 +2624,12 @@ async function loadComments(clientId) {
       db.from('metrique_valeurs').update({ lu_coach: true })
         .in('metrique_id', metricIds).eq('lu_coach', false).then(() => {});
 
+      // Seules les lignes commentées servent ici : sans ce filtre, l'historique
+      // importé (sans commentaires) dépassait le plafond de 1000 lignes.
       const { data: valRows } = await db.from('metrique_valeurs')
         .select('metrique_id, date, commentaire, reponse_coach')
-        .in('metrique_id', metricIds);
+        .in('metrique_id', metricIds)
+        .not('commentaire', 'is', null);
       (valRows || []).forEach(r => {
         if (r.commentaire && r.commentaire.trim()) {
           metricComments.push({
@@ -4678,6 +4690,8 @@ async function loadClientMetrics(clientId) {
         <div style="font-size:12px;font-weight:700;color:var(--text)">…</div>
         <div style="font-size:10px;color:var(--muted)">…</div>
         <canvas id="metric-chart-${m.id}" style="width:100%;height:56px;margin-top:4px;display:none;"></canvas>
+        <div id="metric-chart-empty-${m.id}" style="display:none;font-size:10px;color:var(--muted);margin-top:4px;">Aucune mesure ces 90 derniers jours</div>
+        <button id="metric-range-${m.id}" onclick="toggleMetricRange('${m.id}')" style="display:none;margin-top:4px;background:none;border:none;padding:0;font-size:10px;font-weight:600;color:var(--accent);cursor:pointer;">Tout l'historique</button>
       </div>
       ${groupesList.length ? `<select class="metric-groupe-select" title="Groupe d'affichage" onclick="event.stopPropagation()" onchange="changeMetricGroupe('${m.id}', this.value)">
         <option value=""${!m.groupe_id ? ' selected' : ''}>Sans groupe</option>
@@ -4695,9 +4709,9 @@ async function loadClientMetrics(clientId) {
       <button class="btn btn-danger btn-sm" onclick="removeMetricDB('${m.id}',this)">Retirer</button>`;
     list.appendChild(row);
 
-    // Charger les 30 dernières valeurs : dernière valeur + moy. 7j + mini graphe
-    db.from('metrique_valeurs').select('valeur,date').eq('metrique_id', m.id)
-      .order('date', { ascending: false }).limit(30)
+    // Toutes les valeurs (paginées) : dernière valeur + moy. 7j + mini graphe
+    // sur 90 jours par défaut, historique complet en un clic.
+    chargerValeursMetrique(m.id, 'valeur,date', false)
       .then(({ data: vals }) => {
         const valEl = document.getElementById('metric-val-' + m.id);
         if (!valEl) return;
@@ -4724,16 +4738,12 @@ async function loadClientMetrics(clientId) {
           avg7txt = `Moy. 7j : ${avg7disp}${avg7unite}`;
         } else { avg7txt = lastDate; }
         valEl.querySelector('div:nth-child(2)').textContent = avg7txt;
-        // Mini sparkline (30 dernières valeurs, ordre croissant)
-        const chartNums = vals.map(v => parseFloat(v.valeur)).filter(v => !isNaN(v)).reverse();
-        const chartDates = vals.map(v => v.date).reverse();
-        if (chartNums.length >= 2) {
-          const canvas = document.getElementById('metric-chart-' + m.id);
-          if (canvas) {
-            canvas.style.display = 'block';
-            requestAnimationFrame(() => drawMiniLineChart(canvas, chartNums, chartDates, '#6D28D9', 56));
-          }
-        }
+        // Série complète en ordre croissant, gardée pour basculer 90 j / tout
+        metricCardSeries[m.id] = vals
+          .map(v => ({ date: v.date, val: parseFloat(v.valeur) }))
+          .filter(p => !isNaN(p.val))
+          .reverse();
+        requestAnimationFrame(() => renderMetricCardChart(m.id));
       });
   });
 }
@@ -5735,11 +5745,7 @@ async function showMetricHistory(metriqueId, nom, unit) {
   list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Chargement…</div>';
   document.getElementById('modal-metric-history').classList.add('open');
 
-  const { data: valeurs } = await db
-    .from('metrique_valeurs')
-    .select('valeur, date')
-    .eq('metrique_id', metriqueId)
-    .order('date', { ascending: false });
+  const { data: valeurs } = await chargerValeursMetrique(metriqueId, 'valeur, date', false);
 
   if (!valeurs || valeurs.length === 0) {
     list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Aucune donnée enregistrée.</div>';
@@ -5747,7 +5753,11 @@ async function showMetricHistory(metriqueId, nom, unit) {
     const nEsc = (nom || '').replace(/'/g, "\\'");
     const uEsc = (unit || '').replace(/'/g, "\\'");
     list.innerHTML = valeurs.map((v, i) => {
-      const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      // L'année n'apparaît que si elle diffère de l'année en cours (historique importé).
+      const dObj = new Date(v.date + 'T12:00:00');
+      const dateStr = dObj.toLocaleDateString('fr-FR', dObj.getFullYear() === new Date().getFullYear()
+        ? { day: 'numeric', month: 'short' }
+        : { day: 'numeric', month: 'short', year: 'numeric' });
       let delta = '—', dir = 'eq';
       if (i < valeurs.length - 1) {
         const diff = v.valeur - valeurs[i + 1].valeur;
@@ -6882,7 +6892,62 @@ async function saveCoachPerfEntry() {
   await drawCoachPerfs();
 }
 
-function drawMiniLineChart(canvas, vals, dates, color, H) {
+// Supabase plafonne chaque réponse à 1000 lignes. Sans pagination, un long
+// historique (import TrueCoach : près de 1000 pesées pour certaines clientes)
+// perdrait silencieusement une partie de ses valeurs.
+async function chargerValeursMetrique(metriqueId, cols, ascending = true) {
+  const PAGE = 1000;
+  let out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db.from('metrique_valeurs').select(cols)
+      .eq('metrique_id', metriqueId)
+      .order('date', { ascending })
+      .range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    out = out.concat(data || []);
+    if (!data || data.length < PAGE) return { data: out, error: null };
+  }
+}
+
+// Mini graphe des cartes métriques : 90 derniers jours par défaut,
+// historique complet en un clic (choix mémorisé par métrique le temps de la session).
+const metricCardSeries = {};
+const metricCardFull   = {};
+function toggleMetricRange(id) {
+  metricCardFull[id] = !metricCardFull[id];
+  renderMetricCardChart(id);
+}
+function renderMetricCardChart(id) {
+  const serie  = metricCardSeries[id];
+  const canvas = document.getElementById('metric-chart-' + id);
+  const vide   = document.getElementById('metric-chart-empty-' + id);
+  const btn    = document.getElementById('metric-range-' + id);
+  if (!serie || !canvas) return;
+  const limite = new Date(); limite.setDate(limite.getDate() - 90);
+  const limiteIso = limite.toISOString().slice(0, 10);
+  const recents = serie.filter(p => p.date >= limiteIso);
+  const plein = !!metricCardFull[id];
+  const pts = plein ? serie : recents;
+  // Le bouton n'a de sens que s'il existe des mesures de plus de 90 jours
+  if (btn) {
+    btn.style.display = recents.length < serie.length ? '' : 'none';
+    btn.textContent = plein ? '90 derniers jours' : `Tout l'historique (${serie.length})`;
+  }
+  if (vide) vide.style.display = pts.length === 0 ? '' : 'none';
+  if (pts.length < 2) { canvas.style.display = 'none'; return; }
+  canvas.style.display = 'block';
+  const multiAns = pts[0].date.slice(0, 4) !== pts[pts.length - 1].date.slice(0, 4);
+  const labels = pts.map(p => {
+    const [a, mo, j] = p.date.split('-');
+    return multiAns ? `${j}/${mo}/${a.slice(2)}` : `${j}/${mo}`;
+  });
+  drawMiniLineChart(canvas, pts.map(p => p.val), labels, '#6D28D9', 56, pts.map(p => p.date));
+}
+
+// isoDates (facultatif) : dates AAAA-MM-JJ alignées sur vals. Fournies, elles
+// placent les points sur un axe en temps réel et font apparaître les périodes
+// sans mesure (pointillés). Sans elles, espacement régulier (graphes de perfs).
+function drawMiniLineChart(canvas, vals, dates, color, H, isoDates) {
   const dpr = window.devicePixelRatio || 1;
   const W   = canvas.offsetWidth || 280;
   canvas.width  = W * dpr;
@@ -6895,8 +6960,26 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
   const min  = Math.min(...vals), max = Math.max(...vals);
   const rng  = (max - min) || 1;
   const minD = min - rng*0.1, maxD = max + rng*0.1, rngD = maxD - minD;
-  const xp   = i => vals.length <= 1 ? pad.left + cW/2 : pad.left + (i / (vals.length-1)) * cW;
+  const tps  = isoDates && isoDates.length === vals.length ? isoDates.map(d => Date.parse(d + 'T12:00:00')) : null;
+  const t0   = tps ? tps[0] : 0, t1 = tps ? tps[tps.length-1] : 0;
+  const xp   = i => {
+    if (vals.length <= 1) return pad.left + cW/2;
+    if (tps && t1 > t0) return pad.left + ((tps[i] - t0) / (t1 - t0)) * cW;
+    return pad.left + (i / (vals.length-1)) * cW;
+  };
   const yp   = v => pad.top + cH - ((v - minD) / rngD) * cH;
+
+  // Absence de mesure = écart > 3× l'intervalle habituel (21 j minimum) :
+  // la courbe s'interrompt et le trou est tracé en pointillés.
+  let seuilTrou = Infinity;
+  if (tps && tps.length > 2) {
+    const ecarts = tps.slice(1).map((t, i) => t - tps[i]).sort((a, b) => a - b);
+    seuilTrou = Math.max(21 * 864e5, 3 * ecarts[Math.floor(ecarts.length / 2)]);
+  }
+  const estTrou = i => tps && (tps[i] - tps[i-1]) > seuilTrou;
+  const runs = []; let debut = 0;
+  for (let i = 1; i < vals.length; i++) if (estTrou(i)) { runs.push([debut, i-1]); debut = i; }
+  runs.push([debut, vals.length-1]);
 
   ctx.fillStyle = '#9CA3AF'; ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'right';
   ctx.fillText(max, pad.left-4, pad.top+5);
@@ -6910,27 +6993,47 @@ function drawMiniLineChart(canvas, vals, dates, color, H) {
 
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top+cH);
   grad.addColorStop(0, color+'20'); grad.addColorStop(1, color+'00');
-  ctx.beginPath();
-  ctx.moveTo(xp(0), yp(vals[0]));
-  vals.forEach((v,i) => { if(i>0) ctx.lineTo(xp(i), yp(v)); });
-  ctx.lineTo(xp(vals.length-1), pad.top+cH); ctx.lineTo(xp(0), pad.top+cH);
-  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  runs.forEach(([a, b]) => {
+    if (b === a) return;
+    ctx.beginPath(); ctx.moveTo(xp(a), yp(vals[a]));
+    for (let i = a+1; i <= b; i++) ctx.lineTo(xp(i), yp(vals[i]));
+    ctx.lineTo(xp(b), pad.top+cH); ctx.lineTo(xp(a), pad.top+cH);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  });
 
-  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
-  ctx.moveTo(xp(0), yp(vals[0]));
-  vals.forEach((v,i) => { if(i>0) ctx.lineTo(xp(i), yp(v)); });
-  ctx.stroke();
+  ctx.lineJoin = 'round';
+  for (let i = 1; i < vals.length; i++) {
+    ctx.beginPath();
+    if (estTrou(i)) { ctx.setLineDash([3, 3]); ctx.strokeStyle = color+'55'; ctx.lineWidth = 1; }
+    else            { ctx.setLineDash([]);     ctx.strokeStyle = color;      ctx.lineWidth = 1.5; }
+    ctx.moveTo(xp(i-1), yp(vals[i-1])); ctx.lineTo(xp(i), yp(vals[i])); ctx.stroke();
+  }
+  ctx.setLineDash([]);
 
-  ctx.font = '9px -apple-system,sans-serif'; ctx.textAlign = 'center';
+  // Au-delà de ~40 points, les ronds masquent la courbe : on ne garde que le
+  // dernier, plus les points isolés entre deux trous (sinon invisibles).
+  const showDots = vals.length <= 40;
+  const isole = i => runs.some(([a, b]) => a === i && b === i);
   vals.forEach((v,i) => {
-    const x = xp(i), y = yp(v);
-    ctx.beginPath(); ctx.arc(x, y, i===vals.length-1 ? 3.5 : 2.5, 0, Math.PI*2);
+    if (!(showDots || i === vals.length-1 || isole(i))) return;
+    ctx.beginPath(); ctx.arc(xp(i), yp(v), i===vals.length-1 ? 3.5 : 2.5, 0, Math.PI*2);
     ctx.fillStyle = i===vals.length-1 ? color : '#FFF'; ctx.fill();
     if (i !== vals.length-1) { ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke(); }
-    if (i === 0 || i === vals.length-1 || i === Math.floor(vals.length/2)) {
-      ctx.fillStyle = i === vals.length-1 ? color : '#9CA3AF';
-      ctx.fillText(dates[i], x, H-3);
-    }
+  });
+
+  // Dates : première, dernière, et le point le plus proche du milieu de l'axe
+  // s'il ne chevauche pas les deux autres.
+  ctx.font = '9px -apple-system,sans-serif';
+  const last = vals.length-1, xMid = pad.left + cW/2;
+  let mid = 0;
+  vals.forEach((v,i) => { if (Math.abs(xp(i) - xMid) < Math.abs(xp(mid) - xMid)) mid = i; });
+  const idx = [0, last];
+  if (mid !== 0 && mid !== last && xp(mid) - xp(0) > 40 && xp(last) - xp(mid) > 40) idx.push(mid);
+  idx.forEach(i => {
+    if (!dates[i]) return;
+    ctx.fillStyle = i === last ? color : '#9CA3AF';
+    ctx.textAlign = i === 0 ? 'left' : (i === last ? 'right' : 'center');
+    ctx.fillText(dates[i], i === 0 ? Math.max(xp(i)-8, 0) : (i === last ? Math.min(xp(i)+8, W) : xp(i)), H-3);
   });
 }
 
