@@ -948,9 +948,11 @@ async function hashPin(pin) {
 .dde{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;gap:12px}
 .dde span:first-child{color:var(--text-muted)}
 
+  /* Page masquée tant que la connexion coach n'est pas validée (sécurité, étape 1) */
+  body.acces-verrouille > *:not(#coach-login) { visibility: hidden; }
 </style>
 </head>
-<body>
+<body class="acces-verrouille">
 <div class="layout">
 
 <!-- ═══════════════ SIDEBAR ═══════════════ -->
@@ -988,6 +990,7 @@ async function hashPin(pin) {
     <div>
       <div class="coach-name">Kevin G.</div>
       <div class="coach-email">Indiana Afit</div>
+      <div class="coach-email" style="cursor:pointer;text-decoration:underline;margin-top:2px;" onclick="deconnexionCoach()">Se déconnecter</div>
     </div>
   </div>
 </div>
@@ -7038,12 +7041,87 @@ function drawMiniLineChart(canvas, vals, dates, color, H, isoDates) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  ACCÈS COACH — connexion Supabase Auth (sécurité, étape 1)
+// ═══════════════════════════════════════════════════════════
+// La page reste masquée tant qu'un compte inscrit dans la table « coachs »
+// n'est pas connecté. Rien n'est chargé depuis la base avant.
+// Tant que les règles d'accès ne sont pas fermées (étape 3), la base reste
+// lisible avec la clé publique : cet écran protège l'interface, pas encore
+// les données.
+function afficherConnexionCoach(message) {
+  let ov = document.getElementById('coach-login');
+  if (!ov) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="coach-login" style="position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;">
+        <form onsubmit="event.preventDefault();connexionCoach();" style="width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 10px 30px rgba(0,0,0,0.06);">
+          <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px;">Espace coach</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">RECODE — accès réservé</div>
+          <label class="form-label" for="coach-login-email">Email</label>
+          <input class="form-input" id="coach-login-email" type="email" autocomplete="username" required style="width:100%;margin-bottom:12px;">
+          <label class="form-label" for="coach-login-mdp">Mot de passe</label>
+          <input class="form-input" id="coach-login-mdp" type="password" autocomplete="current-password" required style="width:100%;margin-bottom:16px;">
+          <div id="coach-login-msg" style="font-size:12px;color:#DC2626;min-height:16px;margin-bottom:10px;"></div>
+          <button class="btn btn-accent" id="coach-login-btn" type="submit" style="width:100%;justify-content:center;text-align:center;">Se connecter</button>
+        </form>
+      </div>`);
+    ov = document.getElementById('coach-login');
+  }
+  ov.style.display = 'flex';
+  document.getElementById('coach-login-msg').textContent = message || '';
+}
+
+async function estCoach() {
+  const { data, error } = await db.rpc('is_coach');
+  return !error && data === true;
+}
+
+let coachDemarre = false;
+function demarrerEspaceCoach() {
+  const ov = document.getElementById('coach-login');
+  if (ov) ov.remove();
+  document.body.classList.remove('acces-verrouille');
+  if (coachDemarre) return;
+  coachDemarre = true;
+  loadClients();
+  // Les trois réglages globaux vivent dans la même table : une seule requête
+  // au lieu de trois allers-retours réseau à chaque ouverture.
+  loadReglagesGlobaux();
+}
+
+async function connexionCoach() {
+  const btn = document.getElementById('coach-login-btn');
+  const msg = document.getElementById('coach-login-msg');
+  btn.disabled = true; msg.textContent = '';
+  const email = document.getElementById('coach-login-email').value.trim();
+  const mdp   = document.getElementById('coach-login-mdp').value;
+  const { error } = await db.auth.signInWithPassword({ email, password: mdp });
+  if (error) {
+    btn.disabled = false;
+    msg.textContent = 'Email ou mot de passe incorrect.';
+    return;
+  }
+  if (!(await estCoach())) {
+    await db.auth.signOut();
+    btn.disabled = false;
+    msg.textContent = 'Ce compte n\'a pas accès à l\'espace coach.';
+    return;
+  }
+  demarrerEspaceCoach();
+}
+
+async function deconnexionCoach() {
+  await db.auth.signOut();
+  location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
-loadClients();
-// Les trois réglages globaux vivent dans la même table : une seule requête
-// au lieu de trois allers-retours réseau à chaque ouverture.
-loadReglagesGlobaux();
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session && await estCoach()) demarrerEspaceCoach();
+  else afficherConnexionCoach();
+})();
 </script>
 <script src="recode-diete.js?v=13"></script>
 <script>
