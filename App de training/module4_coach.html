@@ -1108,6 +1108,11 @@ async function hashPin(pin) {
             <svg id="btn-toggle-active-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             <span id="btn-toggle-active-label">Désactiver l'accès</span>
           </button>
+          <button onclick="reinitialiserAccesCliente()" title="Code oublié : donne-lui un code provisoire à 4 chiffres"
+            style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <span>Réinitialiser l'accès</span>
+          </button>
           <button onclick="exportClientCSV()" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;" title="Exporter toutes les données en CSV">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>Export CSV</span>
@@ -3923,6 +3928,30 @@ async function toggleClientActive() {
   updateToggleActiveButton(currentClientData);
   toast(newActif ? 'Accès réactivé' : 'Accès désactivé');
   loadClients();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CODE OUBLIÉ — accès provisoire (sécurité, étape 2)
+// ═══════════════════════════════════════════════════════════
+// Le compte de connexion de la cliente est supprimé (pas sa fiche ni ses
+// données) et un code provisoire à 4 chiffres est posé. Elle se connecte
+// avec ce code et choisit un nouveau code à 6 chiffres.
+async function reinitialiserAccesCliente() {
+  if (!currentClientId || !currentClientData) return;
+  const prenom = currentClientData.prenom;
+  const propose = String(Math.floor(1000 + Math.random() * 9000));
+  const pin = prompt(`Code provisoire à 4 chiffres pour ${prenom} :\n\nSon code actuel ne fonctionnera plus. Elle se connectera avec ce code provisoire, puis choisira un nouveau code à 6 chiffres. Ses données ne sont pas touchées.`, propose);
+  if (pin === null) return;
+  if (!/^[0-9]{4}$/.test(pin)) { alert('Le code provisoire doit faire exactement 4 chiffres.'); return; }
+  const { data, error } = await db.rpc('coach_reinitialiser_acces', { p_client_id: currentClientId, p_pin: pin });
+  if (error) {
+    alert((error.message || '').includes('compte_coach')
+      ? 'Cette fiche est reliée à ton compte coach : change ton mot de passe dans Supabase.'
+      : 'Erreur : ' + error.message);
+    return;
+  }
+  if (!data) { alert('Fiche introuvable.'); return; }
+  alert(`Accès réinitialisé.\n\nTransmets à ${prenom} son code provisoire : ${pin}\n\nÀ sa prochaine connexion (email + ce code), l'app lui demandera de choisir son nouveau code à 6 chiffres.`);
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -15,24 +15,59 @@ function getSession() {
 function setSession(data) { localStorage.setItem('recode_session', JSON.stringify(data)); }
 function clearSession() { localStorage.removeItem('recode_session'); }
 
-async function loginClient(email, pin) {
-  const { data, error } = await db
-    .rpc('rpc_verify_login', { p_email: email.toLowerCase().trim(), p_pin: pin });
-  if (error || !data || !data.length) return { success: false, error: 'Email ou code PIN incorrect.' };
-  const row = data[0];
-  if (row.actif === false) {
-    return { success: false, error: 'Compte désactivé par ton coach. Contacte-le pour plus d\'informations.' };
+const MSG_DESACTIVE = 'Compte désactivé par ton coach. Contacte-le pour plus d\'informations.';
+
+// Connexion par compte (code à 6 chiffres, ou mot de passe pour le coach).
+// La base sait alors qui est connecté : c'est ce qui permettra de la fermer
+// (sécurité, étape 3).
+async function connexionCompte(email, code) {
+  const { error } = await db.auth.signInWithPassword({ email: email.toLowerCase().trim(), password: code });
+  if (error) return { success: false, error: 'E-mail ou code incorrect.' };
+  return ouvrirSessionDepuisCompte();
+}
+
+async function ouvrirSessionDepuisCompte() {
+  const { data, error } = await db.rpc('ma_fiche');
+  const row = !error && data && data[0];
+  if (!row) {
+    await db.auth.signOut();
+    return { success: false, error: 'Aucune fiche RECODE n\'est liée à ce compte. Contacte ton coach.' };
   }
-  const session = { client_id: row.id, email: row.email, prenom: row.prenom, is_first_login: row.is_first_login };
+  if (row.actif === false) { await db.auth.signOut(); return { success: false, error: MSG_DESACTIVE }; }
+  const session = { client_id: row.id, email: row.email, prenom: row.prenom, is_first_login: false };
   setSession(session);
   return { success: true, session };
 }
 
-async function setNewPin(clientId, newPin) {
-  const { data, error } = await db.rpc('rpc_set_pin', { p_client_id: clientId, p_pin: newPin });
-  if (error || !data) return { success: false };
-  const s = getSession(); if (s) { s.is_first_login = false; setSession(s); }
-  return { success: true };
+// Ancien PIN à 4 chiffres : sert une seule fois, à activer son compte.
+async function verifierAncienPin(email, pin) {
+  const { data, error } = await db
+    .rpc('rpc_verify_login', { p_email: email.toLowerCase().trim(), p_pin: pin });
+  if (error) {
+    if ((error.message || '').includes('trop_essais'))
+      return { success: false, error: 'Trop d\'essais. Réessaie dans 15 minutes.' };
+    if ((error.message || '').includes('compte_active'))
+      return { success: false, error: 'Ton compte est déjà activé : connecte-toi avec ton code à 6 chiffres.' };
+    return { success: false, error: 'Connexion impossible. Réessaie dans un instant.' };
+  }
+  if (!data || !data.length) return { success: false, error: 'E-mail ou code incorrect.' };
+  const row = data[0];
+  if (row.actif === false) return { success: false, error: MSG_DESACTIVE };
+  return { success: true, row };
+}
+
+// Création du compte avec le jeton remis par la base après un PIN correct
+async function activerCompte(email, nouveauCode, jeton) {
+  const { data, error } = await db.auth.signUp({
+    email: email.toLowerCase().trim(),
+    password: nouveauCode,
+    options: { data: { jeton } }
+  });
+  if (error || !data || !data.session) {
+    console.error('Activation :', error || 'pas de session (confirmation email activée ?)');
+    return { success: false, error: 'Activation impossible. Reconnecte-toi avec ton ancien code pour recommencer.' };
+  }
+  return ouvrirSessionDepuisCompte();
 }
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -281,6 +316,11 @@ async function setNewPin(clientId, newPin) {
     margin-top: 4px;
   }
   .first-login-panel.show { display: block; }
+  /* 6 cases : largeur souple pour tenir sur un téléphone étroit */
+  .pin-wrap, .new-pin-wrap { gap: 8px; }
+  .pin-digit, .new-pin-digit { width: auto; flex: 1 1 0; min-width: 0; max-width: 52px; }
+  .code-hint { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px; line-height: 1.45; }
+  .code-hint a { color: var(--accent); font-weight: 600; text-decoration: none; }
   .first-login-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
   .first-login-title svg { flex-shrink: 0; }
   .first-login-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
@@ -411,13 +451,19 @@ async function setNewPin(clientId, newPin) {
       </div>
 
       <div class="field-wrap">
-        <label class="field-label">Code PIN</label>
+        <label class="field-label" id="code-label">Code</label>
         <div class="pin-wrap" id="pin-wrap">
           <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,0)" onkeydown="pinBack(event,this,0)">
           <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,1)" onkeydown="pinBack(event,this,1)">
           <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,2)" onkeydown="pinBack(event,this,2)">
           <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,3)" onkeydown="pinBack(event,this,3)">
+          <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,4)" onkeydown="pinBack(event,this,4)">
+          <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="pinNext(this,5)" onkeydown="pinBack(event,this,5)">
         </div>
+        <input class="field-input" id="mdp-input" type="password" autocomplete="current-password"
+          placeholder="Mot de passe" style="display:none" oninput="onFormChange()">
+        <div class="code-hint" id="code-hint">Ton ancien code à 4 chiffres fonctionne encore une fois : l'app te demandera ensuite d'en choisir un à 6 chiffres.</div>
+        <div class="code-hint"><a href="#" onclick="event.preventDefault();basculerMotDePasse();" id="lien-mdp">Se connecter avec un mot de passe</a></div>
       </div>
 
       <div class="error-msg" id="error-msg">E-mail ou code PIN incorrect.</div>
@@ -430,16 +476,28 @@ async function setNewPin(clientId, newPin) {
       <div class="first-login-panel" id="first-login-panel">
         <div class="first-login-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-          Choisis ton nouveau PIN
+          Choisis ton nouveau code
         </div>
-        <div class="first-login-sub">C'est ta première connexion. Définis un code personnel à 4 chiffres — tu en auras besoin à chaque fois.</div>
+        <div class="first-login-sub">Pour mieux protéger ton espace, ton code passe à 6 chiffres. Choisis-le, puis tape-le une deuxième fois. Tes données ne changent pas.</div>
         <div class="new-pin-wrap" id="new-pin-wrap">
           <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,0)" onkeydown="newPinBack(event,this,0)">
           <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,1)" onkeydown="newPinBack(event,this,1)">
           <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,2)" onkeydown="newPinBack(event,this,2)">
           <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,3)" onkeydown="newPinBack(event,this,3)">
+          <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,4)" onkeydown="newPinBack(event,this,4)">
+          <input class="new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="newPinNext(this,5)" onkeydown="newPinBack(event,this,5)">
         </div>
-        <button class="btn-primary" id="btn-set-pin" onclick="confirmNewPin()" disabled>Confirmer mon PIN →</button>
+        <div class="first-login-sub" style="margin-bottom:8px;">Confirme ton code</div>
+        <div class="new-pin-wrap" id="conf-pin-wrap">
+          <input class="conf-pin-digit new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="confPinNext(this,0)" onkeydown="confPinBack(event,this,0)">
+          <input class="conf-pin-digit new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="confPinNext(this,1)" onkeydown="confPinBack(event,this,1)">
+          <input class="conf-pin-digit new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="confPinNext(this,2)" onkeydown="confPinBack(event,this,2)">
+          <input class="conf-pin-digit new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="confPinNext(this,3)" onkeydown="confPinBack(event,this,3)">
+          <input class="conf-pin-digit new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="confPinNext(this,4)" onkeydown="confPinBack(event,this,4)">
+          <input class="conf-pin-digit new-pin-digit" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]" oninput="confPinNext(this,5)" onkeydown="confPinBack(event,this,5)">
+        </div>
+        <div class="error-msg" id="activation-msg"></div>
+        <button class="btn-primary" id="btn-set-pin" onclick="confirmNewPin()" disabled>Enregistrer mon code →</button>
       </div>
 
     </div>
@@ -498,7 +556,10 @@ window.addEventListener('load', () => {
   }, 1400);
 });
 
-// ── PIN de connexion ──────────────────────────────────────
+// ── Code de connexion (6 cases ; 4 chiffres = ancien PIN) ─────────────
+let modeMotDePasse = false;
+let activation = null;   // { email, jeton, prenom } après un ancien PIN correct
+
 function pinNext(input, idx) {
   input.value = input.value.replace(/\D/g, '').slice(-1);
   input.classList.toggle('filled', input.value !== '');
@@ -512,75 +573,117 @@ function pinBack(e, input, idx) {
   }
 }
 function getPin() { return Array.from(pins).map(p => p.value).join(''); }
+function viderPin() { pins.forEach(p => { p.value = ''; p.classList.remove('filled'); }); }
+
+// Le coach (et toute personne ayant un mot de passe) se connecte autrement
+function basculerMotDePasse() {
+  modeMotDePasse = !modeMotDePasse;
+  document.getElementById('pin-wrap').style.display  = modeMotDePasse ? 'none' : 'flex';
+  document.getElementById('code-hint').style.display = modeMotDePasse ? 'none' : '';
+  document.getElementById('mdp-input').style.display = modeMotDePasse ? 'block' : 'none';
+  document.getElementById('code-label').textContent  = modeMotDePasse ? 'Mot de passe' : 'Code';
+  document.getElementById('lien-mdp').textContent    = modeMotDePasse ? 'Se connecter avec un code' : 'Se connecter avec un mot de passe';
+  onFormChange();
+}
 
 function onFormChange() {
   const email = document.getElementById('email-input').value.trim();
-  const pin   = getPin();
-  document.getElementById('btn-connect').disabled = !(email.length > 3 && pin.length === 4);
+  const ok = modeMotDePasse
+    ? document.getElementById('mdp-input').value.length >= 6
+    : [4, 6].includes(getPin().length);
+  document.getElementById('btn-connect').disabled = !(email.length > 3 && ok);
   document.getElementById('error-msg').classList.remove('show');
+}
+
+function afficherErreur(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.classList.add('show');
 }
 
 async function tryConnect() {
   const email = document.getElementById('email-input').value.trim();
-  const pin   = getPin();
+  const code  = modeMotDePasse ? document.getElementById('mdp-input').value : getPin();
   const btn   = document.getElementById('btn-connect');
-
   btn.disabled = true;
   btn.textContent = 'Vérification…';
+  const remettre = () => { btn.disabled = false; btn.textContent = 'Accéder à mon espace →'; };
 
-  const result = await loginClient(email, pin);
-
-  if (!result.success) {
-    document.getElementById('error-msg').textContent = result.error;
-    document.getElementById('error-msg').classList.add('show');
-    pins.forEach(p => { p.value = ''; p.classList.remove('filled'); });
-    pins[0].focus();
-    btn.disabled = false;
-    btn.textContent = 'Accéder à mon espace →';
-    return;
-  }
-
-  currentSession = result.session;
-
-  if (result.session.is_first_login) {
-    // Première connexion → choisir un PIN personnel
+  // Ancien PIN à 4 chiffres → activation du compte
+  if (!modeMotDePasse && code.length === 4) {
+    const r = await verifierAncienPin(email, code);
+    if (!r.success) { afficherErreur(r.error); viderPin(); pins[0].focus(); remettre(); return; }
+    activation = { email, jeton: r.row.jeton, prenom: r.row.prenom };
     btn.style.display = 'none';
     document.getElementById('first-login-panel').classList.add('show');
     newPins[0].focus();
-  } else {
-    showSuccess(`Bonjour ${result.session.prenom} 👋`);
+    return;
   }
+
+  // Code à 6 chiffres ou mot de passe → compte
+  const r = await connexionCompte(email, code);
+  if (!r.success) {
+    afficherErreur(modeMotDePasse ? r.error
+      : r.error + ' Si tu n\'as pas encore choisi ton code à 6 chiffres, tape ton ancien code à 4 chiffres.');
+    if (!modeMotDePasse) { viderPin(); pins[0].focus(); }
+    remettre(); return;
+  }
+  showSuccess(`Bonjour ${r.session.prenom} 👋`);
 }
 
-// ── Nouveau PIN (première connexion) ─────────────────────
+// ── Nouveau code (activation du compte) ──────────────────
+const confPins = document.querySelectorAll('.conf-pin-digit');
+const nouveauxPins = Array.from(newPins).filter(p => !p.classList.contains('conf-pin-digit'));
+function majBoutonCode() {
+  const a = nouveauxPins.map(p => p.value).join('');
+  const b = Array.from(confPins).map(p => p.value).join('');
+  document.getElementById('btn-set-pin').disabled = !(a.length === 6 && b.length === 6);
+  document.getElementById('activation-msg').classList.remove('show');
+}
 function newPinNext(input, idx) {
   input.value = input.value.replace(/\D/g, '').slice(-1);
   input.classList.toggle('filled', input.value !== '');
-  if (input.value && idx < newPins.length - 1) newPins[idx + 1].focus();
-  document.getElementById('btn-set-pin').disabled =
-    Array.from(newPins).map(p => p.value).join('').length < 4;
+  if (input.value) (idx < nouveauxPins.length - 1 ? nouveauxPins[idx + 1] : confPins[0]).focus();
+  majBoutonCode();
 }
 function newPinBack(e, input, idx) {
   if (e.key === 'Backspace' && !input.value && idx > 0) {
-    newPins[idx - 1].focus(); newPins[idx - 1].value = ''; newPins[idx - 1].classList.remove('filled');
-    document.getElementById('btn-set-pin').disabled = true;
+    nouveauxPins[idx - 1].focus(); nouveauxPins[idx - 1].value = ''; nouveauxPins[idx - 1].classList.remove('filled');
+    majBoutonCode();
+  }
+}
+function confPinNext(input, idx) {
+  input.value = input.value.replace(/\D/g, '').slice(-1);
+  input.classList.toggle('filled', input.value !== '');
+  if (input.value && idx < confPins.length - 1) confPins[idx + 1].focus();
+  majBoutonCode();
+}
+function confPinBack(e, input, idx) {
+  if (e.key === 'Backspace' && !input.value && idx > 0) {
+    confPins[idx - 1].focus(); confPins[idx - 1].value = ''; confPins[idx - 1].classList.remove('filled');
+    majBoutonCode();
   }
 }
 
 async function confirmNewPin() {
-  const newPin = Array.from(newPins).map(p => p.value).join('');
-  if (newPin.length < 4 || !currentSession) return;
-
+  const msg = document.getElementById('activation-msg');
+  const code = nouveauxPins.map(p => p.value).join('');
+  const conf = Array.from(confPins).map(p => p.value).join('');
+  if (!activation || code.length !== 6) return;
+  if (code !== conf) {
+    msg.textContent = 'Les deux codes ne sont pas identiques.'; msg.classList.add('show');
+    confPins.forEach(p => { p.value = ''; p.classList.remove('filled'); }); confPins[0].focus();
+    majBoutonCode(); return;
+  }
   const btn = document.getElementById('btn-set-pin');
   btn.disabled = true;
   btn.textContent = 'Enregistrement…';
 
-  const result = await setNewPin(currentSession.client_id, newPin);
-  if (result.success) {
-    showSuccess('Ton PIN est enregistré 🎉');
+  const r = await activerCompte(activation.email, code, activation.jeton);
+  if (r.success) {
+    showSuccess('Ton nouveau code est enregistré 🎉');
   } else {
-    btn.disabled = false;
-    btn.textContent = 'Confirmer mon PIN →';
+    msg.textContent = r.error; msg.classList.add('show');
+    btn.textContent = 'Enregistrer mon code →';
   }
 }
 
@@ -592,7 +695,8 @@ function showSuccess(msg) {
   setTimeout(() => { window.location.href = 'module1_seance.html'; }, 1400);
 }
 
-pins[pins.length - 1].addEventListener('keydown', e => { if (e.key === 'Enter') tryConnect(); });
+pins[pins.length - 1].addEventListener('keydown', e => { if (e.key === 'Enter' && !document.getElementById('btn-connect').disabled) tryConnect(); });
+document.getElementById('mdp-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !document.getElementById('btn-connect').disabled) tryConnect(); });
 </script>
 </body>
 </html>

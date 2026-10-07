@@ -19,7 +19,7 @@ function toLocalDateStr(d) {
 }
 function getSession(){try{return JSON.parse(localStorage.getItem('recode_session'));}catch{return null;}}
 function requireAuth(){const s=getSession();if(!s||!s.client_id){window.location.href='login.html';return null;}return s;}
-function logout(){localStorage.removeItem('recode_session');window.location.href='login.html';}
+function logout(){localStorage.removeItem('recode_session');db.auth.signOut().finally(()=>{window.location.href='login.html';});}
 // Vérifie (async, non bloquant) que le compte n'a pas été désactivé par le coach.
 // Si désactivé : déconnecte et redirige vers login.html avec un message.
 function checkAccountActive(session){
@@ -27,7 +27,7 @@ function checkAccountActive(session){
   db.from('clients').select('actif').eq('id', session.client_id).single().then(({data}) => {
     if (data && data.actif === false) {
       localStorage.removeItem('recode_session');
-      window.location.href = 'login.html?desactive=1';
+      db.auth.signOut().finally(() => { window.location.href = 'login.html?desactive=1'; });
     }
   }).catch(()=>{});
 }
