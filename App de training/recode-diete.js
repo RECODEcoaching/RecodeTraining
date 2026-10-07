@@ -363,7 +363,8 @@ async function chargerAliments(){
   ALIM_IDS  = tout.map(r => r.id);
   ALIM_META = tout.map(r => ({ source:r.source, statut:r.statut, propose_par:r.propose_par,
     fct:r.fructanes_niveau, gos:r.gos_niveau, portion:+r.fod_portion || 100, estDe:r.sucres_estimes_de,
-    motif:r.refus_motif || '', seuils:r.fod_seuils || null }));
+    motif:r.refus_motif || '', seuils:r.fod_seuils || null,
+    code:r.code_barre || null, vsrc:r.valeurs_source || null }));
   ID2IDX = {}; tout.forEach((r,i) => ID2IDX[r.id] = i);
   console.log('Aliments chargés depuis Supabase :', tout.length);
 }
@@ -623,13 +624,32 @@ async function dbDelRepasLibre(repasId){
   await sb.from('diete_entrees').delete().eq('repas_ref', repasId);
   await sb.from('diete_repas_libres').delete().eq('id', repasId);
 }
-async function dbAddAlimentPerso(nom, kcal, p, g, l, f, parId){
-  const { data, error } = await sb.from('aliments').insert({
-    nom, nom_norm:norm(nom), source:'perso', statut:'en_attente', propose_par:parId,
-    kcal, prot:p, gluc:g, lip:l, fibres:f
-  }).select().single();
+// `scan` (facultatif) : { code_barre, valeurs_source } quand l'aliment vient d'un scan.
+async function dbAddAlimentPerso(nom, kcal, p, g, l, f, parId, scan){
+  const ligne = { nom, nom_norm:norm(nom), source:'perso', statut:'en_attente', propose_par:parId,
+    kcal, prot:p, gluc:g, lip:l, fibres:f };
+  let { data, error } = await sb.from('aliments').insert(Object.assign({}, ligne, scan || {}))
+    .select().single();
+  // colonnes code_barre / valeurs_source absentes : on enregistre au moins l'aliment
+  if(error && scan){
+    ({ data, error } = await sb.from('aliments').insert(ligne).select().single());
+    if(!error) dtToast('Code-barres non enregistré — SQL manquant (diete-code-barre.sql)');
+  }
   if(error){ erreur(error, 'proposition de l\'aliment'); return null; }
   return data;
+}
+// Aliment déjà connu sous ce code-barres, et visible pour cette cliente
+function alimentParCode(code, clientId){
+  for(let i=0; i<ALIM_META.length; i++){
+    const m = ALIM_META[i];
+    if(m && m.code === code && alimentVisible(i, clientId)) return i;
+  }
+  return -1;
+}
+// Libellé de l'origine des valeurs, pour la page coach
+function origineValeurs(i){
+  const m = ALIM_META[i]; if(!m || !m.vsrc) return '';
+  return m.vsrc === 'openfoodfacts_modifie' ? 'Open Food Facts, modifiées par la cliente' : 'Open Food Facts';
 }
 async function dbAlimentStatut(alimId, statut, motif){
   const patch = { statut };

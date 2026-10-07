@@ -7152,7 +7152,7 @@ async function deconnexionCoach() {
   else afficherConnexionCoach();
 })();
 </script>
-<script src="recode-diete.js?v=13"></script>
+<script src="recode-diete.js?v=14"></script>
 <script>
 // ── Module Diète — vue coach ────────────────────────────────
 // Le socle (recode-diete.js) fournit les calculs et les accès à la base.
@@ -7812,13 +7812,19 @@ function dl(name,content){
   const jumeauDe=i=>{const n=norm(ALIMENTS_BASE[i][0]);
     return SEARCH_INDEX.some(x=>x.i!==i && x.n===n && ALIM_META[x.i] && ALIM_META[x.i].statut==='valide');};
   const nomDe=id=>{const c=S.clients[id];return c?c.nom:'—';};
+  // Aliment scanné : code-barres, et origine des valeurs à vérifier tant qu'il est en attente
+  const scanInfo=i=>{const m=ALIM_META[i]; if(!m||(!m.code&&!m.vsrc)) return '';
+    const o=origineValeurs(i);
+    return '<div class="pby"'+(o&&m.statut==='en_attente'?' style="color:#92400E"':'')+'>'
+      +(m.code?'Code-barres '+dtEsc(m.code):'')+(m.code&&o?' · ':'')
+      +(o?'Valeurs '+dtEsc(o)+(m.statut==='en_attente'?' — <b>à vérifier</b>':''):'')+'</div>';};
   const carte=(i,actions)=>{
     const a=ALIMENTS_BASE[i], kcal=a[1]||0, p=a[2]||0, g=a[3]||0, l=a[4]||0, f=a[5]||0;
     const calc=p*4+g*4+l*9;
     const flag=(kcal>20&&Math.abs(calc-kcal)/kcal>.25)?'<div class="pby" style="color:var(--danger)">Incohérence : d\'après les macros, ce serait ~'+Math.round(calc)+' kcal</div>':'';
     return '<div class="pend"><div class="pi"><div class="pn">'+dtEsc(a[0])+'</div>'
       +'<div class="pm">'+r1(kcal)+' kcal · P '+r1(p)+' · G '+r1(g)+' · L '+r1(l)+' · Fibres '+r1(f)+' (100 g)</div>'
-      +'<div class="pby">Proposé par '+dtEsc(nomDe(ALIM_META[i].propose_par))+'</div>'+flag+'</div>'
+      +'<div class="pby">Proposé par '+dtEsc(nomDe(ALIM_META[i].propose_par))+'</div>'+flag+scanInfo(i)+'</div>'
       +'<div class="pa">'+actions+'</div></div>';
   };
   const pendHtml=pend.length?pend.map(i=>
@@ -7919,6 +7925,7 @@ function dl(name,content){
       m.statut==='refuse'?'<span class="srcflag" style="background:rgba(220,38,38,.1);color:var(--danger)">retiré</span>':'',
       m.statut==='en_attente'?'<span class="srcflag" style="background:rgba(217,119,6,.1);color:#92400E">en attente</span>':'',
       estPerso(i)?'<span class="srcflag src-chk">perso</span>':'',
+      m.vsrc?'<span class="srcflag src-chk">Open Food Facts</span>':'',
       estCorrige(i)?'<span class="srcflag src-chk">corrigé par toi</span>':'',
       (m.fct!=null||m.gos!=null)?'<span class="srcflag src-ok">fructanes / GOS classés</span>':'',
       sucresConnus(i)?'':'<span class="srcflag" style="background:rgba(217,119,6,.1);color:#92400E">sucres non mesurés</span>'

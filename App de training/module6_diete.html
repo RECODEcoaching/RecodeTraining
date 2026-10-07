@@ -319,6 +319,11 @@ button,input,select{font-family:inherit}
 .input{width:100%;padding:11px 13px;border:1.5px solid var(--border-md);border-radius:10px;font-size:14px;outline:none;background:var(--surface)}
 .input:focus{border-color:var(--accent)}
 .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.scan-btn{width:100%;margin-top:8px;padding:10px 14px;border:1.5px dashed var(--border-md);border-radius:11px;background:transparent;font-size:13px;font-weight:600;color:var(--text);cursor:pointer}
+#scan-cam{width:100%;min-height:220px;border-radius:11px;overflow:hidden;background:#000;margin-bottom:12px}
+#scan-cam video{width:100%!important;display:block}
+.scan-man{display:flex;gap:8px}.scan-man .input{flex:1}
+#scan-etat{font-size:12px;color:var(--text-muted);line-height:1.5;margin:10px 0 0}
 .contrib{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--surface2)}
 .contrib:last-child{border-bottom:none}
 .contrib-r{width:22px;height:22px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -537,6 +542,7 @@ button,input,select{font-family:inherit}
          liste défile, et la recherche reste visible. -->
     <div class="sh"><div class="st">Ajouter un aliment</div><div class="ss" id="search-sub"></div>
       <input class="search-in" id="search-in" placeholder="Rechercher… (ex : poulet, riz, banane)" oninput="runSearch()" autocomplete="off">
+      <button class="scan-btn" onclick="openScan()">📷 Scanner un code-barres</button>
     </div>
     <div class="sb">
       <div id="search-res"></div>
@@ -559,11 +565,27 @@ button,input,select{font-family:inherit}
   </div>
 </div>
 
+<div class="ov" id="ov-scan" onclick="if(event.target===this)closeScan()">
+  <div class="sheet">
+    <div class="sh"><div class="st">Scanner un code-barres</div><div class="ss">Vise le code-barres de l'emballage</div></div>
+    <div class="sb">
+      <div id="scan-cam"></div>
+      <div class="field"><label class="label">Ou tape les chiffres sous le code-barres</label>
+        <div class="scan-man"><input class="input" id="scan-code" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Ex : 3017620422003" autocomplete="off">
+          <button class="btn btn-p" onclick="scanManuel()">Chercher</button></div>
+      </div>
+      <div id="scan-etat"></div>
+    </div>
+    <div class="sf"><button class="btn btn-s" onclick="closeScan()">Fermer</button></div>
+  </div>
+</div>
+
 <div class="ov" id="ov-prop" onclick="if(event.target===this)closeProp()">
   <div class="sheet">
     <div class="sh"><div class="st">Proposer un aliment</div><div class="ss">Ton coach le validera avant qu'il rejoigne la base commune</div></div>
     <div class="sb">
       <div class="note-box">Tu peux l'utiliser tout de suite. Il reste visible de toi seule tant que ton coach ne l'a pas validé.</div>
+      <div id="p-scan"></div>
       <div class="field"><label class="label">Nom de l'aliment</label><input class="input" id="p-nom" placeholder="Ex : Skyr vanille Lidl"></div>
       <div class="field"><label class="label">Valeurs pour 100 g</label>
         <div class="grid5">
@@ -611,7 +633,7 @@ button,input,select{font-family:inherit}
 
 <div class="toast" id="toast"></div>
 
-<script src="recode-diete.js?v=13"></script>
+<script src="recode-diete.js?v=14"></script>
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
@@ -1376,31 +1398,127 @@ async function delEntry(id){
   await dbDelEntree(id);
   cl.journal[curDate]=entriesFor(curDate,cl).filter(x=>x.id!==id);
   renderCli();renderCoach();
-}function openProp(){
+}// Proposition issue d'un scan : { code, off:{kcal,p,g,l,f} | null }. null = saisie classique.
+let propScan=null;
+function openProp(scan){
+  propScan=scan||null;
   ['p-nom','p-kcal','p-p','p-g','p-l','p-f'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('p-nom').value=document.getElementById('search-in').value;
   const c=document.getElementById('p-check');c.innerHTML='';delete c.dataset.ok;
+  const ps=document.getElementById('p-scan');
+  if(!propScan) ps.innerHTML='';
+  else if(propScan.off) ps.innerHTML='<div class="note-box" style="background:rgba(217,119,6,.07);border-color:rgba(217,119,6,.25);color:#92400E">'
+    +'Valeurs lues sur <b>Open Food Facts</b>, une base remplie par des internautes. Compare-les à l\'étiquette et corrige si besoin. '
+    +'Une case vide = valeur absente de la fiche.<br>Code-barres '+dtEsc(propScan.code)+'</div>';
+  else ps.innerHTML='<div class="note-box">Produit introuvable sur Open Food Facts. Remplis les valeurs de l\'étiquette (pour 100 g).<br>Code-barres '+dtEsc(propScan.code)+'</div>';
   document.getElementById('ov-prop').classList.add('on');
 }function closeProp(){document.getElementById('ov-prop').classList.remove('on');}async function submitProp(){
   const nom=document.getElementById('p-nom').value.trim(),kcal=parseFloat(document.getElementById('p-kcal').value);
-  const p=parseFloat(document.getElementById('p-p').value)||0,g=parseFloat(document.getElementById('p-g').value)||0;
-  const l=parseFloat(document.getElementById('p-l').value)||0,f=parseFloat(document.getElementById('p-f').value)||0;
+  // Case vide = non renseigné (null), pas zéro : vide n'est pas zéro.
+  const val=id=>{const v=parseFloat(document.getElementById(id).value);return isNaN(v)?null:v;};
+  const p=val('p-p'),g=val('p-g'),l=val('p-l'),f=val('p-f');
   if(!nom||isNaN(kcal)){dtToast('Nom et calories obligatoires');return;}
   const nn=norm(nom),chk=document.getElementById('p-check');
   if(SEARCH_INDEX.find(x=>x.n===nn)){
     chk.innerHTML='<div class="note-box" style="background:rgba(217,119,6,.07);border-color:rgba(217,119,6,.25);color:#92400E">Un aliment porte déjà ce nom exact. Vérifie avant de créer un doublon.</div>';return;}
-  const calc=p*4+g*4+l*9;
+  const calc=(p||0)*4+(g||0)*4+(l||0)*9;
   if(kcal>20&&Math.abs(calc-kcal)/kcal>.25&&chk.dataset.ok!=='1'){
     chk.innerHTML='<div class="note-box" style="background:rgba(217,119,6,.07);border-color:rgba(217,119,6,.25);color:#92400E">D\'après tes macros, cet aliment ferait environ <b>'+Math.round(calc)+' kcal</b>, pas '+kcal+'. Vérifie l\'étiquette, puis renvoie pour confirmer.</div>';
     chk.dataset.ok='1';return;}
-  const row=await dbAddAlimentPerso(nom,kcal,p,g,l,f,cliClient().id);
+  let scan=null;
+  if(propScan){
+    const o=propScan.off;
+    scan={code_barre:propScan.code,
+      valeurs_source:!o?null:(o.kcal===kcal&&o.p===p&&o.g===g&&o.l===l&&o.f===f?'openfoodfacts':'openfoodfacts_modifie')};
+  }
+  const row=await dbAddAlimentPerso(nom,kcal,p,g,l,f,cliClient().id,scan);
   if(!row)return;
   ALIMENTS_BASE.push(COLS_ALIM.map((c,i)=>i===0?row[c]:(row[c]==null?null:+row[c])));
   ALIM_IDS.push(row.id);
-  ALIM_META.push({source:'perso',statut:'en_attente',propose_par:row.propose_par,fct:null,gos:null,portion:100,estDe:null});
+  ALIM_META.push({source:'perso',statut:'en_attente',propose_par:row.propose_par,fct:null,gos:null,portion:100,estDe:null,
+    code:row.code_barre||null,vsrc:row.valeurs_source||null});
   ID2IDX[row.id]=ALIMENTS_BASE.length-1;
   SEARCH_INDEX.push({i:ALIMENTS_BASE.length-1,n:norm(nom)});
   closeProp();runSearch();renderCoach();dtToast('Envoyé au coach — utilisable dès maintenant');
+}
+// ── Scan de code-barres ─────────────────────────────────────────────
+// 1) aliment déjà dans la base sous ce code → ajout direct ;
+// 2) sinon Open Food Facts → formulaire « Proposer » pré-rempli (macros seules) ;
+// 3) sinon formulaire vide, le code-barres reste attaché.
+// La bibliothèque de lecture (~370 Ko) n'est téléchargée qu'au premier scan :
+// Safari sur iPhone ne sait pas lire un code-barres seul.
+let scanner=null, scanEnCours=false, scanLib=null;
+function chargerScanLib(){
+  if(window.Html5Qrcode) return Promise.resolve();
+  if(scanLib) return scanLib;
+  scanLib=new Promise((ok,ko)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+    sc.onload=ok; sc.onerror=()=>{scanLib=null;ko();};
+    document.head.appendChild(sc);
+  });
+  return scanLib;
+}
+function scanEtat(html){document.getElementById('scan-etat').innerHTML=html;}
+async function openScan(){
+  scanEnCours=false;
+  document.getElementById('scan-code').value='';
+  scanEtat('Ouverture de la caméra…');
+  document.getElementById('ov-scan').classList.add('on');
+  try{ await chargerScanLib(); }
+  catch(e){ scanEtat('Lecteur indisponible (connexion ?). Tape les chiffres sous le code-barres.'); return; }
+  if(!document.getElementById('ov-scan').classList.contains('on')) return;   // fermé entre-temps
+  try{
+    const F=Html5QrcodeSupportedFormats;
+    scanner=new Html5Qrcode('scan-cam',{formatsToSupport:[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E],verbose:false});
+    await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:130}},
+      code=>trouverCode(code),()=>{});
+    scanEtat('');
+  }catch(e){
+    console.error('caméra',e); scanner=null;
+    scanEtat('Caméra inaccessible — autorise-la dans les réglages du téléphone, ou tape les chiffres sous le code-barres.');
+  }
+}
+async function arreterCamera(){
+  if(!scanner) return;
+  const s=scanner; scanner=null;
+  try{ if(s.isScanning) await s.stop(); s.clear(); }catch(e){}
+}
+function closeScan(){ arreterCamera(); document.getElementById('ov-scan').classList.remove('on'); }
+function scanManuel(){ trouverCode(document.getElementById('scan-code').value); }
+async function trouverCode(brut){
+  const code=String(brut||'').replace(/\D/g,'');
+  if(code.length<8||code.length>14){ scanEtat('Un code-barres compte 8 à 14 chiffres.'); return; }
+  if(scanEnCours) return;                // la caméra relit le même code plusieurs fois par seconde
+  scanEnCours=true;
+  await arreterCamera();
+  const i=alimentParCode(code,cliClient().id);
+  if(i>=0){ closeScan(); pickFood(i); return; }
+  scanEtat('Recherche du produit…');
+  let prod=null;
+  try{
+    const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json'
+      +'?fields=product_name_fr,product_name,brands,nutriments');
+    const j=await r.json();
+    if(j&&j.status===1&&j.product) prod=j.product;
+  }catch(e){
+    console.error('Open Food Facts',e);
+    scanEnCours=false;
+    scanEtat('Open Food Facts ne répond pas. Réessaie, ou <a href="#" onclick="closeScan();openProp({code:\''+code+'\',off:null});return false">remplis la fiche à la main</a>.');
+    return;
+  }
+  closeScan();
+  if(!prod){ document.getElementById('search-in').value=''; openProp({code,off:null}); return; }
+  const n=prod.nutriments||{}, r1v=v=>(v==null||v===''||isNaN(+v))?null:Math.round(+v*10)/10;
+  let kcal=r1v(n['energy-kcal_100g']);
+  if(kcal==null&&r1v(n['energy-kj_100g'])!=null) kcal=Math.round(n['energy-kj_100g']/4.184);
+  const off={kcal,p:r1v(n.proteins_100g),g:r1v(n.carbohydrates_100g),l:r1v(n.fat_100g),f:r1v(n.fiber_100g)};
+  const marque=(prod.brands||'').split(',')[0].trim();
+  const nomP=(prod.product_name_fr||prod.product_name||'').trim();
+  document.getElementById('search-in').value=nomP&&marque&&!norm(nomP).includes(norm(marque))?nomP+' '+marque:(nomP||marque);
+  openProp({code,off});
+  const mets=(id,v)=>{document.getElementById(id).value=v==null?'':v;};
+  mets('p-kcal',off.kcal);mets('p-p',off.p);mets('p-g',off.g);mets('p-l',off.l);mets('p-f',off.f);
 }function openReprise(idx){
   repriseMeal=idx;
   const cl=cliClient(), nomRepas=mealName(idx);
