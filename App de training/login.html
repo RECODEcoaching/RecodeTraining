@@ -47,7 +47,7 @@ async function verifierAncienPin(email, pin) {
     if ((error.message || '').includes('trop_essais'))
       return { success: false, error: 'Trop d\'essais. Réessaie dans 15 minutes.' };
     if ((error.message || '').includes('compte_active'))
-      return { success: false, error: 'Ton compte est déjà activé : connecte-toi avec ton code à 6 chiffres.' };
+      return { success: false, error: 'Ton compte est déjà activé : connecte-toi avec ton code à 6 chiffres (ou « Se connecter avec un mot de passe » si tu en as un).' };
     return { success: false, error: 'Connexion impossible. Réessaie dans un instant.' };
   }
   if (!data || !data.length) return { success: false, error: 'E-mail ou code incorrect.' };
@@ -537,6 +537,14 @@ let currentSession = null;
 // ── Message si redirigée car compte désactivé par le coach ──────────
 (function() {
   const params = new URLSearchParams(window.location.search);
+  if (params.get('maj') === '1') {
+    const msg = document.getElementById('error-msg');
+    if (msg) {
+      msg.textContent = 'Nouvelle sécurité RECODE 🔒 Reconnecte-toi avec ton code habituel : l\'app te demandera ensuite d\'en choisir un à 6 chiffres. Tes données ne changent pas.';
+      msg.style.background = 'var(--accent-light)'; msg.style.borderColor = 'rgba(109,40,217,0.25)'; msg.style.color = 'var(--accent)';
+      msg.classList.add('show');
+    }
+  }
   if (params.get('desactive') === '1') {
     const msg = document.getElementById('error-msg');
     if (msg) {
@@ -592,11 +600,12 @@ function onFormChange() {
     ? document.getElementById('mdp-input').value.length >= 6
     : [4, 6].includes(getPin().length);
   document.getElementById('btn-connect').disabled = !(email.length > 3 && ok);
-  document.getElementById('error-msg').classList.remove('show');
+  if (!new URLSearchParams(location.search).has('maj')) document.getElementById('error-msg').classList.remove('show');
 }
 
 function afficherErreur(msg) {
   const el = document.getElementById('error-msg');
+  el.style.background = ''; el.style.borderColor = ''; el.style.color = '';
   el.textContent = msg; el.classList.add('show');
 }
 

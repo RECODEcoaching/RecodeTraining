@@ -24,6 +24,15 @@ function logout(){localStorage.removeItem('recode_session');db.auth.signOut().fi
 // Si désactivé : déconnecte et redirige vers login.html avec un message.
 function checkAccountActive(session){
   if (!session) return;
+  // Sécurité, étape 2 : une cliente encore connectée avec l'ancien PIN (sans
+  // compte) est renvoyée une fois vers la connexion pour activer son compte.
+  // « ?v=2 » oblige le téléphone à charger la nouvelle page de connexion.
+  db.auth.getSession().then(({ data }) => {
+    if (!data || !data.session) {
+      localStorage.removeItem('recode_session');
+      window.location.href = 'login.html?v=2&maj=1';
+    }
+  }).catch(()=>{});
   db.from('clients').select('actif').eq('id', session.client_id).single().then(({data}) => {
     if (data && data.actif === false) {
       localStorage.removeItem('recode_session');
