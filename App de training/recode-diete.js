@@ -399,7 +399,7 @@ async function chargerCliente(id){
   if(!cl || cl._charge) return;
   const depuis = addDays(todayStr(), -60);
 
-  const [cib, cfg, jrs, libres, ents, nt] = await Promise.all([
+  const [cib, cfg, jrs, libres, ents, nt, rec] = await Promise.all([
     sb.from('diete_cibles').select('*, diete_repas(*)').eq('client_id', id),
     sb.from('diete_client_config').select('*').eq('client_id', id).maybeSingle(),
     sb.from('diete_jours').select('*').eq('client_id', id),
@@ -407,6 +407,9 @@ async function chargerCliente(id){
     sb.from('diete_entrees').select('*').eq('client_id', id).gte('date', depuis),
     // repas explicitement non trackés ; la table peut ne pas exister encore
     sb.from('diete_repas_non_traques').select('*').eq('client_id', id).gte('date', depuis)
+      .then(r => r, () => ({ data:null, error:true })),
+    // recettes de la cliente ; la table peut ne pas exister encore
+    sb.from('diete_recettes').select('*').eq('client_id', id).order('nom')
       .then(r => r, () => ({ data:null, error:true }))
   ]);
 
@@ -452,8 +455,11 @@ async function chargerCliente(id){
   (ents.data||[]).forEach(e => {
     (cl.journal[e.date] = cl.journal[e.date] || []).push({
       id:e.id, meal:e.repas_ref, src:'base', ref:(e.aliment_id!=null && ID2IDX[e.aliment_id]!=null) ? ID2IDX[e.aliment_id] : -1,
-      alimentId:e.aliment_id, nom:e.nom_snapshot, q:+e.quantite, mac:e.macros });
+      alimentId:e.aliment_id, nom:e.nom_snapshot, q:+e.quantite, mac:e.macros, recette:e.recette || null });
   });
+  if(rec && rec.error) RECETTES_OK = false;
+  cl.recettes = (rec && rec.data || []).map(r => ({ id:r.id, nom:r.nom, parts:+r.nb_parts,
+    ingredients:Array.isArray(r.ingredients) ? r.ingredients : [] }));
   cl._charge = true;
 }
 
@@ -593,21 +599,66 @@ async function dbSemaineType(id){
   return true;
 }
 let SEMAINE_TYPE_OK = true;
-async function dbAddEntree(id, date, repasRef, idx, q, mac, nom){
-  const { data, error } = await sb.from('diete_entrees').insert({
-    client_id:id, date, repas_ref:repasRef,
+// `recette` (facultatif) : { g, id, nom, parts } quand la ligne vient d'une recette
+async function dbAddEntree(id, date, repasRef, idx, q, mac, nom, recette){
+  const ligne = { client_id:id, date, repas_ref:repasRef,
     aliment_id: idx>=0 ? ALIM_IDS[idx] : null,
-    nom_snapshot:nom, quantite:q, macros:mac
-  }).select().single();
+    nom_snapshot:nom, quantite:q, macros:mac };
+  if(recette) ligne.recette = recette;
+  let { data, error } = await sb.from('diete_entrees').insert(ligne).select().single();
+  // colonne recette absente : l'aliment est enregistré, seul le regroupement manque
+  if(error && recette){
+    delete ligne.recette;
+    ({ data, error } = await sb.from('diete_entrees').insert(ligne).select().single());
+  }
   if(error){ erreur(error, 'ajout de l\'aliment'); return null; }
   return data.id;
+}
+
+// ── Recettes ─────────────────────────────────────────────────────────
+// Une recette appartient à une seule cliente. Ses ingrédients gardent l'id de
+// l'aliment et la quantité pour la recette ENTIÈRE ; les valeurs nutritives
+// sont relues dans la base au moment où elle la mange, puis figées dans le
+// journal comme pour n'importe quel aliment.
+let RECETTES_OK = true;
+// Valeurs de la recette entière + ingrédients introuvables dans la base
+function valeursRecette(rec){
+  const tot = {}, manquants = [];
+  (rec.ingredients || []).forEach(ing => {
+    const idx = ID2IDX[ing.aliment_id];
+    if(idx == null){ manquants.push(ing.nom); return; }
+    const m = macrosFor(ALIMENTS_BASE[idx], ing.q);
+    Object.keys(m).forEach(k => { if(m[k] != null) tot[k] = (tot[k] || 0) + m[k]; });
+  });
+  return { tot, manquants };
+}
+async function dbSaveRecette(clientId, rec){
+  const ligne = { client_id:clientId, nom:rec.nom, nb_parts:rec.parts,
+    ingredients:rec.ingredients, updated_at:new Date().toISOString() };
+  const q = rec.id
+    ? sb.from('diete_recettes').update(ligne).eq('id', rec.id).select().single()
+    : sb.from('diete_recettes').insert(ligne).select().single();
+  const { data, error } = await q;
+  if(error){
+    if(!RECETTES_OK) dtToast('Recettes indisponibles — SQL manquant (diete-recettes.sql)');
+    else erreur(error, 'enregistrement de la recette');
+    return null;
+  }
+  return data;
+}
+async function dbDelRecette(recId){
+  const { error } = await sb.from('diete_recettes').delete().eq('id', recId);
+  if(error){ erreur(error, 'suppression de la recette'); return false; }
+  return true;
 }
 // Changer la quantité d'une entrée déjà enregistrée. Les macros sont recalculées
 // côté page et réécrites ici : on ne recalcule jamais à partir de la base, sinon
 // une correction de l'aliment réécrirait l'historique.
-async function dbMajEntree(entreeId, q, mac){
+async function dbMajEntree(entreeId, q, mac, recette){
+  const patch = { quantite:q, macros:mac };
+  if(recette) patch.recette = recette;
   const { error } = await sb.from('diete_entrees')
-    .update({ quantite:q, macros:mac }).eq('id', entreeId);
+    .update(patch).eq('id', entreeId);
   if(error){ erreur(error, 'modification de la quantité'); return false; }
   return true;
 }

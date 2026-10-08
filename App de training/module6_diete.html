@@ -324,6 +324,18 @@ button,input,select{font-family:inherit}
 #scan-cam video{width:100%!important;display:block}
 .scan-man{display:flex;gap:8px}.scan-man .input{flex:1}
 #scan-etat{font-size:12px;color:var(--text-muted);line-height:1.5;margin:10px 0 0}
+.search-btns{display:flex;gap:8px}.search-btns .scan-btn{flex:1}
+.rec-h .en{color:var(--accent)}
+.rec-ings{display:none;margin:0 0 4px 14px;border-left:2px solid var(--accent-bg);padding-left:10px}
+.rec-ings.open{display:block}
+.rec-ings .entry{padding:6px 0}.rec-ings .en{font-weight:500;font-size:12px}
+.rec-row{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--surface2)}
+.rec-row .rinf{flex:1;cursor:pointer;min-width:0}
+.rec-mod{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:600;color:var(--text-muted);cursor:pointer;flex-shrink:0}
+.ing-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--surface2)}
+.ing-row .ing-n{flex:1;font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ing-row input{width:70px;padding:7px 6px;border:1.5px solid var(--border-md);border-radius:8px;font-size:13px;text-align:right}
+.rec-warn{background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.25);color:#92400E;border-radius:11px;padding:10px 12px;font-size:11.5px;line-height:1.5;margin-bottom:10px}
 .contrib{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--surface2)}
 .contrib:last-child{border-bottom:none}
 .contrib-r{width:22px;height:22px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -536,13 +548,54 @@ button,input,select{font-family:inherit}
   </div>
 </div>
 
+<div class="ov" id="ov-rec" onclick="if(event.target===this)closeRecettes()">
+  <div class="sheet">
+    <div class="sh"><div class="st">Mes recettes</div><div class="ss" id="rec-sub"></div></div>
+    <div class="sb"><div id="rec-list"></div></div>
+    <div class="sf"><button class="btn btn-s" onclick="closeRecettes()">Fermer</button>
+      <button class="btn btn-p" onclick="openRecEd(null)">+ Nouvelle recette</button></div>
+  </div>
+</div>
+
+<div class="ov" id="ov-recEd" onclick="if(event.target===this)closeRecEd()">
+  <div class="sheet">
+    <div class="sh"><div class="st" id="red-titre">Nouvelle recette</div><div class="ss">Visible de toi seule</div></div>
+    <div class="sb">
+      <div class="field"><label class="label">Nom de la recette</label><input class="input" id="red-nom" placeholder="Ex : Lasagnes maison"></div>
+      <div class="field"><label class="label">Nombre de parts de la recette entière</label>
+        <input class="input" id="red-parts" type="number" inputmode="decimal" min="0.5" step="0.5" value="4" oninput="renderRecEdTotaux()"></div>
+      <div class="note-box">Indique la quantité de chaque ingrédient pour <b>la recette entière</b>, pesé comme dans la base (en général cru).</div>
+      <div id="red-ings"></div>
+      <button class="madd" style="margin:10px 0 12px" onclick="openSearchRecette()">+ Ajouter un ingrédient</button>
+      <div id="red-totaux"></div>
+      <div id="red-del"></div>
+    </div>
+    <div class="sf"><button class="btn btn-s" onclick="closeRecEd()">Annuler</button>
+      <button class="btn btn-p" id="red-ok" onclick="enregistrerRecette()">Enregistrer</button></div>
+  </div>
+</div>
+
+<div class="ov" id="ov-recPart" onclick="if(event.target===this)closeRecPart()">
+  <div class="sheet">
+    <div class="sh"><div class="st" id="rp-nom">Recette</div><div class="ss" id="rp-sub"></div></div>
+    <div class="sb">
+      <div class="qr"><input class="qi" id="rp-in" type="number" inputmode="decimal" value="1" oninput="majRecPart()"><span class="qu">part(s)</span></div>
+      <div class="qfast"><button onclick="setRecPart(0.5)">½</button><button onclick="setRecPart(1)">1</button><button onclick="setRecPart(1.5)">1,5</button><button onclick="setRecPart(2)">2</button></div>
+      <div class="prev" id="rp-prev"></div>
+      <div id="rp-warn"></div>
+    </div>
+    <div class="sf"><button class="btn btn-s" onclick="closeRecPart()">Retour</button><button class="btn btn-p" id="rp-ok" onclick="ajouterRecette()">Ajouter</button></div>
+  </div>
+</div>
+
 <div class="ov" id="ov-search" onclick="if(event.target===this)closeSearch()">
   <div class="sheet sheet-search">
     <!-- Le champ vit dans l'en-tête figé : quand le clavier s'ouvre, seule la
          liste défile, et la recherche reste visible. -->
     <div class="sh"><div class="st">Ajouter un aliment</div><div class="ss" id="search-sub"></div>
       <input class="search-in" id="search-in" placeholder="Rechercher… (ex : poulet, riz, banane)" oninput="runSearch()" autocomplete="off">
-      <button class="scan-btn" onclick="openScan()">📷 Scanner un code-barres</button>
+      <div class="search-btns"><button class="scan-btn" onclick="openScan()">📷 Scanner</button>
+        <button class="scan-btn" id="btn-mes-recettes" onclick="openRecettes()">🍲 Mes recettes</button></div>
     </div>
     <div class="sb">
       <div id="search-res"></div>
@@ -633,7 +686,7 @@ button,input,select{font-family:inherit}
 
 <div class="toast" id="toast"></div>
 
-<script src="recode-diete.js?v=14"></script>
+<script src="recode-diete.js?v=15"></script>
 <script>
 const SESSION = requireAuth();
 checkAccountActive(SESSION);
@@ -719,7 +772,7 @@ async function switchViewClient(id){
     // probablement un clic répété pendant la latence. On le signale sans
     // rien supprimer d'office — deux fois le même aliment peut être réel.
     const vusDup=new Set(); let nbDup=0;
-    mine.forEach(e=>{ const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vusDup.has(c))nbDup++; else vusDup.add(c); });
+    mine.forEach(e=>{ if(e.recette) return; const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vusDup.has(c))nbDup++; else vusDup.add(c); });
     const alerteDup = nbDup ? '<div class="dup-warn">'+nbDup+' ligne'+(nbDup>1?'s':'')+' identique'+(nbDup>1?'s':'')
       +' dans ce repas.<button onclick="supprimerDoublons(\''+r.idx+'\')">Supprimer le'+(nbDup>1?'s':'')+' doublon'+(nbDup>1?'s':'')+'</button></div>' : '';
     // L'anneau ne suit qu'une seule chose : la part de la cible calorique du jour
@@ -753,7 +806,7 @@ async function switchViewClient(id){
     }).join('');
     // rien à montrer si le repas est vide et sans consigne
     const barreMacros = (mine.length||auMoinsUneConsigne) ? '<div class="mg-row">'+jauges+'</div>' : '';
-    const rows=mine.length?mine.map(e=>'<div class="entry">'
+    const ligne=e=>'<div class="entry">'
       +'<div class="ei" onclick="modifierEntree(\''+e.id+'\')" style="cursor:pointer">'
       // Aliment retiré de la base depuis : la ligne reste, avec ses valeurs
       // figées, mais on dit pourquoi elle n'est plus proposée à la recherche.
@@ -764,7 +817,26 @@ async function switchViewClient(id){
       +  '<div class="ed">'+e.q+' g · P '+r1(e.mac.p)+' / G '+r1(e.mac.g)+' / L '+r1(e.mac.l)
       +    ' <span class="e-mod">modifier</span></div></div>'
       +'<div class="ek">'+Math.round(e.mac.kcal)+'</div>'
-      +'<button class="edel" onclick="delEntry(\''+e.id+'\')">×</button></div>').join('')
+      +'<button class="edel" onclick="delEntry(\''+e.id+'\')">×</button></div>';
+    // Les ingrédients d'une même recette mangée sont rassemblés sous son nom
+    const groupesVus=new Set();
+    const rows=mine.length?mine.map(e=>{
+      if(!e.recette) return ligne(e);
+      const g=e.recette.g; if(groupesVus.has(g)) return '';
+      groupesVus.add(g);
+      const membres=mine.filter(x=>x.recette&&x.recette.g===g);
+      const t={kcal:0,p:0,g:0,l:0}; membres.forEach(x=>{t.kcal+=x.mac.kcal||0;t.p+=x.mac.p||0;t.g+=x.mac.g||0;t.l+=x.mac.l||0;});
+      const n=e.recette.parts;
+      return '<div class="entry rec-h">'
+        +'<div class="ei" onclick="basculerGroupe(\''+g+'\')" style="cursor:pointer">'
+        +  '<div class="en">🍲 '+dtEsc(e.recette.nom)+'</div>'
+        +  '<div class="ed">'+fmtParts(n)+' · P '+r1(t.p)+' / G '+r1(t.g)+' / L '+r1(t.l)
+        +    ' <span class="e-mod">'+(groupesOuverts.has(g)?'masquer':'détail')+'</span>'
+        +    ' <span class="e-mod" onclick="event.stopPropagation();modifierPartsGroupe(\''+g+'\')">parts</span></div></div>'
+        +'<div class="ek">'+Math.round(t.kcal)+'</div>'
+        +'<button class="edel" onclick="delGroupe(\''+g+'\')">×</button></div>'
+        +'<div class="rec-ings'+(groupesOuverts.has(g)?' open':'')+'">'+membres.map(ligne).join('')+'</div>';
+    }).join('')
       :'<div class="mempty">Rien d\'enregistré</div>';
     const ic=MEAL_ICONS[(mi0++)%MEAL_ICONS.length];
     const ouvert = repasOuverts.has(r.idx) ? ' open' : '';
@@ -1163,7 +1235,8 @@ function closeNut(){document.getElementById('ov-nut').classList.remove('on');}fu
     .map(([i,o])=>({ idx:+i, n:o.n, qmed:o.q.sort((a,b)=>a-b)[Math.floor(o.q.length/2)] }))
     .sort((a,b)=>b.n-a.n).slice(0,12);
 }function mealName(idx,cl){const m=mealsFor(curDate,cl||cliClient()).find(x=>x.idx===idx);return m?m.nom:'Repas';}function openSearch(meal){
-  pendingMeal=meal;
+  pendingMeal=meal; modeRecette=false;
+  document.getElementById('btn-mes-recettes').style.display='';
   document.getElementById('search-sub').textContent=mealName(meal);
   document.getElementById('search-in').value='';
   document.getElementById('ov-search').classList.add('on');
@@ -1240,7 +1313,9 @@ function modifierEntree(id){
 }
 function openQty(){
   const a=pendingFood.arr;
-  document.getElementById('qty-sub').textContent=mealName(pendingMeal)+(editionId?' — modifier la quantité':'');
+  document.getElementById('qty-sub').textContent=modeRecette
+    ? 'Ingrédient — quantité pour la recette entière'
+    : mealName(pendingMeal)+(editionId?' — modifier la quantité':'');
   document.getElementById('qty-nom').textContent=a[0];
   const est=pendingFood.src==='base'?estimeDepuis(pendingFood.ref):null;
   document.getElementById('qty-base').innerHTML='Pour 100 g : '+Math.round(a[1])+' kcal · P '+r1(a[2])+' · G '+r1(a[3])+' · L '+r1(a[4])+' · Fibres '+(a[5]==null?'n.d.':r1(a[5]))
@@ -1274,6 +1349,11 @@ async function confirmAdd(){
   if(enregistrementEnCours) return;
   const q=parseFloat(document.getElementById('qty-in').value);
   if(!q||q<=0){dtToast('Indique une quantité');return;}
+  if(modeRecette&&recEdit&&!editionId){
+    recEdit.ingredients.push({aliment_id:ALIM_IDS[pendingFood.ref],nom:pendingFood.arr[0],q});
+    closeQty();closeSearch();renderRecEd();
+    return;
+  }
 
   enregistrementEnCours=true;
   const btn=document.getElementById('qty-ok');
@@ -1365,11 +1445,12 @@ async function copierVersJours(mealIdx){
       }
     }
     if(!cl.journal[d]) cl.journal[d]=[];
-    let ajoutes=0;
+    let ajoutes=0; const groupes={};
     for(const e of source){
-      const id=await dbAddEntree(cl.id,d,refCible,e.ref,e.q,e.mac,e.nom);
+      const rec=copieRecette(e.recette,groupes);
+      const id=await dbAddEntree(cl.id,d,refCible,e.ref,e.q,e.mac,e.nom,rec);
       if(!id) continue;
-      cl.journal[d].push({id,meal:refCible,src:'base',ref:e.ref,alimentId:e.alimentId,nom:e.nom,q:e.q,mac:e.mac});
+      cl.journal[d].push({id,meal:refCible,src:'base',ref:e.ref,alimentId:e.alimentId,nom:e.nom,q:e.q,mac:e.mac,recette:rec});
       ajoutes++;
     }
     if(ajoutes){ nbJours++; nbAlim+=ajoutes; }
@@ -1383,7 +1464,7 @@ async function supprimerDoublons(mealIdx){
   const cl=cliClient();
   const mine=entriesFor(curDate,cl).filter(e=>e.meal===mealIdx);
   const vus=new Set(), aSupp=[];
-  mine.forEach(e=>{ const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vus.has(c))aSupp.push(e.id); else vus.add(c); });
+  mine.forEach(e=>{ if(e.recette) return; const c=(e.ref>=0?e.ref:'n:'+e.nom)+'|'+e.q; if(vus.has(c))aSupp.push(e.id); else vus.add(c); });
   if(!aSupp.length){ dtToast('Aucun doublon'); return; }
   for(const id of aSupp) await dbDelEntree(id);
   cl.journal[curDate]=entriesFor(curDate,cl).filter(e=>!aSupp.includes(e.id));
@@ -1519,6 +1600,204 @@ async function trouverCode(brut){
   openProp({code,off});
   const mets=(id,v)=>{document.getElementById(id).value=v==null?'':v;};
   mets('p-kcal',off.kcal);mets('p-p',off.p);mets('p-g',off.g);mets('p-l',off.l);mets('p-f',off.f);
+}
+// ── Recettes ────────────────────────────────────────────────────────
+// La cliente compose une recette (ingrédients de la base, scannés ou proposés),
+// indique le nombre de parts, puis en mange 1, ½, 1,5 part… Chaque ingrédient
+// devient une ligne normale du journal au prorata, regroupée sous le nom de la
+// recette : micronutrition et FODMAP par repas restent calculés aliment par aliment.
+let modeRecette=false, recEdit=null, recChoisie=null, groupesOuverts=new Set();
+function fmtParts(n){return String(Math.round(n*100)/100).replace('.',',')+' part'+(n>1?'s':'');}
+function nouveauG(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);}
+// Copie d'un repas : chaque recette copiée reçoit un nouveau groupe
+function copieRecette(r,groupes){
+  if(!r) return null;
+  if(!groupes[r.g]) groupes[r.g]=nouveauG();
+  return Object.assign({},r,{g:groupes[r.g]});
+}
+function parPart(rec){
+  const v=valeursRecette(rec), n=rec.parts||1, o={};
+  Object.keys(v.tot).forEach(k=>o[k]=v.tot[k]/n);
+  return {pp:o, manquants:v.manquants};
+}
+function openRecettes(){
+  closeSearch();      // la liste est placée sous la recherche : on referme celle-ci
+  document.getElementById('rec-sub').textContent='Ajouter à : '+mealName(pendingMeal);
+  renderRecettes();
+  document.getElementById('ov-rec').classList.add('on');
+}
+function closeRecettes(){document.getElementById('ov-rec').classList.remove('on');}
+function renderRecettes(){
+  const cl=cliClient(), box=document.getElementById('rec-list');
+  if(!RECETTES_OK){ box.innerHTML='<div class="rec-warn">Les recettes ne sont pas encore activées. Préviens ton coach.</div>'; return; }
+  const recs=(cl.recettes||[]).slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  box.innerHTML=recs.length?recs.map(r=>{
+    const {pp,manquants}=parPart(r);
+    return '<div class="rec-row"><div class="rinf" onclick="choisirRecette(\''+r.id+'\')">'
+      +'<div class="rn">🍲 '+dtEsc(r.nom)+'</div>'
+      +'<div class="ed">'+fmtParts(r.parts)+' · '+r.ingredients.length+' ingrédient'+(r.ingredients.length>1?'s':'')
+      +' · <b>'+Math.round(pp.kcal||0)+' kcal</b> / part'+(manquants.length?' · <span style="color:#92400E">incomplète</span>':'')+'</div></div>'
+      +'<button class="rec-mod" onclick="openRecEd(\''+r.id+'\')">Modifier</button></div>';
+  }).join(''):'<div class="mempty" style="padding:18px 0">Aucune recette pour l\'instant. Crée ta première avec « + Nouvelle recette ».</div>';
+}
+// ─ éditeur
+function openRecEd(id){
+  const r=id?(cliClient().recettes||[]).find(x=>x.id===id):null;
+  recEdit=r?{id:r.id,nom:r.nom,parts:r.parts,ingredients:r.ingredients.map(i=>Object.assign({},i))}
+           :{id:null,nom:'',parts:4,ingredients:[]};
+  document.getElementById('red-titre').textContent=r?'Modifier la recette':'Nouvelle recette';
+  document.getElementById('red-nom').value=recEdit.nom;
+  document.getElementById('red-parts').value=recEdit.parts;
+  document.getElementById('red-del').innerHTML=r?'<button class="madd" style="background:none;border-color:rgba(220,38,38,.25);color:var(--danger);margin-top:14px" onclick="supprimerRecette()">Supprimer cette recette</button>':'';
+  renderRecEd();
+  document.getElementById('ov-recEd').classList.add('on');
+}
+function closeRecEd(){document.getElementById('ov-recEd').classList.remove('on');recEdit=null;modeRecette=false;}
+function renderRecEd(){
+  if(!recEdit) return;
+  document.getElementById('red-ings').innerHTML=recEdit.ingredients.length?recEdit.ingredients.map((ing,k)=>
+    '<div class="ing-row"><div class="ing-n">'+dtEsc(ing.nom)
+      +(ID2IDX[ing.aliment_id]==null?' <span style="color:var(--danger);font-weight:700">· plus dans la base</span>':'')+'</div>'
+    +'<input type="number" inputmode="decimal" value="'+ing.q+'" oninput="majIngQ('+k+',this.value)"><span class="qu" style="font-size:12px">g</span>'
+    +'<button class="edel" onclick="retirerIng('+k+')">×</button></div>').join('')
+    :'<div class="mempty">Aucun ingrédient</div>';
+  renderRecEdTotaux();
+}
+function majIngQ(k,v){const q=parseFloat(v);if(recEdit&&recEdit.ingredients[k]&&q>0){recEdit.ingredients[k].q=q;renderRecEdTotaux();}}
+function retirerIng(k){recEdit.ingredients.splice(k,1);renderRecEd();}
+function renderRecEdTotaux(){
+  if(!recEdit) return;
+  const parts=parseFloat(document.getElementById('red-parts').value)||0;
+  const v=valeursRecette({ingredients:recEdit.ingredients}).tot;
+  const cell=(k,val)=>'<div class="pv"><div class="pk">'+k+'</div><div class="pvv">'+val+'</div></div>';
+  const bloc=(titre,d)=>'<div class="label" style="margin:4px 0 6px">'+titre+'</div><div class="prev">'
+    +cell('kcal',Math.round((v.kcal||0)/d))+cell('Prot',r1((v.p||0)/d))+cell('Gluc',r1((v.g||0)/d))
+    +cell('Lip',r1((v.l||0)/d))+cell('Fibr',r1((v.fib||0)/d))+'</div>';
+  document.getElementById('red-totaux').innerHTML=recEdit.ingredients.length
+    ? bloc('Recette entière',1)+(parts>0?bloc('Par part ('+fmtParts(parts)+' au total)',parts):'') : '';
+}
+function openSearchRecette(){
+  recEdit.nom=document.getElementById('red-nom').value.trim();
+  modeRecette=true;
+  document.getElementById('btn-mes-recettes').style.display='none';
+  document.getElementById('search-sub').textContent='Ingrédient pour '+(recEdit.nom?'« '+recEdit.nom+' »':'ta recette');
+  document.getElementById('search-in').value='';
+  document.getElementById('ov-search').classList.add('on');
+  runSearch();setTimeout(()=>document.getElementById('search-in').focus(),260);
+}
+let recEnregistrement=false;
+async function enregistrerRecette(){
+  if(recEnregistrement||!recEdit) return;
+  const nom=document.getElementById('red-nom').value.trim();
+  const parts=parseFloat(document.getElementById('red-parts').value);
+  if(!nom){dtToast('Donne un nom à ta recette');return;}
+  if(!(parts>0)){dtToast('Indique le nombre de parts');return;}
+  if(!recEdit.ingredients.length){dtToast('Ajoute au moins un ingrédient');return;}
+  recEnregistrement=true;
+  try{
+    const cl=cliClient();
+    const row=await dbSaveRecette(cl.id,{id:recEdit.id,nom,parts,ingredients:recEdit.ingredients});
+    if(!row) return;
+    const r={id:row.id,nom:row.nom,parts:+row.nb_parts,ingredients:row.ingredients||[]};
+    cl.recettes=(cl.recettes||[]).filter(x=>x.id!==r.id).concat(r);
+    closeRecEd();renderRecettes();renderCoach();
+    dtToast('Recette enregistrée');
+  } finally { recEnregistrement=false; }
+}
+async function supprimerRecette(){
+  if(!recEdit||!recEdit.id) return;
+  if(!confirm('Supprimer la recette « '+recEdit.nom+' » ?\n\nCe que tu as déjà mangé reste dans ton journal.')) return;
+  const id=recEdit.id;
+  if(!await dbDelRecette(id)) return;
+  const cl=cliClient(); cl.recettes=(cl.recettes||[]).filter(x=>x.id!==id);
+  closeRecEd();renderRecettes();renderCoach();
+  dtToast('Recette supprimée');
+}
+// ─ manger une recette
+function choisirRecette(id){
+  recChoisie=(cliClient().recettes||[]).find(x=>x.id===id); if(!recChoisie) return;
+  document.getElementById('rp-nom').textContent='🍲 '+recChoisie.nom;
+  document.getElementById('rp-sub').textContent=mealName(pendingMeal)+' · recette en '+fmtParts(recChoisie.parts);
+  document.getElementById('rp-in').value=1;
+  majRecPart();
+  document.getElementById('ov-recPart').classList.add('on');
+}
+function closeRecPart(){document.getElementById('ov-recPart').classList.remove('on');}
+function setRecPart(v){document.getElementById('rp-in').value=v;majRecPart();}
+function majRecPart(){
+  if(!recChoisie) return;
+  const n=parseFloat(document.getElementById('rp-in').value)||0;
+  const {pp,manquants}=parPart(recChoisie);
+  document.getElementById('rp-prev').innerHTML=[['kcal',Math.round((pp.kcal||0)*n)],['Prot',r1((pp.p||0)*n)],['Gluc',r1((pp.g||0)*n)],['Lip',r1((pp.l||0)*n)],['Fibr',r1((pp.fib||0)*n)]]
+    .map(([k,v])=>'<div class="pv"><div class="pk">'+k+'</div><div class="pvv">'+v+'</div></div>').join('');
+  document.getElementById('rp-warn').innerHTML=manquants.length
+    ?'<div class="rec-warn" style="margin-top:12px">Ingrédient(s) qui ne sont plus dans la base : <b>'+manquants.map(dtEsc).join(', ')
+      +'</b>. Modifie la recette pour les remplacer avant de l\'ajouter.</div>':'';
+}
+let recAjoutEnCours=false;
+async function ajouterRecette(){
+  if(recAjoutEnCours||!recChoisie) return;
+  const n=parseFloat(document.getElementById('rp-in').value);
+  if(!(n>0)){dtToast('Indique le nombre de parts');return;}
+  const r=recChoisie;
+  if(r.ingredients.some(i=>ID2IDX[i.aliment_id]==null)){dtToast('Recette incomplète — modifie-la d\'abord');return;}
+  recAjoutEnCours=true;
+  const btn=document.getElementById('rp-ok'); btn.disabled=true; btn.textContent='Enregistrement…';
+  try{
+    const cl=cliClient();
+    if(!cl.journal[curDate])cl.journal[curDate]=[];
+    const ratio=n/r.parts, rec={g:nouveauG(),id:r.id,nom:r.nom,parts:n};
+    let ok=0;
+    for(const ing of r.ingredients){
+      const idx=ID2IDX[ing.aliment_id], arr=ALIMENTS_BASE[idx];
+      const q=Math.round(ing.q*ratio*10)/10, mac=macrosFor(arr,q);
+      const id=await dbAddEntree(cl.id,curDate,pendingMeal,idx,q,mac,arr[0],rec);
+      if(!id) continue;
+      cl.journal[curDate].push({id,meal:pendingMeal,src:'base',ref:idx,alimentId:ing.aliment_id,nom:arr[0],q,mac,recette:rec});
+      ok++;
+    }
+    repasOuverts.add(pendingMeal);
+    closeRecPart();closeRecettes();closeSearch();renderCli();renderCoach();
+    if(ok<r.ingredients.length) dtToast(ok+' ingrédient(s) sur '+r.ingredients.length+' enregistré(s) — vérifie ton repas');
+    else dtToast(fmtParts(n)+' de '+r.nom+' ajoutée'+(n>1?'s':''));
+  } finally {
+    recAjoutEnCours=false; btn.disabled=false; btn.textContent='Ajouter';
+  }
+}
+// ─ recette déjà mangée : détail, changement de parts, suppression
+function basculerGroupe(g){ if(groupesOuverts.has(g))groupesOuverts.delete(g); else groupesOuverts.add(g); renderCli(); }
+function membresGroupe(g){ return entriesFor(curDate,cliClient()).filter(e=>e.recette&&e.recette.g===g); }
+async function modifierPartsGroupe(g){
+  const membres=membresGroupe(g); if(!membres.length) return;
+  const avant=membres[0].recette.parts;
+  const rep=prompt('Combien de parts de « '+membres[0].recette.nom+' » ?',String(avant).replace('.',','));
+  if(rep===null) return;
+  const n=parseFloat(rep.replace(',','.'));
+  if(!(n>0)){dtToast('Nombre de parts invalide');return;}
+  if(n===avant) return;
+  // Mise à l'échelle des valeurs figées : on ne relit pas la base, pour ne
+  // jamais réécrire l'historique avec une valeur corrigée entre-temps.
+  const ratio=n/avant;
+  for(const e of membres){
+    const q=Math.round(e.q*ratio*10)/10, mac={};
+    Object.keys(e.mac).forEach(k=>mac[k]=e.mac[k]==null?null:e.mac[k]*ratio);
+    const rec=Object.assign({},e.recette,{parts:n});
+    if(await dbMajEntree(e.id,q,mac,rec)){ e.q=q; e.mac=mac; e.recette=rec; }
+  }
+  repasOuverts.add(membres[0].meal);
+  renderCli();renderCoach();
+  dtToast('Portion modifiée');
+}
+async function delGroupe(g){
+  const membres=membresGroupe(g); if(!membres.length) return;
+  if(!confirm('Retirer « '+membres[0].recette.nom+' » de ce repas ?')) return;
+  const cl=cliClient();
+  repasOuverts.add(membres[0].meal);
+  for(const e of membres) await dbDelEntree(e.id);
+  const ids=membres.map(e=>e.id);
+  cl.journal[curDate]=entriesFor(curDate,cl).filter(e=>!ids.includes(e.id));
+  renderCli();renderCoach();
+  dtToast('Recette retirée du repas');
 }function openReprise(idx){
   repriseMeal=idx;
   const cl=cliClient(), nomRepas=mealName(idx);
@@ -1601,11 +1880,12 @@ async function trouverCode(brut){
   const c=window._reprises[i]; if(!c)return;
   const cl=cliClient();
   if(!cl.journal[curDate])cl.journal[curDate]=[];
-  let n=0;
+  let n=0; const groupes={};
   for(const e of c.ents){
-    const id=await dbAddEntree(cl.id,curDate,repriseMeal,e.ref,e.q,e.mac,e.nom);
+    const rec=copieRecette(e.recette,groupes);
+    const id=await dbAddEntree(cl.id,curDate,repriseMeal,e.ref,e.q,e.mac,e.nom,rec);
     if(!id)continue;
-    cl.journal[curDate].push({id,meal:repriseMeal,src:'base',ref:e.ref,alimentId:e.alimentId,nom:e.nom,q:e.q,mac:e.mac});
+    cl.journal[curDate].push({id,meal:repriseMeal,src:'base',ref:e.ref,alimentId:e.alimentId,nom:e.nom,q:e.q,mac:e.mac,recette:rec});
     n++;
   }
   repasOuverts.add(repriseMeal);        // le repas repris reste déplié
