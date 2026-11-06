@@ -2597,8 +2597,8 @@ async function loadComments(clientId) {
         if (note && note.trim()) trainingComments.push({
           auteur:    'client',
           categorie: 'Training',
-          reference: quoi + ' · ' + noteSeanceEsc(s.titre || ''),
-          contenu:   noteSeanceEsc(note),
+          reference: quoi + ' · ' + (s.titre || ''),
+          contenu:   note,
           date:      s.date || '',
         });
       });
@@ -2703,7 +2703,7 @@ async function loadComments(clientId) {
         return `<div style="display:flex;flex-direction:column;align-items:${isC?'flex-end':'flex-start'};margin-bottom:5px;">
           <div style="max-width:85%;padding:7px 11px;border-radius:${isC?'12px 12px 4px 12px':'12px 12px 12px 4px'};
             background:${isC?'var(--accent)':'var(--surface2)'};color:${isC?'#fff':'var(--text)'};
-            font-size:12px;line-height:1.45;">${msg.contenu}</div>
+            font-size:12px;line-height:1.45;">${echap(msg.contenu)}</div>
           <div style="font-size:9px;color:var(--muted);margin-top:2px;">${isC?'Coach':clientPrenom}${ts?' · '+ts:''}</div>
         </div>`;
       }).join('');
@@ -2726,7 +2726,7 @@ async function loadComments(clientId) {
     if (!isCoach && c.metriqueId) {
       const replyId = `${c.metriqueId}-${c.valDate}`;
       metricReplyHtml = `
-        ${c.reponse ? `<div style="margin-top:8px;padding:7px 11px;border-radius:12px 12px 4px 12px;background:var(--accent);color:#fff;font-size:12px;line-height:1.45;display:inline-block;max-width:85%;">${c.reponse}</div>` : ''}
+        ${c.reponse ? `<div style="margin-top:8px;padding:7px 11px;border-radius:12px 12px 4px 12px;background:var(--accent);color:#fff;font-size:12px;line-height:1.45;display:inline-block;max-width:85%;">${echap(c.reponse)}</div>` : ''}
         <div style="display:flex;gap:6px;margin-top:7px;">
           <input id="metric-reply-input-${replyId}" type="text" placeholder="Répondre à ${clientPrenom}…"
             style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;"
@@ -2741,10 +2741,10 @@ async function loadComments(clientId) {
       <div class="comment-meta">
         <span class="comment-author ${isCoach ? 'coach' : 'client'}">${isCoach ? 'Coach' : clientPrenom}</span>
         ${c.categorie ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:${catColor}1a;color:${catColor};font-weight:600">${c.categorie}</span>` : ''}
-        ${c.reference ? `<span class="comment-exo">${c.reference}</span>` : ''}
+        ${c.reference ? `<span class="comment-exo">${echap(c.reference)}</span>` : ''}
         ${dateStr ? `<span class="comment-date">${dateStr}</span>` : ''}
       </div>
-      <div class="comment-body">${c.contenu}</div>
+      <div class="comment-body">${echap(c.contenu)}</div>
       ${threadHtml}
       ${metricReplyHtml}
     </div>`;
@@ -2820,15 +2820,21 @@ async function sendCoachComment() {
 // ═══════════════════════════════════════════════════════════
 //  SÉANCES + EXERCICES DANS SÉANCES
 // ═══════════════════════════════════════════════════════════
-function noteSeanceEsc(v) {
+// Tout ce qu'une cliente peut écrire passe par echap() avant d'entrer dans la
+// page : sinon un script glissé dans une note s'exécuterait avec le compte coach.
+function echap(v) {
   return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Même chose pour une valeur placée dans une chaîne '...' d'un onclick
+function echapJs(v) {
+  return echap(String(v == null ? '' : v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' '));
 }
 // Notes de la cliente sur la séance entière et sur l'échauffement
 function notesClienteSeance(s) {
   const bloc = (titre, note) => (note && note.trim())
     ? `<div style="padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;line-height:1.5;">
          <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:2px;">${titre}</div>
-         <div style="white-space:pre-wrap;">${noteSeanceEsc(note)}</div>
+         <div style="white-space:pre-wrap;">${echap(note)}</div>
        </div>` : '';
   return bloc('Note de la cliente sur la séance', s.note_client)
        + bloc('Note de la cliente sur l\'échauffement', s.note_echauffement_client);
@@ -2896,8 +2902,8 @@ CREATE POLICY "Allow all anon on seances"
       <div class="seance-card" id="seance-${s.id}">
         <div class="seance-card-top" onclick="toggleSeanceDetail('${s.id}')">
           <div class="seance-card-date">${dateStr}</div>
-          <div class="seance-card-name">${s.titre}${((s.note_client || '').trim() || (s.note_echauffement_client || '').trim()) ? ' <span title="La cliente a laissé une note">💬</span>' : ''}</div>
-          <span class="seance-card-badge" style="${st}">${s.statut}</span>
+          <div class="seance-card-name">${echap(s.titre)}${((s.note_client || '').trim() || (s.note_echauffement_client || '').trim()) ? ' <span title="La cliente a laissé une note">💬</span>' : ''}</div>
+          <span class="seance-card-badge" style="${st}">${echap(s.statut)}</span>
           <svg class="seance-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <div class="seance-exo-panel" id="exo-panel-${s.id}">
@@ -2915,7 +2921,7 @@ CREATE POLICY "Allow all anon on seances"
             Ajouter un exercice
           </button>
           <div style="padding:8px 14px 10px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center;">
-            ${s.notes ? `<span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.notes}</span>` : '<span style="flex:1"></span>'}
+            ${s.notes ? `<span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${echap(s.notes)}</span>` : '<span style="flex:1"></span>'}
             <button class="btn ${isValidee ? 'btn-ghost' : 'btn-accent'} btn-sm" onclick="event.stopPropagation();toggleSeanceValidation('${s.id}', ${isValidee})">${isValidee ? 'Invalider' : 'Valider'}</button>
             <button class="btn btn-danger btn-sm" onclick="deleteSeance('${s.id}')">Supprimer la séance</button>
           </div>
@@ -2970,8 +2976,8 @@ async function loadSeanceEchauffement(seanceId) {
         <div class="seance-exo-drag-handle" title="Glisser pour réordonner">⠿</div>
         <div class="seance-exo-num">${i+1}</div>
         <div class="seance-exo-info" style="flex:1">
-          <div class="seance-exo-name">${e.nom_exo}</div>
-          ${e.consigne ? `<div class="seance-exo-params" style="color:var(--dim)">${e.consigne}</div>` : ''}
+          <div class="seance-exo-name">${echap(e.nom_exo)}</div>
+          ${e.consigne ? `<div class="seance-exo-params" style="color:var(--dim)">${echap(e.consigne)}</div>` : ''}
         </div>
         <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditEchFromSeance('${seanceId}', '${e.id}')">Modifier</button>
         <button class="seance-exo-del" title="Retirer" onclick="deleteSeanceEchExo('${e.id}','${seanceId}')">×</button>
@@ -3059,28 +3065,28 @@ async function loadSeanceExercices(seanceId) {
         const chg = (s.charge !== null && s.charge !== undefined) ? s.charge : globalCharge;
         if (isUni) {
           return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
-            <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
-            ${(s.reps_g !== null && s.reps_g !== undefined) || (s.reps_d !== null && s.reps_d !== undefined) ? `<span style="color:var(--success);">G:${s.reps_g ?? '—'} D:${s.reps_d ?? '—'}</span>` : ''}
-            ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
+            <span style="color:var(--muted);min-width:18px;">S${echap(s.serie)}</span>
+            ${(s.reps_g !== null && s.reps_g !== undefined) || (s.reps_d !== null && s.reps_d !== undefined) ? `<span style="color:var(--success);">G:${echap(s.reps_g ?? '—')} D:${echap(s.reps_d ?? '—')}</span>` : ''}
+            ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${echap(chg)} kg</span>` : ''}
           </div>`;
         }
         return `<div style="display:flex;gap:5px;align-items:center;font-size:11px;">
-          <span style="color:var(--muted);min-width:18px;">S${s.serie}</span>
-          ${(s.reps !== null && s.reps !== undefined) ? `<span style="color:var(--success);">${s.reps} reps</span>` : ''}
-          ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${chg} kg</span>` : ''}
+          <span style="color:var(--muted);min-width:18px;">S${echap(s.serie)}</span>
+          ${(s.reps !== null && s.reps !== undefined) ? `<span style="color:var(--success);">${echap(s.reps)} reps</span>` : ''}
+          ${chg !== null ? `<span style="font-weight:700;color:var(--success);">${echap(chg)} kg</span>` : ''}
         </div>`;
       }).join('');
       realiséHtml = `<div style="margin-top:5px;background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.15);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;">
         <span style="font-size:9px;font-weight:700;color:var(--success);letter-spacing:0.05em;margin-bottom:2px;">RÉALISÉ</span>
         ${rows}
-        ${e.notes_client ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;border-top:1px solid rgba(22,163,74,0.15);padding-top:3px;">${e.notes_client}</div>` : ''}
+        ${e.notes_client ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;border-top:1px solid rgba(22,163,74,0.15);padding-top:3px;">${echap(e.notes_client)}</div>` : ''}
       </div>`;
     } else if (e.charge_reelle || e.reps_reelles || e.notes_client) {
       realiséHtml = `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--success);background:rgba(22,163,74,0.08);border-radius:20px;padding:1px 7px">Réalisé (résumé)</span>
-        ${e.charge_reelle ? `<span style="font-size:11px;font-weight:700;color:var(--success)">${e.charge_reelle} kg</span>` : ''}
-        ${e.reps_reelles  ? `<span style="font-size:11px;color:var(--success)">${e.reps_reelles} reps</span>` : ''}
-        ${e.notes_client  ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${e.notes_client}</span>` : ''}
+        ${e.charge_reelle ? `<span style="font-size:11px;font-weight:700;color:var(--success)">${echap(e.charge_reelle)} kg</span>` : ''}
+        ${e.reps_reelles  ? `<span style="font-size:11px;color:var(--success)">${echap(e.reps_reelles)} reps</span>` : ''}
+        ${e.notes_client  ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${echap(e.notes_client)}</span>` : ''}
         <div style="font-size:9px;color:#aaa;">[pas de series_data]</div>
       </div>`;
     }
@@ -3088,7 +3094,7 @@ async function loadSeanceExercices(seanceId) {
     const isAlerted = alertedNames.has((e.nom_exo || '').trim().toLowerCase());
     const alertNote = isAlerted ? (window._exoAlertesNotes?.[(e.nom_exo || '').trim().toLowerCase()] || '') : '';
     const alertBadge = isAlerted
-      ? `<span title="${alertNote ? alertNote.replace(/"/g,'&quot;') : 'Alerte posée par la cliente'}" style="flex:0 0 auto;font-size:14px;cursor:help;">⚠️</span>`
+      ? `<span title="${alertNote ? echap(alertNote) : 'Alerte posée par la cliente'}" style="flex:0 0 auto;font-size:14px;cursor:help;">⚠️</span>`
       : '';
 
     const isPendingPick = pendingSupersetExoId === e.id;
@@ -3108,8 +3114,8 @@ async function loadSeanceExercices(seanceId) {
           <div class="seance-exo-drag-handle" title="Glisser pour réordonner">⠿</div>
           <div class="seance-exo-num">${i+1}</div>
           <div class="seance-exo-info" style="flex:1">
-            <div class="seance-exo-name">${e.nom_exo}</div>
-            <div class="seance-exo-params" style="color:var(--dim)">Prog : ${planned}</div>
+            <div class="seance-exo-name">${echap(e.nom_exo)}</div>
+            <div class="seance-exo-params" style="color:var(--dim)">Prog : ${echap(planned)}</div>
             ${realiséHtml}
           </div>
           ${alertBadge}
@@ -4034,6 +4040,11 @@ async function createClient() {
     alert('Remplis le prénom, l\'e-mail et un PIN à 4 chiffres.');
     return;
   }
+  // Une adresse mal formée bloquerait la cliente à l'activation de son compte
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert('Cette adresse e-mail n\'est pas valide.');
+    return;
+  }
 
   const btn = document.getElementById('btn-create-client');
   btn.disabled = true; btn.textContent = 'Création…';
@@ -4267,9 +4278,9 @@ async function loadClientCycleData() {
       const saigColor  = { aucun:'var(--muted)', léger:'#fb923c', modéré:'#ef4444', abondant:'#b91c1c' }[row.saignement] || 'var(--muted)';
       d.innerHTML = `
         <span style="font-size:11px;font-weight:700;color:var(--muted);min-width:46px;">${dateStr}</span>
-        ${row.glaire     ? `<span style="font-size:11px;">${glaireIcon} <span style="color:var(--text-muted)">${row.glaire}</span></span>` : ''}
-        ${row.saignement ? `<span style="font-size:11px;color:${saigColor};">🩸 ${row.saignement}</span>` : ''}
-        ${row.temperature ? `<span style="font-size:11px;">🌡️ ${row.temperature}°C</span>` : ''}
+        ${row.glaire     ? `<span style="font-size:11px;">${glaireIcon} <span style="color:var(--text-muted)">${echap(row.glaire)}</span></span>` : ''}
+        ${row.saignement ? `<span style="font-size:11px;color:${saigColor};">🩸 ${echap(row.saignement)}</span>` : ''}
+        ${row.temperature ? `<span style="font-size:11px;">🌡️ ${echap(row.temperature)}°C</span>` : ''}
         ${row.spotting   ? `<span style="font-size:11px;color:#f97316;">✦ spotting</span>` : ''}
         ${(!row.glaire && !row.saignement && !row.temperature && !row.spotting) ? '<span style="font-size:11px;color:var(--muted);">—</span>' : ''}
       `;
@@ -5832,8 +5843,8 @@ async function showMetricHistory(metriqueId, nom, unit) {
       const args = `'${metriqueId}','${v.date}','${nEsc}','${uEsc}'`;
       return `<div class="history-row">
         <div class="history-date">${dateStr}</div>
-        <div class="history-val" onclick="editMetricValue(${args},${v.valeur})"
-             style="cursor:pointer" title="Corriger cette valeur">${v.valeur} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
+        <div class="history-val" onclick="editMetricValue(${args},${Number(v.valeur)})"
+             style="cursor:pointer" title="Corriger cette valeur">${echap(v.valeur)} <span style="font-size:11px;color:var(--muted);font-weight:500;">${unit}</span></div>
         <div class="history-delta ${dir}">${delta}</div>
         <button class="hist-del" title="Supprimer cette mesure"
                 onclick="deleteMetricValue(${args})">×</button>
@@ -5947,10 +5958,10 @@ async function showHabitHistory(habitudeId, nom, type) {
         : '<span style="color:var(--danger);font-weight:600;">✗ Non</span>';
     } else if (type === 'note') {
       const n = parseInt(v.valeur);
-      const stars = ['','★','★★','★★★','★★★★'][n] || v.valeur;
+      const stars = ['','★','★★','★★★','★★★★'][n] || echap(v.valeur);
       display = `<span style="color:var(--accent);font-weight:600;">${stars}</span> <span style="font-size:11px;color:var(--muted)">${n}/4</span>`;
     } else {
-      display = `<span style="font-weight:600;">${v.valeur}</span>`;
+      display = `<span style="font-weight:600;">${echap(v.valeur)}</span>`;
     }
     return `<div class="history-row">
       <div class="history-date">${dateStr}</div>
@@ -6139,14 +6150,14 @@ function renderProgGrid() {
       const chips = daySeances.map(s => {
         const movable = s.statut !== 'validée';
         const extraClass = (s.type_seance === 'cardio') ? ' cardio-type' : '';
-        const titleAttr = movable ? s.titre : `${s.titre} (validée — déplacement bloqué)`;
-        return `<span class="prog-chip ${s.statut}${extraClass}" title="${titleAttr}"
+        const titleAttr = echap(movable ? s.titre : `${s.titre} (validée — déplacement bloqué)`);
+        return `<span class="prog-chip ${echap(s.statut)}${extraClass}" title="${titleAttr}"
           draggable="${movable}"
           data-seance-id="${s.id}"
           ondragstart="onChipDragStart(event,'${s.id}')"
           ondragend="onChipDragEnd(event)"
-          onclick="event.stopPropagation();openProgSeanceDetail('${s.id}','${s.titre.replace(/'/g,"\\'")}','${s.date}','${s.statut}')"
-         >${s.titre}</span>`;
+          onclick="event.stopPropagation();openProgSeanceDetail('${s.id}','${echapJs(s.titre)}','${s.date}','${echapJs(s.statut)}')"
+         >${echap(s.titre)}</span>`;
       }).join('');
       const bilanActive = progBilanAll.includes(key);
       const bilanChip = `<button type="button" class="prog-bilan-chip${bilanActive?' active':''}"
@@ -6446,8 +6457,8 @@ async function loadProgDetailExos(seanceId) {
       <div style="display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--border);">
         <div style="width:22px;height:22px;border-radius:6px;background:transparent;color:var(--text-dim);border:1px solid var(--border);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${i+1}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;">${e.nom_exo}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${params}</div>
+          <div style="font-size:13px;font-weight:600;">${echap(e.nom_exo)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${echap(params)}</div>
         </div>
         <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;" onclick="openEditPickerExo('${seanceId}', ${i})">Modifier</button>
       </div>`;
@@ -6784,17 +6795,17 @@ function _renderCoachPerfs() {
     const trLabel = getTechRevueLabel(e.name);
     return `
     <div class="perf-card">
-      <div class="perf-card-name">${e.name}</div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${e.label}</div>
+      <div class="perf-card-name">${echap(e.name)}</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">${echap(e.label)}</div>
       <canvas class="perf-card-canvas" id="pfc-${i}" height="80"></canvas>
       <div class="perf-pr" style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;">
-        <span style="font-size:11px;color:var(--muted);">Best <strong style="color:var(--accent);font-size:14px;font-weight:800;">${e.best} ${e.unit}</strong></span>
+        <span style="font-size:11px;color:var(--muted);">Best <strong style="color:var(--accent);font-size:14px;font-weight:800;">${echap(e.best)} ${echap(e.unit)}</strong></span>
         <span style="font-size:11px;font-weight:700;color:${e.prog >= 0 ? 'var(--success)' : 'var(--danger)'}">${e.prog >= 0 ? '+' : ''}${e.prog}%</span>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:3px;">${e.vals.length} séance${e.vals.length > 1 ? 's' : ''}</div>
       <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px;">
         <span id="tr-label-${i}" style="font-size:9px;color:var(--muted);font-style:italic;">${trLabel}</span>
-        <button data-exo-name="${e.name.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" data-card-idx="${i}"
+        <button data-exo-name="${echap(e.name)}" data-card-idx="${i}"
           onclick="markTechniqueRevue(this.dataset.exoName, parseInt(this.dataset.cardIdx))"
           style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--accent);color:var(--accent);background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;">✓ Technique revue</button>
       </div>
@@ -6869,7 +6880,7 @@ async function openAddPerfCoach() {
         .select('nom_exo').in('seance_id', seances.map(s => s.id));
       const names = [...new Set((exos||[]).map(e => e.nom_exo).filter(Boolean))].sort();
       const dl = document.getElementById('aph-nom-list');
-      dl.innerHTML = names.map(n => `<option value="${n.replace(/"/g,'&quot;')}">`).join('');
+      dl.innerHTML = names.map(n => `<option value="${echap(n)}">`).join('');
     }
   } catch(e) {}
 
@@ -7844,7 +7855,7 @@ function lignesJournalCoach(mine){
     const membres=mine.filter(x=>x.recette&&x.recette.g===g);
     const t={kcal:0,p:0,g:0,l:0}; membres.forEach(x=>{t.kcal+=x.mac.kcal||0;t.p+=x.mac.p||0;t.g+=x.mac.g||0;t.l+=x.mac.l||0;});
     const n=e.recette.parts;
-    return '<div class="dde" style="font-weight:700"><span>🍲 '+dtEsc(e.recette.nom)+' · '+String(n).replace('.',',')+' part'+(n>1?'s':'')+'</span>'
+    return '<div class="dde" style="font-weight:700"><span>🍲 '+dtEsc(e.recette.nom)+' · '+dtEsc(String(n).replace('.',','))+' part'+(n>1?'s':'')+'</span>'
       +'<span>'+Math.round(t.kcal)+' kcal · P '+r1(t.p)+' / G '+r1(t.g)+' / L '+r1(t.l)+'</span></div>'
       +membres.map(x=>ligne(x,true)).join('');
   }).join('');
@@ -7858,7 +7869,7 @@ function carteRecettesCoach(cl){
     return '<div class="pend"><div class="pi"><div class="pn">🍲 '+dtEsc(r.nom)+'</div>'
       +'<div class="pm">Par part : '+Math.round(pp('kcal'))+' kcal · P '+r1(pp('p'))+' · G '+r1(pp('g'))+' · L '+r1(pp('l'))+' · Fibres '+r1(pp('fib'))
       +' — recette en '+String(n).replace('.',',')+' part'+(n>1?'s':'')+'</div>'
-      +'<div class="pby">'+r.ingredients.map(i=>dtEsc(i.nom)+' '+i.q+' g').join(' · ')+'</div>'
+      +'<div class="pby">'+r.ingredients.map(i=>dtEsc(i.nom)+' '+dtEsc(i.q)+' g').join(' · ')+'</div>'
       +(v.manquants.length?'<div class="pby" style="color:var(--danger)">Plus dans la base : '+v.manquants.map(dtEsc).join(', ')+'</div>':'')
       +'</div></div>';
   }).join(''):'<div class="empty">Aucune recette enregistrée</div>';
