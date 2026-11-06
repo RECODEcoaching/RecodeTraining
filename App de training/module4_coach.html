@@ -2584,11 +2584,25 @@ async function loadComments(clientId) {
   list.innerHTML        = '';
 
   // 1. Commentaires training : notes sur les seance_exercices
-  const { data: seances } = await db.from('seances').select('id, date, titre').eq('client_id', clientId);
+  const { data: seances } = await db.from('seances').select('id, date, titre, note_client, note_echauffement_client').eq('client_id', clientId);
   const trainingComments = [];
   if (seances && seances.length) {
     const seanceIds  = seances.map(s => s.id);
     const dateMap    = {}; seances.forEach(s => { dateMap[s.id] = { date: s.date, titre: s.titre }; });
+
+    // Notes laissées sur la séance entière et sur l'échauffement. Sans exoId :
+    // elles n'ont pas de fil de réponse, celui-ci est porté par seance_exercices.
+    seances.forEach(s => {
+      [[s.note_client, 'Séance'], [s.note_echauffement_client, 'Échauffement']].forEach(([note, quoi]) => {
+        if (note && note.trim()) trainingComments.push({
+          auteur:    'client',
+          categorie: 'Training',
+          reference: quoi + ' · ' + noteSeanceEsc(s.titre || ''),
+          contenu:   noteSeanceEsc(note),
+          date:      s.date || '',
+        });
+      });
+    });
 
     // Marquer comme lues par le coach toutes les notes pas encore vues de
     // cette cliente, puisqu'on ouvre justement son onglet Commentaires.
@@ -2806,6 +2820,20 @@ async function sendCoachComment() {
 // ═══════════════════════════════════════════════════════════
 //  SÉANCES + EXERCICES DANS SÉANCES
 // ═══════════════════════════════════════════════════════════
+function noteSeanceEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Notes de la cliente sur la séance entière et sur l'échauffement
+function notesClienteSeance(s) {
+  const bloc = (titre, note) => (note && note.trim())
+    ? `<div style="padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;line-height:1.5;">
+         <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:2px;">${titre}</div>
+         <div style="white-space:pre-wrap;">${noteSeanceEsc(note)}</div>
+       </div>` : '';
+  return bloc('Note de la cliente sur la séance', s.note_client)
+       + bloc('Note de la cliente sur l\'échauffement', s.note_echauffement_client);
+}
+
 async function loadSeances(clientId) {
   const list = document.getElementById('seances-list');
   list.innerHTML = '<div class="loading-text" style="padding:28px 0">Chargement des séances…</div>';
@@ -2868,11 +2896,12 @@ CREATE POLICY "Allow all anon on seances"
       <div class="seance-card" id="seance-${s.id}">
         <div class="seance-card-top" onclick="toggleSeanceDetail('${s.id}')">
           <div class="seance-card-date">${dateStr}</div>
-          <div class="seance-card-name">${s.titre}</div>
+          <div class="seance-card-name">${s.titre}${((s.note_client || '').trim() || (s.note_echauffement_client || '').trim()) ? ' <span title="La cliente a laissé une note">💬</span>' : ''}</div>
           <span class="seance-card-badge" style="${st}">${s.statut}</span>
           <svg class="seance-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <div class="seance-exo-panel" id="exo-panel-${s.id}">
+          ${notesClienteSeance(s)}
           <div class="seance-section-label ech">Échauffement</div>
           <div id="ech-list-${s.id}" class="seance-exo-empty">Chargement…</div>
           <button class="seance-exo-add" onclick="openEchPicker('${s.id}')">
