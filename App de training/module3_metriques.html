@@ -2082,6 +2082,10 @@ function renderHabitsWeekScores() {
   });
 }
 
+function echap(v) {
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 async function loadHabitsProgress() {
   if (!allHabitudes.length) { habitProgressValeurs = {}; return; }
   const ids = allHabitudes.map(h => h.id);
@@ -2738,7 +2742,7 @@ function openMetricDetail(id) {
       const dateStr = new Date(v.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
       const hasUnreadReply = v.reponse_coach && v.reponse_lue === false;
       const noteLine = v.commentaire
-        ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:3px;">💬 ${v.commentaire}${hasUnreadReply ? ' <span style="display:inline-flex;align-items:center;gap:3px;background:#EF4444;color:#fff;font-size:9px;font-weight:700;font-style:normal;padding:1px 6px;border-radius:20px;margin-left:4px;">Réponse coach</span>' : ''}</div>`
+        ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:3px;">💬 ${echap(v.commentaire)}${hasUnreadReply ? ' <span style="display:inline-flex;align-items:center;gap:3px;background:#EF4444;color:#fff;font-size:9px;font-weight:700;font-style:normal;padding:1px 6px;border-radius:20px;margin-left:4px;">Réponse coach</span>' : ''}</div>`
         : '';
       const histValStr = type === 'temps' ? minsToHHMM(v.valeur) : v.valeur;
       const histUnit   = type === 'temps' ? '' : (m.unite || '');
